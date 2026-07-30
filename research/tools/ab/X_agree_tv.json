@@ -1,0 +1,4 @@
+{"name":"X — الاتفاق + أولوية Trend Vote معاً",
+ "flags":{"syr30UseBalance":true,"syr30UseAsia":true,"syr30UseDeadAuction":true,"syr30AuctionBuyEnabled":true,"fusionUseMomentum":true,"fusionUseQQEVortex":true},
+ "rewrites":[["int m1SelectedSide = m1BaseSide","int m1SelectedSide = (m1BaseSide != 0 and syr30ReplacementSide == m1BaseSide) ? m1BaseSide : 0"],
+             ["int syCleanSelectedSide = sy8624SelectedSide != 0 ? sy8624SelectedSide : tvAddonSide","int syCleanSelectedSide = tvAddonSide != 0 ? tvAddonSide : sy8624SelectedSide"]]}

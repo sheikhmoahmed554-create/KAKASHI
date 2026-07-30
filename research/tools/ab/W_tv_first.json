@@ -1,0 +1,2 @@
+{"name":"W — أولوية Trend Vote على الأساس",
+ "rewrites":[["int syCleanSelectedSide = sy8624SelectedSide != 0 ? sy8624SelectedSide : tvAddonSide","int syCleanSelectedSide = tvAddonSide != 0 ? tvAddonSide : sy8624SelectedSide"]]}
