@@ -1,0 +1,83 @@
+{
+ "all": {
+  "trades": 6462,
+  "win_rate": 60.74,
+  "net_points": 8069.0,
+  "per_trade": 1.249,
+  "per_day": 46.2
+ },
+ "by_source": {
+  "BASE 999": {
+   "trades": 5486,
+   "win_rate": 61.37,
+   "net_points": 7997.0,
+   "per_trade": 1.458,
+   "per_day": 39.2
+  },
+  "SCHOOL FUSION": {
+   "trades": 894,
+   "win_rate": 56.6,
+   "net_points": -123.0,
+   "per_trade": -0.138,
+   "per_day": 6.4
+  },
+  "TREND VOTE": {
+   "trades": 82,
+   "win_rate": 63.41,
+   "net_points": 195.0,
+   "per_trade": 2.378,
+   "per_day": 1.3
+  }
+ },
+ "by_month": {
+  "2026-01": {
+   "trades": 916,
+   "win_rate": 60.26,
+   "net_points": 1070.0,
+   "per_trade": 1.168,
+   "per_day": 43.6
+  },
+  "2026-02": {
+   "trades": 977,
+   "win_rate": 62.33,
+   "net_points": 3269.0,
+   "per_trade": 3.346,
+   "per_day": 48.9
+  },
+  "2026-03": {
+   "trades": 1112,
+   "win_rate": 60.88,
+   "net_points": 2179.0,
+   "per_trade": 1.96,
+   "per_day": 50.5
+  },
+  "2026-04": {
+   "trades": 979,
+   "win_rate": 60.78,
+   "net_points": 1315.0,
+   "per_trade": 1.343,
+   "per_day": 46.6
+  },
+  "2026-05": {
+   "trades": 943,
+   "win_rate": 59.17,
+   "net_points": -531.0,
+   "per_trade": -0.563,
+   "per_day": 44.9
+  },
+  "2026-06": {
+   "trades": 997,
+   "win_rate": 58.98,
+   "net_points": -1241.0,
+   "per_trade": -1.245,
+   "per_day": 45.3
+  },
+  "2026-07": {
+   "trades": 538,
+   "win_rate": 64.31,
+   "net_points": 2008.0,
+   "per_trade": 3.732,
+   "per_day": 41.4
+  }
+ }
+}

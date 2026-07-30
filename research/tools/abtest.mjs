@@ -48,6 +48,8 @@ const FIX_60_65 = {
 };
 const VARIANTS = {
   A_baseline: {},
+  Q_no_fusion: { useFinalSchoolFusion: false },          // إطفاء طبقة المدارس كلها
+  R_no_fusion_no_tv: { useFinalSchoolFusion: false, useTrendVoteRouter: false },
   N_dev_adaptive: {},                 // محرك الخروج الذكي داخل نافذة السكالب
   O_dev_55_60: { ...FIX_55_60 },
   P_dev_60_65: { ...FIX_60_65 },
@@ -89,12 +91,15 @@ if (process.env.DAYS) { // اختبار سريع أثناء التطوير فق�
   const d0 = Math.floor(rows[0].time / 86400000);
   rows = rows.filter(r => Math.floor(r.time / 86400000) < d0 + Number(process.env.DAYS));
 }
-console.error(`[${variant}] ${rows.length} شمعة، بدأ التشغيل…`);
+const SEG_START = process.env.SEG_START || '';   // مثال 2026-03-01T00:00
+const SEG_END = process.env.SEG_END || '';
+console.error(`[${variant}] ${rows.length} شمعة${SEG_START ? ` • مقطع ${SEG_START} → ${SEG_END}` : ''}، بدأ التشغيل…`);
 
 const t0 = Date.now();
 self.onmessage({ data: {
   source, rows, inputs: VARIANTS[variant],
-  lot: 0.02, dpp: 20, warmup: 0, profile: 'TV_SESSION_22_23', fragileThreshold: 0.5,
+  lot: 0.02, dpp: 20, profile: 'TV_SESSION_22_23', fragileThreshold: 0.5,
+  start: SEG_START, end: SEG_END, warmup: SEG_START ? 5000 : 0,
 } });
 const done = messages.find(m => m.type === 'done');
 if (!done.ok) {
@@ -117,9 +122,13 @@ const stat = list => {
     per_day: days ? +(list.length / days).toFixed(1) : 0,
   };
 };
+// صفقة كانت مفتوحة قبل بداية المقطع تصل بوقت دخول نصّي ('PRE-START OPEN')،
+// ودخولها خارج النافذة أصلاً، فتُستبعد من الإحصاء بدل أن تكسره.
+const dated = done.trades.filter(t => Number.isFinite(Date.parse(t.entry_time)));
+const preStart = done.trades.length - dated.length;
 const groupBy = key => {
   const buckets = new Map();
-  for (const t of done.trades) {
+  for (const t of dated) {
     const k = key(t);
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k).push(t);
@@ -136,16 +145,18 @@ const out = {
   variant, inputs: VARIANTS[variant], pine: pineOverride || 'embedded',
   runtime_seconds: +((Date.now() - t0) / 1000).toFixed(1),
   bars: done.bars_processed, summary: done.summary,
-  all: stat(done.trades),
-  train: stat(done.trades.filter(t => Date.parse(t.entry_time) < TRAIN_END)),
-  test: stat(done.trades.filter(t => Date.parse(t.entry_time) >= TRAIN_END)),
+  all: stat(dated), pre_start_dropped: preStart,
+  train: stat(dated.filter(t => Date.parse(t.entry_time) < TRAIN_END)),
+  test: stat(dated.filter(t => Date.parse(t.entry_time) >= TRAIN_END)),
+  by_source: groupBy(t => t.source || 'غير معروف'),
   months: groupBy(t => t.entry_time.slice(0, 7)),
   weeks: groupBy(isoWeek),
 };
 fs.writeFileSync(outPath, JSON.stringify(out, null, 1));
 // نحفظ الصفقات مضغوطة حتى تُعاد أي قسمة نوافذ لاحقاً بدون إعادة تشغيل المحرك.
 fs.writeFileSync(outPath.replace(/\.json$/, '_trades.json.gz'), zlib.gzipSync(JSON.stringify(
-  done.trades.map(t => [t.entry_time, t.side, t.outcome, t.points, t.target_points, t.stop_points]))));
+  dated.map(t => [t.entry_time, t.side, t.outcome, t.points, t.target_points, t.stop_points,
+    t.source, t.reported_source_code, t.trade_kind, t.entry_price, t.exit_time]))));
 console.error(`[${variant}] تم في ${out.runtime_seconds}s — ` +
   `${out.all.trades} صفقة، ${out.all.win_rate}% • ` +
   `${out.months.length} شهر، ${out.weeks.length} أسبوع`);

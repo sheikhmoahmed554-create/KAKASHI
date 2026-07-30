@@ -1,0 +1,165 @@
+{
+ "variant": "Q_no_fusion",
+ "inputs": {
+  "useFinalSchoolFusion": false
+ },
+ "pine": "research/variants/SYR30_USER_CURRENT.pine",
+ "runtime_seconds": 189,
+ "bars": 33990,
+ "summary": {
+  "trades": 1225,
+  "wins": 753,
+  "losses": 472,
+  "win_rate": 61.46938775510204,
+  "net_points": 3502,
+  "net_dollars": 1400.8,
+  "max_win_streak": 15,
+  "max_loss_streak": 7,
+  "avg_target_points": 39.06507304116866,
+  "avg_stop_points": 54.902542372881356
+ },
+ "all": {
+  "trades": 1225,
+  "wins": 753,
+  "losses": 472,
+  "win_rate": 61.47,
+  "net_points": 3502,
+  "per_trade": 2.859,
+  "per_day": 45.4
+ },
+ "pre_start_dropped": 0,
+ "train": {
+  "trades": 1225,
+  "wins": 753,
+  "losses": 472,
+  "win_rate": 61.47,
+  "net_points": 3502,
+  "per_trade": 2.859,
+  "per_day": 45.4
+ },
+ "test": {
+  "trades": 0,
+  "wins": 0,
+  "losses": 0,
+  "win_rate": 0,
+  "net_points": 0,
+  "per_trade": 0,
+  "per_day": 0
+ },
+ "by_source": [
+  {
+   "window": "BASE 999",
+   "trades": 1211,
+   "wins": 743,
+   "losses": 468,
+   "win_rate": 61.35,
+   "net_points": 3327,
+   "per_trade": 2.747,
+   "per_day": 44.9
+  },
+  {
+   "window": "TREND VOTE",
+   "trades": 14,
+   "wins": 10,
+   "losses": 4,
+   "win_rate": 71.43,
+   "net_points": 175,
+   "per_trade": 12.5,
+   "per_day": 1.6
+  }
+ ],
+ "months": [
+  {
+   "window": "2026-01",
+   "trades": 916,
+   "wins": 552,
+   "losses": 364,
+   "win_rate": 60.26,
+   "net_points": 1052,
+   "per_trade": 1.148,
+   "per_day": 43.6
+  },
+  {
+   "window": "2026-02",
+   "trades": 309,
+   "wins": 201,
+   "losses": 108,
+   "win_rate": 65.05,
+   "net_points": 2450,
+   "per_trade": 7.929,
+   "per_day": 51.5
+  }
+ ],
+ "weeks": [
+  {
+   "window": "2025-12-29",
+   "trades": 35,
+   "wins": 18,
+   "losses": 17,
+   "win_rate": 51.43,
+   "net_points": -205,
+   "per_trade": -5.857,
+   "per_day": 35
+  },
+  {
+   "window": "2026-01-05",
+   "trades": 210,
+   "wins": 127,
+   "losses": 83,
+   "win_rate": 60.48,
+   "net_points": 181,
+   "per_trade": 0.862,
+   "per_day": 42
+  },
+  {
+   "window": "2026-01-12",
+   "trades": 206,
+   "wins": 120,
+   "losses": 86,
+   "win_rate": 58.25,
+   "net_points": -319,
+   "per_trade": -1.549,
+   "per_day": 41.2
+  },
+  {
+   "window": "2026-01-19",
+   "trades": 217,
+   "wins": 129,
+   "losses": 88,
+   "win_rate": 59.45,
+   "net_points": -98,
+   "per_trade": -0.452,
+   "per_day": 43.4
+  },
+  {
+   "window": "2026-01-26",
+   "trades": 248,
+   "wins": 158,
+   "losses": 90,
+   "win_rate": 63.71,
+   "net_points": 1493,
+   "per_trade": 6.02,
+   "per_day": 49.6
+  },
+  {
+   "window": "2026-02-02",
+   "trades": 256,
+   "wins": 168,
+   "losses": 88,
+   "win_rate": 65.63,
+   "net_points": 2258,
+   "per_trade": 8.82,
+   "per_day": 51.2
+  },
+  {
+   "window": "2026-02-09",
+   "trades": 53,
+   "wins": 33,
+   "losses": 20,
+   "win_rate": 62.26,
+   "net_points": 192,
+   "per_trade": 3.623,
+   "per_day": 53
+  }
+ ]
+}
