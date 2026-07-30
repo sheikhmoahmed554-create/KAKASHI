@@ -1,5 +1,5 @@
 """يقيس كل إشارة في المؤشر وحدها: نسبة الفوز، الحافة، الدلالة الإحصائية."""
-import json, csv, math, sys, numpy as np
+import json, csv, math, sys, re, numpy as np
 PU=0.1; MAXBARS=30
 TP,SL = (float(sys.argv[2]),float(sys.argv[3])) if len(sys.argv)>3 else (39.0,55.0)  # متوسط خطة المؤشر
 R=list(csv.DictReader(open('vault.csv')))
@@ -31,7 +31,13 @@ print('خط الأساس: شراء tr %.1f te %.1f | بيع tr %.1f te %.1f\n'%(
 rows=[]
 for name,ev in fires.items():
     if not ev: continue
-    buy = 'Buy' in name
+    if name.endswith('Buy') or name.endswith('Long'): buy=True
+    elif name.endswith('Sell') or name.endswith('Short'): buy=False
+    elif re.search(r'(Buy|Long)', name): buy=True
+    elif re.search(r'(Sell|Short)', name): buy=False
+    elif name.endswith('B'): buy=True
+    elif name.endswith('S'): buy=False
+    else: continue
     side = 'BUY' if buy else 'SELL'
     a=[];b=[]
     for i in ev:
