@@ -1,0 +1,285 @@
+{
+ "plan": [
+  30,
+  50
+ ],
+ "singles": [
+  {
+   "source": "اندفاع_حجم_مع_انهيار[شراء]",
+   "trades": 1197,
+   "win_rate": 63.66,
+   "median_lift": 5.05,
+   "worst_lift": -2.36,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": 0.927,
+   "net_points": 1110,
+   "per_day": 8.55
+  },
+  {
+   "source": "ار_اس_اي_٣_متطرف[شراء]",
+   "trades": 3547,
+   "win_rate": 61.49,
+   "median_lift": 2.38,
+   "worst_lift": -3.18,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -0.809,
+   "net_points": -2870,
+   "per_day": 25.34
+  },
+  {
+   "source": "ما_وراء_البولنجر[شراء]",
+   "trades": 5405,
+   "win_rate": 62.11,
+   "median_lift": 1.67,
+   "worst_lift": -0.68,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.313,
+   "net_points": -1690,
+   "per_day": 38.61
+  },
+  {
+   "source": "قرب_الرقم_المدور[شراء]",
+   "trades": 4949,
+   "win_rate": 61.39,
+   "median_lift": 1.44,
+   "worst_lift": -1.74,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.891,
+   "net_points": -4410,
+   "per_day": 35.35
+  }
+ ],
+ "combos": [
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]"
+   ],
+   "trades": 1197,
+   "win_rate": 63.66,
+   "median_lift": 5.05,
+   "worst_lift": -2.36,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": 0.927,
+   "net_points": 1110,
+   "per_day": 8.55
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "ار_اس_اي_٣_متطرف[شراء]"
+   ],
+   "trades": 3987,
+   "win_rate": 61.42,
+   "median_lift": 2.52,
+   "worst_lift": -2.8,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -0.86,
+   "net_points": -3430,
+   "per_day": 28.48
+  },
+  {
+   "sources": [
+    "ار_اس_اي_٣_متطرف[شراء]"
+   ],
+   "trades": 3547,
+   "win_rate": 61.49,
+   "median_lift": 2.38,
+   "worst_lift": -3.18,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -0.809,
+   "net_points": -2870,
+   "per_day": 25.34
+  },
+  {
+   "sources": [
+    "ار_اس_اي_٣_متطرف[شراء]",
+    "ما_وراء_البولنجر[شراء]"
+   ],
+   "trades": 6169,
+   "win_rate": 61.84,
+   "median_lift": 2.17,
+   "worst_lift": -1.54,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -0.527,
+   "net_points": -3250,
+   "per_day": 44.06
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "ار_اس_اي_٣_متطرف[شراء]",
+    "ما_وراء_البولنجر[شراء]"
+   ],
+   "trades": 6311,
+   "win_rate": 61.64,
+   "median_lift": 1.79,
+   "worst_lift": -1.5,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -0.689,
+   "net_points": -4350,
+   "per_day": 45.08
+  },
+  {
+   "sources": [
+    "ار_اس_اي_٣_متطرف[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 6766,
+   "win_rate": 61.11,
+   "median_lift": 1.72,
+   "worst_lift": -2.25,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -1.108,
+   "net_points": -7500,
+   "per_day": 48.33
+  },
+  {
+   "sources": [
+    "ما_وراء_البولنجر[شراء]"
+   ],
+   "trades": 5405,
+   "win_rate": 62.11,
+   "median_lift": 1.67,
+   "worst_lift": -0.68,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.313,
+   "net_points": -1690,
+   "per_day": 38.61
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "ما_وراء_البولنجر[شراء]"
+   ],
+   "trades": 5600,
+   "win_rate": 61.82,
+   "median_lift": 1.62,
+   "worst_lift": -1.15,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.543,
+   "net_points": -3040,
+   "per_day": 40.0
+  },
+  {
+   "sources": [
+    "ار_اس_اي_٣_متطرف[شراء]",
+    "ما_وراء_البولنجر[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 8290,
+   "win_rate": 61.27,
+   "median_lift": 1.5,
+   "worst_lift": -1.07,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.987,
+   "net_points": -8180,
+   "per_day": 59.21
+  },
+  {
+   "sources": [
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 4949,
+   "win_rate": 61.39,
+   "median_lift": 1.44,
+   "worst_lift": -1.74,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.891,
+   "net_points": -4410,
+   "per_day": 35.35
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "ار_اس_اي_٣_متطرف[شراء]",
+    "ما_وراء_البولنجر[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 8355,
+   "win_rate": 61.23,
+   "median_lift": 1.43,
+   "worst_lift": -1.31,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -1.014,
+   "net_points": -8470,
+   "per_day": 59.68
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "ار_اس_اي_٣_متطرف[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 6937,
+   "win_rate": 61.05,
+   "median_lift": 1.35,
+   "worst_lift": -2.11,
+   "months_positive": 5,
+   "months": 7,
+   "per_trade": -1.16,
+   "net_points": -8050,
+   "per_day": 49.55
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "ما_وراء_البولنجر[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 7833,
+   "win_rate": 61.36,
+   "median_lift": 1.2,
+   "worst_lift": -0.8,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.915,
+   "net_points": -7170,
+   "per_day": 55.95
+  },
+  {
+   "sources": [
+    "اندفاع_حجم_مع_انهيار[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 5354,
+   "win_rate": 61.54,
+   "median_lift": 1.14,
+   "worst_lift": -1.47,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.766,
+   "net_points": -4100,
+   "per_day": 38.24
+  },
+  {
+   "sources": [
+    "ما_وراء_البولنجر[شراء]",
+    "قرب_الرقم_المدور[شراء]"
+   ],
+   "trades": 7754,
+   "win_rate": 61.39,
+   "median_lift": 1.09,
+   "worst_lift": -0.62,
+   "months_positive": 6,
+   "months": 7,
+   "per_trade": -0.89,
+   "net_points": -6900,
+   "per_day": 55.39
+  }
+ ]
+}
