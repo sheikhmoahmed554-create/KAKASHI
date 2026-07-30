@@ -15,12 +15,15 @@ const maxBars = maxBarsArg ? Number(maxBarsArg) : 0;
 function patchSource(src, flags) {
   let applied = {}, missing = [];
   for (const [name, want] of Object.entries(flags)) {
-    // name = input.bool(false, "...")  ->  name = input.bool(true, "...")
-    const re = new RegExp('(^\\s*' + name + '\\s*=\\s*input\\.bool\\()\\s*(true|false)\\s*(,)', 'm');
+    // يدعم input.bool / input.string / input.int / input.float
+    const re = new RegExp(
+      '(^\\s*' + name + '\\s*=\\s*input\\.(?:bool|string|int|float)\\()\\s*' +
+      '(true|false|"[^"]*"|-?[0-9.]+)\\s*(,)', 'm');
     const m = src.match(re);
     if (!m) { missing.push(name); continue; }
-    applied[name] = { from: m[2], to: String(want) };
-    src = src.replace(re, '$1' + want + '$3');
+    const lit = typeof want === 'string' ? JSON.stringify(want) : String(want);
+    applied[name] = { from: m[2], to: lit };
+    src = src.replace(re, '$1' + lit + '$3');
   }
   return { src, applied, missing };
 }

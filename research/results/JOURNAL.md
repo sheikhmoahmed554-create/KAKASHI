@@ -439,3 +439,54 @@
 أفضل تكوين (H) يصل إلى −٠.٠٥ — أي التعادل بالضبط، قبل أي تكلفة.
 
 **ما يعنيه هذا للتطوير:** ضبط المفاتيح الموجودة استُنفد ولم ينتج شيئاً. التحسين يتطلب **إضافة مصدر دخول جديد** إلى المؤشر، لا إعادة ترتيب ما فيه.
+
+---
+
+## ٠١٩ — تتبّع سلسلة القرار: كود ميت في قلب المؤشر ⚠️
+
+**جُرّب:** تتبّع سلسلة اتخاذ القرار في SYR30 من التنفيذ إلى المنبع.
+
+**السلسلة:**
+
+```
+rawBuy / rawSell  →  baseBuySignal  →  m1BaseSide  →  m1SelectedSide
+                  →  sy8624BaseSide  →  k3BaseSide  →  التنفيذ
+```
+
+**الاكتشاف — السطر ١٥٦٢:**
+
+```pine
+syr30ReplacementSide = syr30ReplacementBuy ? 1 : syr30ReplacementSell ? -1 : 0
+```
+
+هذا المتغير يحمل قرار مدارس SYR30 الثلاث الجديدة (Balance Reset، Asia Break-Retest، Dead Auction).
+**بحث في الملف كله: يظهر مرة واحدة فقط، عند تعريفه. لا يُقرأ أبداً.**
+
+والسطر ١٥٦٦ مباشرة بعده:
+
+```pine
+m1SelectedSide = m1BaseSide      // الاستبدال يُتجاهل هنا
+```
+
+**ليس مفتاحاً مقفولاً — سلك مقطوع.** حتى لو فُتحت المدارس وحُسبت أصواتها ووصلت لقرار، القرار يُحسب ويُرمى.
+هذا يفسّر نتيجة ٠١٧: فتح كل المدارس غيّر صفقتين من ٢,١٣٨.
+
+**والطبقة الحية الوحيدة — محرك الانحياز SY389 (سطر ١٤٨٤):**
+
+```pine
+rawBuy = not useSY389BiasEngine ? rawBuyBase389
+       : sy389BiasUp   ? (rawBuyBase389 or (sy389ConvertWrongSide and sy389WrongSellInUp))
+       : sy389BiasDown ? false
+       : (sy389KeepRangeOriginal ? rawBuyBase389 : false)
+```
+
+يفلتر الإشارة الخام حسب انحياز الاتجاه — يلغي الشراء عند الانحياز الهابط والعكس.
+مفاتيحه الفعّالة: `useSY389BiasEngine`، `sy389BiasMode` (Conservative/Balanced/Aggressive)،
+`sy389UseHTFConfirm`، `sy389ConvertWrongSide`، `sy389KeepRangeOriginal`.
+
+**هذه أول طبقة ذات أثر حقيقي على المخرجات** — وهي الهدف الصحيح لأي ضبط على SYR30.
+
+**ملاحظة عملية للمستخدم:** `pbOriginalPriority` («Original 8100 Signal Has Priority» في الواجهة)
+تم اختباره: تغييره يعطي **صفر صفقة مختلفة**. مفتاح شكلي، لا فائدة من ضبطه.
+
+**منصة الاختبار:** `ab.mjs` امتدّت لتعديل `input.string` و`input.int` و`input.float` لا `input.bool` فقط.
