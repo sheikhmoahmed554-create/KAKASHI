@@ -92,7 +92,69 @@ def features(D):
     F['ema9_21']=(F['ema9']-F['ema21'])/PU
     F['ema21_50']=(F['ema21']-F['ema50'])/PU
     F['dist_ema200']=(c-F['ema200'])/PU
-    for k in F: F[k]=np.nan_to_num(F[k], nan=0.0, posinf=0.0, neginf=0.0)
+
+    # ── الدفعة الثانية من الخصائص ──
+    # الأرقام المدوّرة: بُعد السعر عن أقرب دولار وأقرب نصف دولار (بالنقاط)
+    F['to_dollar']=np.minimum(c%1.0, 1.0-(c%1.0))/PU
+    F['to_half']  =np.minimum(c%0.5, 0.5-(c%0.5))/PU
+
+    # VWAP يومي متدحرج + انحراف معياري
+    day=(D['t']//86400).astype(np.int64)
+    tp_=(h+l+c)/3.0; pv=tp_*np.maximum(v,1e-9)
+    cum_pv=np.cumsum(pv); cum_v=np.cumsum(np.maximum(v,1e-9))
+    newday=np.concatenate([[True], day[1:]!=day[:-1]])
+    base_pv=np.zeros_like(cum_pv); base_v=np.zeros_like(cum_v)
+    last_pv=0.0; last_v=0.0
+    for i in range(len(c)):
+        if newday[i]: last_pv=cum_pv[i]-pv[i]; last_v=cum_v[i]-max(v[i],1e-9)
+        base_pv[i]=last_pv; base_v[i]=last_v
+    vwap=(cum_pv-base_pv)/np.maximum(cum_v-base_v,1e-9)
+    F['vwap']=vwap; F['vwap_dist']=(c-vwap)/PU
+    F['vwap_dist_atr']=F['vwap_dist']/np.maximum(F['atr14'],1e-9)
+
+    # هيكل السوق: قمم وقيعان متأرجحة (تُؤكَّد بعد 3 شموع — بلا نظر للمستقبل)
+    k=3
+    sw_hi=np.zeros(len(c)); sw_lo=np.zeros(len(c))
+    lh=np.nan; ll_=np.nan
+    for i in range(k, len(c)-k):
+        if h[i]==max(h[i-k:i+k+1]): lh=h[i]
+        if l[i]==min(l[i-k:i+k+1]): ll_=l[i]
+        sw_hi[i+k]=lh; sw_lo[i+k]=ll_
+    for i in range(len(c)-k, len(c)): sw_hi[i]=lh; sw_lo[i]=ll_
+    F['dist_swing_hi']=(sw_hi-c)/PU
+    F['dist_swing_lo']=(c-sw_lo)/PU
+
+    # الجلسات (UTC): آسيا 0-7، لندن 7-13، نيويورك 13-21
+    hr=D['hour']
+    F['sess_asia']=((hr>=0)&(hr<7)).astype(float)
+    F['sess_london']=((hr>=7)&(hr<13)).astype(float)
+    F['sess_ny']=((hr>=13)&(hr<21)).astype(float)
+    # الدقائق منذ بداية اليوم التداولي
+    F['bars_into_day']=np.arange(len(c))-np.maximum.accumulate(np.where(newday, np.arange(len(c)), 0))
+
+    # أنماط الشموع
+    rng=np.maximum(h-l,1e-9)
+    F['is_pin_up']=((F['upwick']>0.6)&(F['body']<0.3)).astype(float)
+    F['is_pin_dn']=((F['dnwick']>0.6)&(F['body']<0.3)).astype(float)
+    F['is_doji']=(F['body']<0.1).astype(float)
+    F['big_bar']=rng/PU/np.maximum(F['atr14'],1e-9)
+    up=(c>o).astype(float); dn=(c<o).astype(float)
+    F['up_streak']=np.zeros(len(c)); F['dn_streak']=np.zeros(len(c))
+    su=sd=0
+    for i in range(len(c)):
+        su=su+1 if up[i] else 0; sd=sd+1 if dn[i] else 0
+        F['up_streak'][i]=su; F['dn_streak'][i]=sd
+
+    # محاذاة الفريمات الأعلى: ميل EMA على 5 و15 و60 دقيقة (مبنية من M1)
+    for m in (5,15,60):
+        e=ema(c,m*9)
+        F['htf%d_slope'%m]=(e-np.roll(e,m))/PU
+
+    # تسارع التقلب واتساع النطاق
+    F['atr_accel']=F['atr14']/np.maximum(np.roll(F['atr14'],30),1e-9)
+    F['range_expand']=rng/np.maximum(roll_mean(rng,20),1e-9)
+
+    for k_ in F: F[k_]=np.nan_to_num(F[k_], nan=0.0, posinf=0.0, neginf=0.0)
     return F
 
 def build(tp=30, sl=50):
