@@ -43,7 +43,16 @@ def read_rows(path):
     with open(path, newline='') as f:
         head = f.readline()
         f.seek(0)
-        if head.lower().startswith('time,'):
+        if head.startswith('<DATE>'):
+            # تصدير MT5 الأصلي: مفصول بجدولة، ويحمل حجم التِك والسبريد
+            rd = csv.DictReader(f, delimiter='\t')
+            for r in rd:
+                t = datetime.datetime.strptime(
+                    r['<DATE>'] + ' ' + r['<TIME>'][:5], '%Y.%m.%d %H:%M')
+                out.append([t, float(r['<OPEN>']), float(r['<HIGH>']), float(r['<LOW>']),
+                            float(r['<CLOSE>']), float(r.get('<TICKVOL>') or 0),
+                            float(r.get('<SPREAD>') or 0)])
+        elif head.lower().startswith('time,'):
             for r in csv.DictReader(f):
                 t = datetime.datetime.fromisoformat(r['time']).replace(tzinfo=None)
                 out.append([t, float(r['open']), float(r['high']), float(r['low']),
