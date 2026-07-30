@@ -28,6 +28,16 @@ function patchSource(src, flags) {
   return { src, applied, missing };
 }
 
+function applyRewrites(src, rewrites) {
+  const done = [], failed = [];
+  for (const [find, repl] of rewrites || []) {
+    if (!src.includes(find)) { failed.push(find); continue; }
+    src = src.replace(find, repl);
+    done.push(find + '  ⟶  ' + repl);
+  }
+  return { src, done, failed };
+}
+
 const b = await chromium.launch({ args: ['--js-flags=--max-old-space-size=8192'] });
 const page = await b.newPage();
 page.on('pageerror', e => console.log('PAGEERROR:', e.message));
@@ -36,10 +46,14 @@ await page.goto('file:///home/user/KAKASHI/KAKASHI_V16_TV_PARITY_AUDIT.html');
 await page.waitForTimeout(6000);
 
 const original = await page.evaluate(() => document.getElementById('source').value);
-const { src, applied, missing } = patchSource(original, cfg.flags || {});
+let { src, applied, missing } = patchSource(original, cfg.flags || {});
+const rw = applyRewrites(src, cfg.rewrites);
+src = rw.src;
 console.log('الإعداد:', cfg.name);
 for (const [k, v] of Object.entries(applied)) console.log('   %s: %s -> %s', k, v.from, v.to);
-if (missing.length) console.log('   !! لم يُعثر على:', missing.join(', '));
+for (const line of rw.done) console.log('   إعادة كتابة: %s', line);
+if (missing.length) console.log('   !! لم يُعثر على مفاتيح:', missing.join(', '));
+if (rw.failed.length) { console.log('   !! فشلت إعادة الكتابة:', rw.failed.join(' | ')); process.exit(2); }
 
 let text = fs.readFileSync('vault.csv', 'utf8');
 if (maxBars) text = text.split('\n').slice(0, maxBars + 1).join('\n');
