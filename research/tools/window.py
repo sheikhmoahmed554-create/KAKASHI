@@ -342,9 +342,87 @@ def g_regime(d):
     return out
 
 
+
+def g_advanced(d):
+    """المفاهيم الباقية: تغيّر الطابع، العرض والطلب، مناطق الأوامر، الفجوات،
+    السيولة غير المختبرة، الاندفاع مقابل التصحيح، القنوات، الانقطاع اليومي."""
+    o, h, l, c, n, A = d['o'], d['h'], d['l'], d['c'], d['n'], d['A']
+    out = []
+
+    # الفجوة السعرية: شمعة لا يتداخل مداها مع ما قبلها بشمعتين
+    for k in (1, 2, 3):
+        fvg_up = prev(l, 0) > prev(h, 2)
+        fvg_dn = prev(h, 0) < prev(l, 2)
+        gap_up = ((prev(l, 0) - prev(h, 2)) / PU) / A
+        gap_dn = ((prev(l, 2) - prev(h, 0)) / PU) / A
+        for thr in (0.2, 0.5, 1.0):
+            out.append((f'فجوة_صاعدة≥{thr}_شراء', 1, fvg_up & (gap_up >= thr)))
+            out.append((f'فجوة_هابطة≥{thr}_شراء', 1, fvg_dn & (gap_dn >= thr)))
+            out.append((f'فجوة_هابطة≥{thr}_بيع', -1, fvg_dn & (gap_dn >= thr)))
+        break
+
+    # مناطق الأوامر: آخر شمعة معاكسة قبل اندفاعة، والعودة إليها
+    body = np.abs(c - o) / np.maximum(h - l, 1e-9)
+    impulse_up = ((c - prev(c, 3)) / PU) / A
+    for thr in (2, 3, 5):
+        ob_bull = np.concatenate([np.full(3, False), ((c < o) & (body > 0.3))[:-3]]) & (impulse_up > thr)
+        out.append((f'منطقة_أوامر_صاعدة_اندفاع{thr}', 1, ob_bull))
+        ob_bear = np.concatenate([np.full(3, False), ((c > o) & (body > 0.3))[:-3]]) & (impulse_up < -thr)
+        out.append((f'منطقة_أوامر_هابطة_اندفاع{thr}', -1, ob_bear))
+
+    # العرض والطلب: قاعدة ضيقة ثم انطلاقة، والعودة الأولى إليها
+    for w in (20, 60):
+        width = ((roll(h, w, np.nanmax) - roll(l, w, np.nanmin)) / PU) / A
+        base_narrow = np.concatenate([np.full(10, False), (width < 3)[:-10]])
+        for thr in (3, 5):
+            out.append((f'عودة_لقاعدة_{w}_بعد_اندفاع{thr}', 1,
+                        base_narrow & (impulse_up < -thr)))
+
+    # تغيّر الطابع: أول كسر ضد اتجاه قائم
+    for w in (20, 60):
+        up_trend = d[f'slope{120}'] > 3
+        dn_trend = d[f'slope{120}'] < -3
+        out.append((f'تغيّر_طابع_صاعد_{w}', 1, dn_trend & (c > d[f'phi{w}'])))
+        out.append((f'تغيّر_طابع_هابط_{w}', -1, up_trend & (c < d[f'plo{w}'])))
+
+    # السيولة غير المختبرة: بُعد أقرب قمة/قاع لم يُلمس
+    for w in (60, 240):
+        dist_lo = ((c - d[f'plo{w}']) / PU) / A
+        dist_hi = ((d[f'phi{w}'] - c) / PU) / A
+        for thr in (1, 2, 4):
+            out.append((f'قرب_سيولة_تحت_{w}<{thr}', 1, dist_lo < thr))
+            out.append((f'قرب_سيولة_فوق_{w}<{thr}', -1, dist_hi < thr))
+
+    # الاندفاع مقابل التصحيح: كفاءة الحركة على نافذة
+    for w in (10, 30, 60):
+        net = np.abs(c - prev(c, w))
+        travel = np.convolve(np.abs(np.diff(c, prepend=c[0])), np.ones(w), mode='full')[:n]
+        er = net / np.maximum(travel, 1e-9)
+        for lo_, hi_ in ((0, .2), (.2, .4), (.4, 1.01)):
+            m = (er >= lo_) & (er < hi_)
+            out.append((f'كفاءة_حركة_{w}_{lo_}–{hi_}_شراء', 1, m))
+            out.append((f'كفاءة_حركة_{w}_{lo_}–{hi_}_بيع', -1, m))
+
+    # الانقطاع اليومي: أول وآخر شمعات الجلسة
+    di = d['day_idx']
+    newday = np.concatenate([[True], di[1:] != di[:-1]])
+    pos = np.zeros(n); cnt = {}
+    for i in range(n):
+        j = int(di[i]); cnt[j] = cnt.get(j, 0) + 1; pos[i] = cnt[j]
+    tot = {}
+    for i in range(n):
+        tot[int(di[i])] = pos[i]
+    rem = np.array([tot[int(di[i])] - pos[i] for i in range(n)])
+    for k in (30, 60, 120):
+        out.append((f'أول_{k}_دقيقة_شراء', 1, pos <= k))
+        out.append((f'آخر_{k}_دقيقة_شراء', 1, rem <= k))
+        out.append((f'آخر_{k}_دقيقة_بيع', -1, rem <= k))
+    return out
+
 GROUPS = {'liquidity': g_liquidity, 'structure': g_structure, 'momentum': g_momentum,
           'candles': g_candles, 'path': g_path, 'retracement': g_retracement,
-          'levels': g_levels, 'flow': g_flow, 'time': g_time, 'regime': g_regime}
+          'levels': g_levels, 'flow': g_flow, 'time': g_time, 'regime': g_regime,
+          'advanced': g_advanced}
 
 
 def main():
