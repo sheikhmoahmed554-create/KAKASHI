@@ -1,0 +1,2 @@
+{"name":"Z3 — الأصل + إضافة الإشارتين القويتين صراحة",
+ "rewrites":[["buySignal := buySignal or chTriB or chSniB","buySignal := buySignal or chTriB or chSniB or chR14B or chUls2B"]]}
