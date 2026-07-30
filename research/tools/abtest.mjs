@@ -77,9 +77,10 @@ if (!done.ok) {
   process.exit(1);
 }
 
-// نقسم الصفقات المسجّلة على فترتي التدريب والاختبار ونحسب كل فترة وحدها.
-const split = t => Date.parse(t.entry_time) < TRAIN_END ? 'train' : 'test';
-const half = list => {
+// نافذة واحدة لا تكفي للحكم: نقيس كل شهر وحده، وكل أسبوع وحده، إضافة إلى نصفي
+// التدريب والاختبار. تعديل يُحسّن الأداء في نافذة واحدة فقط = صدفة؛ التعديل المقبول
+// هو الذي يكسب في أغلب النوافذ المستقلة.
+const stat = list => {
   const wins = list.filter(t => t.outcome === 'WIN').length;
   const net = list.reduce((a, t) => a + (Number(t.points) || 0), 0);
   const days = new Set(list.map(t => t.entry_time.slice(0, 10))).size;
@@ -91,13 +92,35 @@ const half = list => {
     per_day: days ? +(list.length / days).toFixed(1) : 0,
   };
 };
+const groupBy = key => {
+  const buckets = new Map();
+  for (const t of done.trades) {
+    const k = key(t);
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(t);
+  }
+  return [...buckets.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)
+    .map(([window, list]) => ({ window, ...stat(list) }));
+};
+const isoWeek = t => {                       // مفتاح أسبوعي: الاثنين الذي يبدأ به الأسبوع
+  const d = new Date(Date.parse(t.entry_time));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+};
 const out = {
   variant, inputs: VARIANTS[variant], pine: pineOverride || 'embedded',
   runtime_seconds: +((Date.now() - t0) / 1000).toFixed(1),
   bars: done.bars_processed, summary: done.summary,
-  train: half(done.trades.filter(t => split(t) === 'train')),
-  test: half(done.trades.filter(t => split(t) === 'test')),
+  all: stat(done.trades),
+  train: stat(done.trades.filter(t => Date.parse(t.entry_time) < TRAIN_END)),
+  test: stat(done.trades.filter(t => Date.parse(t.entry_time) >= TRAIN_END)),
+  months: groupBy(t => t.entry_time.slice(0, 7)),
+  weeks: groupBy(isoWeek),
 };
 fs.writeFileSync(outPath, JSON.stringify(out, null, 1));
+// نحفظ الصفقات مضغوطة حتى تُعاد أي قسمة نوافذ لاحقاً بدون إعادة تشغيل المحرك.
+fs.writeFileSync(outPath.replace(/\.json$/, '_trades.json.gz'), zlib.gzipSync(JSON.stringify(
+  done.trades.map(t => [t.entry_time, t.side, t.outcome, t.points, t.target_points, t.stop_points]))));
 console.error(`[${variant}] تم في ${out.runtime_seconds}s — ` +
-  `تدريب ${out.train.trades}/${out.train.win_rate}% • اختبار ${out.test.trades}/${out.test.win_rate}%`);
+  `${out.all.trades} صفقة، ${out.all.win_rate}% • ` +
+  `${out.months.length} شهر، ${out.weeks.length} أسبوع`);
