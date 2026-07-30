@@ -1,0 +1,3 @@
+{"name":"BUY3 — أقوى إشارات الشراء فقط (6 إشارات)",
+ "rewrites":[["buySignal := buySignal or chTriB or chSniB","buySignal := chR14B or chUls2B or chCvdB or chCmoB or momentumBuy or sy336Range80Buy"],
+             ["sellSignal := sellSignal or chTriS or chSniS","sellSignal := false"]]}

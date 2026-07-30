@@ -1,0 +1,2 @@
+{"name":"BUY1 — الأصل بدون جهة البيع",
+ "rewrites":[["sellSignal := sellSignal or chTriS or chSniS","sellSignal := false"]]}

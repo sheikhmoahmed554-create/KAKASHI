@@ -1,0 +1,3 @@
+{"name":"BUY2 — بدون بيع + إسكات المصدر الأساسي",
+ "rewrites":[["sellSignal := sellSignal or chTriS or chSniS","sellSignal := false"],
+             ["int m1SelectedSide = m1BaseSide","int m1SelectedSide = 0"]]}
