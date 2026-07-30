@@ -34,8 +34,23 @@ const FIX_60_25 = {
   daeMinStopPts: 25, daeMaxStopPts: 25,
   daeRangeTargetCap: 60, daeCounterTargetCap: 60, daeLateTargetCap: 60,
 };
+const FIX_55_60 = {
+  daeUseContextProfiles: false,
+  daeMinTargetPts: 55, daeMaxTargetPts: 55, daeBaseTargetPts: 55,
+  daeMinStopPts: 60, daeMaxStopPts: 60,
+  daeRangeTargetCap: 55, daeCounterTargetCap: 55, daeLateTargetCap: 55,
+};
+const FIX_60_65 = {
+  daeUseContextProfiles: false,
+  daeMinTargetPts: 60, daeMaxTargetPts: 60, daeBaseTargetPts: 60,
+  daeMinStopPts: 65, daeMaxStopPts: 65,
+  daeRangeTargetCap: 60, daeCounterTargetCap: 60, daeLateTargetCap: 60,
+};
 const VARIANTS = {
   A_baseline: {},
+  N_dev_adaptive: {},                 // محرك الخروج الذكي داخل نافذة السكالب
+  O_dev_55_60: { ...FIX_55_60 },
+  P_dev_60_65: { ...FIX_60_65 },
   K_dev_30_50: { ...FIX_30_50 },      // مع SYR30_DEV.pine
   L_dev_60_25: { ...FIX_60_25 },      // مع SYR30_DEV.pine
   M_base_60_25: { ...FIX_60_25 },     // المؤشر الأصلي بنفس الخطة، لعزل أثر المدارس عن أثر الخطة

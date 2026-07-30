@@ -342,6 +342,10 @@ fusionUseBBKC = input.bool(false, "Fusion Use BB/KC (مقفول: زيادة صف
 fusionUseQQEVortex = input.bool(false, "Fusion Use QQE + Vortex (اعدادات المستخدم: مفعله)", group=G_ROUTER_NEW)
 fusionUseIchimoku = input.bool(true, "Fusion Use Ichimoku", group=G_ROUTER_NEW)
 fusionUseVolCollapse = input.bool(true, "Fusion Use Volume-Collapse Buy", group=G_ROUTER_NEW)
+kkMinTargetPts = input.float(30.0, "Scalp Min Target", minval=5.0, maxval=200.0, step=1.0, group=G_RISK_NEW)
+kkMaxTargetPts = input.float(60.0, "Scalp Max Target", minval=5.0, maxval=200.0, step=1.0, group=G_RISK_NEW)
+kkMinStopGap = input.float(5.0, "Scalp Min Stop Above Target", minval=0.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+kkMaxStopGap = input.float(20.0, "Scalp Max Stop Above Target", minval=0.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
 kkVolCollapseMinVol = input.float(1.35, "Volume-Collapse Min Volume Ratio", minval=1.0, maxval=5.0, step=0.05, group=G_ROUTER_NEW)
 kkVolCollapseMaxPos = input.float(5.0, "Volume-Collapse Max Range Position", minval=1.0, maxval=50.0, step=1.0, group=G_ROUTER_NEW)
 fusionUseSidePack = input.bool(true, "Fusion Use Side-Specific Pack", group=G_ROUTER_NEW)
@@ -1764,7 +1768,11 @@ f_sy999_source_plan(_side, _entry, _sourceCode, _tradeKind) =>
         _target := _adaptiveTarget + pocTargetAddPoints
         _stop := pocKeepAdaptiveStop ? _adaptiveStop : pocFixedStopPoints
 
-    [math.round(_target), math.round(_stop)]
+    // قيد سكالب: الهدف بين ٣٠ و٦٠، والستوب أكبر من الهدف بـ ٥ إلى ٢٠ نقطة.
+    // محرك الخروج يظل يختار داخل هذه النافذة حسب حالة السوق، والمستويان يُثبَّتان عند الدخول.
+    _kkTarget = f_clamp_float(_target, kkMinTargetPts, kkMaxTargetPts)
+    _kkStop = f_clamp_float(_stop, _kkTarget + kkMinStopGap, _kkTarget + kkMaxStopGap)
+    [math.round(_kkTarget), math.round(_kkStop)]
 
 // Calculated continuously on every M1 bar so the custom platform and Pine use a complete series.
 daeProtectedLow = ta.lowest(low, daeStopLookback)
@@ -2484,8 +2492,9 @@ if canEnterLong or canEnterShort
 
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
-    tradeTargetPts := math.max(30.0, plannedTarget)
-    tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
+    // نقطة الحسم الوحيدة للمستويات: الهدف داخل نافذة السكالب، والستوب أكبر منه دائماً.
+    tradeTargetPts := f_clamp_float(plannedTarget, kkMinTargetPts, kkMaxTargetPts)
+    tradeStopPts := f_clamp_float(plannedStop, tradeTargetPts + kkMinStopGap, tradeTargetPts + kkMaxStopGap)
     tradeExitMode := plannedExitMode
     tradeDirectionScore := plannedDirectionScore
 
