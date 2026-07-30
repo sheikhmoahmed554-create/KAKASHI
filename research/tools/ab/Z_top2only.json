@@ -1,0 +1,3 @@
+{"name":"Z — أقوى إشارتين فقط بدل الأربعين",
+ "rewrites":[["buySignal := syFinalSelectedSide == 1","buySignal := chR14B or chUls2B"],
+             ["sellSignal := syFinalSelectedSide == -1","sellSignal := false"]]}

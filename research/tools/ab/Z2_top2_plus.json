@@ -1,0 +1,2 @@
+{"name":"Z2 — أقوى إشارتين + مصادر البيع الأصلية",
+ "rewrites":[["buySignal := syFinalSelectedSide == 1","buySignal := chR14B or chUls2B"]]}
