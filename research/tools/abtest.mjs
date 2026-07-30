@@ -85,8 +85,19 @@ globalThis.self = { onmessage: null, postMessage: m => messages.push(m) };
 (0, eval)(core);
 (0, eval)(workerBody);
 
-let rows = PineLabJS.parseCSV(
-  zlib.gunzipSync(Buffer.from(page.match(/BUILTIN_2026_GZ_B64='([^']*)'/)[1], 'base64')).toString('utf8'));
+// VAULT=YYYY يقرأ من الخزنة متعددة السنوات بدل الداتا المدمجة في الصفحة
+let rows;
+if (process.env.VAULT) {
+  const all = zlib.gunzipSync(fs.readFileSync('research/data/vault_utc.csv.gz')).toString('utf8');
+  const want = process.env.VAULT;
+  const lines = all.split('\n');
+  const kept = [lines[0]];
+  for (let i = 1; i < lines.length; i++) if (lines[i].startsWith(want)) kept.push(lines[i]);
+  rows = PineLabJS.parseCSV(kept.join('\n'));
+} else {
+  rows = PineLabJS.parseCSV(
+    zlib.gunzipSync(Buffer.from(page.match(/BUILTIN_2026_GZ_B64='([^']*)'/)[1], 'base64')).toString('utf8'));
+}
 if (process.env.DAYS) { // اختبار سريع أثناء التطوير فقط
   const d0 = Math.floor(rows[0].time / 86400000);
   rows = rows.filter(r => Math.floor(r.time / 86400000) < d0 + Number(process.env.DAYS));
