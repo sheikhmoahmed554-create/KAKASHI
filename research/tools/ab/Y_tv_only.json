@@ -1,0 +1,2 @@
+{"name":"Y — Trend Vote وحده (إسكات الأساس كلياً)",
+ "rewrites":[["int m1SelectedSide = m1BaseSide","int m1SelectedSide = 0"]]}
