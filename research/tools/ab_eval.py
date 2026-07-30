@@ -10,7 +10,7 @@ def sim(i0,buy,maxbars=240):
         if (H[i]>=tp) if buy else (L[i]<=tp): return 1
     return None
 BE=100*SL/(TP+SL)
-CFG=['A_baseline','B_bbkc_off','C_syr30_on','D_all_on','E_all_on_bbkc_off','F_router','G_router_schools','H_norouter','I_fusion_off']
+CFG=['A_baseline','H_norouter','I_fusion_off','J_bias_off','K_bias_aggr','L_bias_cons','M_bias_htf','N_best_combo']
 res={}
 print('خطة ثابتة %g/%g • تعادل %.1f%%\n'%(TP,SL,BE))
 print('%-22s %8s %8s %8s %9s %10s %9s'%('الإعداد','صفقات','شراء','بيع','فوز%','الحافة','لكل صفقة'))
