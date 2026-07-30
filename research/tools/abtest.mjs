@@ -27,8 +27,18 @@ const CONTEXT_30_50 = {
   daeBuyLateTargetPts: 30, daeBuyLateStopPts: 50,
   daeSellLateTargetPts: 30, daeSellLateStopPts: 50,
 };
+// الخطة التي صمدت في كل الشهور السبعة في التجربة ٠١٧: هدف ٦٠ ووقف ٢٥.
+const FIX_60_25 = {
+  daeUseContextProfiles: false,
+  daeMinTargetPts: 60, daeMaxTargetPts: 60, daeBaseTargetPts: 60,
+  daeMinStopPts: 25, daeMaxStopPts: 25,
+  daeRangeTargetCap: 60, daeCounterTargetCap: 60, daeLateTargetCap: 60,
+};
 const VARIANTS = {
   A_baseline: {},
+  K_dev_30_50: { ...FIX_30_50 },      // مع SYR30_DEV.pine
+  L_dev_60_25: { ...FIX_60_25 },      // مع SYR30_DEV.pine
+  M_base_60_25: { ...FIX_60_25 },     // المؤشر الأصلي بنفس الخطة، لعزل أثر المدارس عن أثر الخطة
   B_no_bbkc: { fusionUseBBKC: false },
   C_schools_on: { ...OFF_SCHOOLS },
   G_context_30_50: { ...CONTEXT_30_50 },
