@@ -12,3 +12,4 @@ search1.json
 __pycache__/
 research/data/*.csv.gz
 research/tools/vault.csv
+research/data/prep/
