@@ -1,0 +1,2 @@
+{"name":"T — إيقاف المخطط الذكي (أهداف ثابتة)",
+ "rewrites":[["useSmartExitPlanner = true","useSmartExitPlanner = false"]]}

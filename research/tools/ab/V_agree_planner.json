@@ -1,0 +1,3 @@
+{"name":"V — الاتفاق + المخطط الذكي (الأفضل المتوقع)",
+ "flags":{"syr30UseBalance":true,"syr30UseAsia":true,"syr30UseDeadAuction":true,"syr30AuctionBuyEnabled":true,"fusionUseMomentum":true,"fusionUseQQEVortex":true},
+ "rewrites":[["int m1SelectedSide = m1BaseSide","int m1SelectedSide = (m1BaseSide != 0 and syr30ReplacementSide == m1BaseSide) ? m1BaseSide : 0"]]}
