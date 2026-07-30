@@ -1,0 +1,12 @@
+# ملفات تتولد عند التشغيل — لا ترفع
+vault.csv
+lab_cache.pkl
+*_feat.json
+schools6m.json
+full6m.json
+june*.json
+*.log
+tri_masks.npy
+tri_names.json
+search1.json
+__pycache__/
