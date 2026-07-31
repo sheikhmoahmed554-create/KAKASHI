@@ -55,13 +55,13 @@ let text = fs.readFileSync(DATA, 'utf8');
 if (maxBars > 0) text = text.split('\n').slice(0, maxBars + 1).join('\n');
 else if (maxBars < 0) { const L = text.split('\n').filter(Boolean); text = [L[0], ...L.slice(maxBars)].join('\n'); }
 
-const res = await page.evaluate(async ({ csvText, source }) => {
+const res = await page.evaluate(async ({ csvText, source, extra }) => {
   const rows = PineLabJS.parseCSV(csvText);
   console.log('[شموع: ' + rows.length + ']');
   const outs = ['trades', 'wins', 'losses', 'netPts', 'sumWinPts', 'sumLossPts',
                 'active', 'side', 'entryPrice', 'tpPrice', 'slPrice',
                 'tradeTargetPts', 'tradeStopPts', 'entryBar', 'tradeEntrySourceCode',
-                'canEnterLong', 'canEnterShort'];
+                'canEnterLong', 'canEnterShort'].concat(extra || []);
   const t0 = performance.now();
   let r;
   try { r = new PineLabJS.PineEngine(source).run(rows, outs); }
@@ -85,8 +85,10 @@ const res = await page.evaluate(async ({ csvText, source }) => {
            errors: r.diagnostics.length ? r.diagnostics[0].error : null,
            final: { trades: last('trades'), wins: last('wins'), losses: last('losses'),
                     netPts: last('netPts'), sumWin: last('sumWinPts'), sumLoss: last('sumLossPts') },
+           extra: (cfg.extract || []).reduce((o, k) => { o[k] = Array.from(S[k] || [], v =>
+             v === true ? 1 : v === false ? 0 : (v == null || Number.isNaN(Number(v)) ? 0 : Number(v))); return o; }, {}),
            log };
-}, { csvText: text, source: src });
+}, { csvText: text, source: src, extra: cfg.extract });
 
 if (res.error) { console.log('فشل المحرك:', res.error); await b.close(); process.exit(1); }
 const f = res.final;
