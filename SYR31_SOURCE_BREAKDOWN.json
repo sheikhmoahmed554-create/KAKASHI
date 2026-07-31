@@ -1,0 +1,38 @@
+[
+  {
+    "source": "BASE 999",
+    "trades": 5464,
+    "wins": 3366,
+    "losses": 2098,
+    "win_rate": 61.6,
+    "net": 9153,
+    "expectancy": 1.675,
+    "profit_factor": 1.08,
+    "buy": 2177,
+    "sell": 3287
+  },
+  {
+    "source": "TREND VOTE",
+    "trades": 93,
+    "wins": 61,
+    "losses": 32,
+    "win_rate": 65.59,
+    "net": 520,
+    "expectancy": 5.591,
+    "profit_factor": 1.311,
+    "buy": 46,
+    "sell": 47
+  },
+  {
+    "source": "SCHOOL FUSION",
+    "trades": 912,
+    "wins": 514,
+    "losses": 398,
+    "win_rate": 56.36,
+    "net": -337,
+    "expectancy": -0.37,
+    "profit_factor": 0.985,
+    "buy": 859,
+    "sell": 53
+  }
+]
