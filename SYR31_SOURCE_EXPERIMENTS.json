@@ -1,0 +1,200 @@
+[
+  {
+    "name": "A_FUSION_OFF",
+    "overrides": {
+      "useFinalSchoolFusion": "false"
+    },
+    "error": null,
+    "stats": {
+      "trades": 6464,
+      "wins": 3936,
+      "losses": 2528,
+      "win_rate": 60.89,
+      "net_points": 9109,
+      "profit_factor": 1.066,
+      "expectancy": 1.409,
+      "sharpe": 0.031,
+      "max_loss_streak": 8,
+      "net_at_cost_2": -3819,
+      "by_source": [
+        {
+          "source": "BASE 999",
+          "trades": 6370,
+          "wr": 60.8,
+          "net": 8529,
+          "expect": 1.34
+        },
+        {
+          "source": "TREND VOTE",
+          "trades": 94,
+          "wr": 66,
+          "net": 580,
+          "expect": 6.17
+        }
+      ]
+    },
+    "seconds": 720
+  },
+  {
+    "name": "B_TV_PRIORITY",
+    "overrides": {
+      "k3SourcePriority": "Trend Vote > Fusion > Base"
+    },
+    "error": null,
+    "stats": {
+      "trades": 6469,
+      "wins": 3941,
+      "losses": 2528,
+      "win_rate": 60.92,
+      "net_points": 9336,
+      "profit_factor": 1.068,
+      "expectancy": 1.443,
+      "sharpe": 0.032,
+      "max_loss_streak": 8,
+      "net_at_cost_2": -3602,
+      "by_source": [
+        {
+          "source": "BASE 999",
+          "trades": 5464,
+          "wr": 61.6,
+          "net": 9153,
+          "expect": 1.68
+        },
+        {
+          "source": "TREND VOTE",
+          "trades": 94,
+          "wr": 66,
+          "net": 580,
+          "expect": 6.17
+        },
+        {
+          "source": "SCHOOL FUSION",
+          "trades": 911,
+          "wr": 56.3,
+          "net": -397,
+          "expect": -0.44
+        }
+      ]
+    },
+    "seconds": 731
+  },
+  {
+    "name": "C_TV_VOTES_1",
+    "overrides": {
+      "trendVoteBuyMinVotes": "1",
+      "trendVoteSellMinVotes": "1"
+    },
+    "error": null,
+    "stats": {
+      "trades": 6469,
+      "wins": 3938,
+      "losses": 2531,
+      "win_rate": 60.87,
+      "net_points": 9142,
+      "profit_factor": 1.066,
+      "expectancy": 1.413,
+      "sharpe": 0.031,
+      "max_loss_streak": 8,
+      "net_at_cost_2": -3796,
+      "by_source": [
+        {
+          "source": "BASE 999",
+          "trades": 5271,
+          "wr": 61.4,
+          "net": 8092,
+          "expect": 1.54
+        },
+        {
+          "source": "TREND VOTE",
+          "trades": 289,
+          "wr": 65.1,
+          "net": 1482,
+          "expect": 5.13
+        },
+        {
+          "source": "SCHOOL FUSION",
+          "trades": 909,
+          "wr": 56.2,
+          "net": -432,
+          "expect": -0.48
+        }
+      ]
+    },
+    "seconds": 731
+  },
+  {
+    "name": "D_FOFF_TVPRIO",
+    "overrides": {
+      "useFinalSchoolFusion": "false",
+      "k3SourcePriority": "Trend Vote > Fusion > Base"
+    },
+    "error": null,
+    "stats": {
+      "trades": 6464,
+      "wins": 3936,
+      "losses": 2528,
+      "win_rate": 60.89,
+      "net_points": 9109,
+      "profit_factor": 1.066,
+      "expectancy": 1.409,
+      "sharpe": 0.031,
+      "max_loss_streak": 8,
+      "net_at_cost_2": -3819,
+      "by_source": [
+        {
+          "source": "BASE 999",
+          "trades": 6370,
+          "wr": 60.8,
+          "net": 8529,
+          "expect": 1.34
+        },
+        {
+          "source": "TREND VOTE",
+          "trades": 94,
+          "wr": 66,
+          "net": 580,
+          "expect": 6.17
+        }
+      ]
+    },
+    "seconds": 700
+  },
+  {
+    "name": "E_FOFF_TVVOTES1",
+    "overrides": {
+      "useFinalSchoolFusion": "false",
+      "trendVoteBuyMinVotes": "1",
+      "trendVoteSellMinVotes": "1"
+    },
+    "error": null,
+    "stats": {
+      "trades": 6464,
+      "wins": 3933,
+      "losses": 2531,
+      "win_rate": 60.84,
+      "net_points": 8915,
+      "profit_factor": 1.064,
+      "expectancy": 1.379,
+      "sharpe": 0.03,
+      "max_loss_streak": 8,
+      "net_at_cost_2": -4013,
+      "by_source": [
+        {
+          "source": "BASE 999",
+          "trades": 6171,
+          "wr": 60.6,
+          "net": 7248,
+          "expect": 1.17
+        },
+        {
+          "source": "TREND VOTE",
+          "trades": 293,
+          "wr": 65.5,
+          "net": 1667,
+          "expect": 5.69
+        }
+      ]
+    },
+    "seconds": 710
+  }
+]
