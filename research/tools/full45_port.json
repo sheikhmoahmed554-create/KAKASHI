@@ -1,0 +1,32 @@
+{
+ "plan": [
+  45.0,
+  65.0
+ ],
+ "buy": [
+  "chSprB",
+  "chUtB",
+  "chVzB",
+  "r8WtBuy"
+ ],
+ "sell": [
+  "r11ConnS",
+  "rsi14ShiftSell",
+  "sy320WeakOppSell",
+  "taOppSell"
+ ],
+ "portfolio": {
+  "trades": 10836,
+  "hit": 6053,
+  "miss": 3847,
+  "tw": 352,
+  "tl": 584,
+  "net": 14631,
+  "wr": 59.11,
+  "per": 1.35,
+  "perday": 77.4,
+  "netday": 104.5,
+  "mins": 9.4,
+  "edge": 0.02
+ }
+}

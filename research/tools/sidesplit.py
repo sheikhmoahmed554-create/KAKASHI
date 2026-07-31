@@ -47,6 +47,11 @@ def base_win(buy, tp, sl, maxb=30):
 
 KB = base_win(True, AT, AS); KS = base_win(False, AT, AS)
 mo_all = np.array([r['time'][:7] for r in R])
+# نفس مرشّح الصلاحية المستخدم في البحث: خارج ساعة الإغلاق وبلا فجوات
+import datetime as _dt
+_hr = np.array([int(r['time'][11:13]) for r in R])
+_ts = np.array([_dt.datetime.fromisoformat(r['time']).timestamp() for r in R])
+VALID = (_hr < 22) & ~np.concatenate([[True], np.diff(_ts) > 300])
 
 print('خطة القياس: هدف %.1f / وقف %.1f  →  نقطة التعادل %.2f%%' % (AT, AS, 100 * AS / (AT + AS)))
 print()
@@ -60,7 +65,7 @@ for mo in sorted(by):
         if k not in by[mo]: continue
         n, w, net, tg, st = by[mo][k]
         kk = KB if k == 'شراء' else KS
-        b = kk[sel]
+        b = kk[sel & VALID]
         bw = (b == 1).sum(); bl = (b == 2).sum()
         bwr = 100 * bw / max(bw + bl, 1)
         wr = 100 * w / n
@@ -73,7 +78,7 @@ for k in ('شراء', 'بيع'):
     n, w, net, ex = tot[k]
     if not n: continue
     kk = KB if k == 'شراء' else KS
-    bw = (kk == 1).sum(); bl = (kk == 2).sum()
+    bw = ((kk == 1) & VALID).sum(); bl = ((kk == 2) & VALID).sum()
     bwr = 100 * bw / max(bw + bl, 1)
     print('%-9s %-6s %7d %6d %7.2f%% %+9.0f %9.2f%% %+8.2f   (فائض موجب في %d من %d شهر)'
           % ('الكل', k, n, w, 100 * w / n, net, bwr, 100 * w / n - bwr,

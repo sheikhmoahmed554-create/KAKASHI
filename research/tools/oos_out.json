@@ -1,0 +1,3439 @@
+{
+ "plan": [
+  45.0,
+  65.0
+ ],
+ "train_end": "2026-05-01",
+ "base": {
+  "BUY_train": 58.323573877307666,
+  "BUY_test": 58.182263596276336,
+  "SELL_train": 60.74585635359116,
+  "SELL_test": 63.07424492993298
+ },
+ "results": {
+  "BUY": [
+   [
+    [
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3538,
+      "hit": 1967,
+      "miss": 1281,
+      "wr": 58.76,
+      "net": 3286,
+      "per": 0.93,
+      "perday": 42.1,
+      "excess": 0.44
+     },
+     "test": {
+      "trades": 2133,
+      "hit": 1056,
+      "miss": 726,
+      "wr": 55.18,
+      "net": -3029,
+      "per": -1.42,
+      "perday": 38.1,
+      "excess": -3.0
+     }
+    }
+   ],
+   [
+    [
+     "chUls2B"
+    ],
+    {
+     "train": {
+      "trades": 755,
+      "hit": 444,
+      "miss": 275,
+      "wr": 60.79,
+      "net": 1910,
+      "per": 2.53,
+      "perday": 9.0,
+      "excess": 2.47
+     },
+     "test": {
+      "trades": 560,
+      "hit": 289,
+      "miss": 197,
+      "wr": 57.14,
+      "net": -400,
+      "per": -0.71,
+      "perday": 10.0,
+      "excess": -1.04
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy"
+    ],
+    {
+     "train": {
+      "trades": 1244,
+      "hit": 693,
+      "miss": 440,
+      "wr": 59.32,
+      "net": 1734,
+      "per": 1.39,
+      "perday": 14.8,
+      "excess": 1.0
+     },
+     "test": {
+      "trades": 685,
+      "hit": 319,
+      "miss": 235,
+      "wr": 51.39,
+      "net": -2664,
+      "per": -3.89,
+      "perday": 12.2,
+      "excess": -6.79
+     }
+    }
+   ],
+   [
+    [
+     "chCmoB"
+    ],
+    {
+     "train": {
+      "trades": 964,
+      "hit": 554,
+      "miss": 354,
+      "wr": 59.34,
+      "net": 1483,
+      "per": 1.54,
+      "perday": 11.5,
+      "excess": 1.02
+     },
+     "test": {
+      "trades": 581,
+      "hit": 314,
+      "miss": 193,
+      "wr": 58.86,
+      "net": 1034,
+      "per": 1.78,
+      "perday": 10.4,
+      "excess": 0.68
+     }
+    }
+   ],
+   [
+    [
+     "chR14B"
+    ],
+    {
+     "train": {
+      "trades": 484,
+      "hit": 289,
+      "miss": 181,
+      "wr": 60.74,
+      "net": 1104,
+      "per": 2.28,
+      "perday": 5.8,
+      "excess": 2.42
+     },
+     "test": {
+      "trades": 326,
+      "hit": 177,
+      "miss": 122,
+      "wr": 58.28,
+      "net": -118,
+      "per": -0.36,
+      "perday": 5.8,
+      "excess": 0.1
+     }
+    }
+   ],
+   [
+    [
+     "rsi14ShiftBuy"
+    ],
+    {
+     "train": {
+      "trades": 483,
+      "hit": 288,
+      "miss": 181,
+      "wr": 60.66,
+      "net": 1059,
+      "per": 2.19,
+      "perday": 5.8,
+      "excess": 2.34
+     },
+     "test": {
+      "trades": 326,
+      "hit": 177,
+      "miss": 122,
+      "wr": 58.28,
+      "net": -118,
+      "per": -0.36,
+      "perday": 5.8,
+      "excess": 0.1
+     }
+    }
+   ],
+   [
+    [
+     "sy328RangeEdgeBuy"
+    ],
+    {
+     "train": {
+      "trades": 912,
+      "hit": 517,
+      "miss": 339,
+      "wr": 59.32,
+      "net": 996,
+      "per": 1.09,
+      "perday": 10.9,
+      "excess": 1.0
+     },
+     "test": {
+      "trades": 498,
+      "hit": 267,
+      "miss": 167,
+      "wr": 59.44,
+      "net": 833,
+      "per": 1.67,
+      "perday": 8.9,
+      "excess": 1.26
+     }
+    }
+   ],
+   [
+    [
+     "sy336Range80Buy"
+    ],
+    {
+     "train": {
+      "trades": 718,
+      "hit": 407,
+      "miss": 261,
+      "wr": 59.61,
+      "net": 958,
+      "per": 1.33,
+      "perday": 8.5,
+      "excess": 1.29
+     },
+     "test": {
+      "trades": 514,
+      "hit": 265,
+      "miss": 177,
+      "wr": 57.39,
+      "net": -63,
+      "per": -0.12,
+      "perday": 9.2,
+      "excess": -0.79
+     }
+    }
+   ],
+   [
+    [
+     "realRevBuy"
+    ],
+    {
+     "train": {
+      "trades": 189,
+      "hit": 111,
+      "miss": 62,
+      "wr": 62.43,
+      "net": 891,
+      "per": 4.71,
+      "perday": 2.2,
+      "excess": 4.11
+     },
+     "test": {
+      "trades": 220,
+      "hit": 107,
+      "miss": 80,
+      "wr": 56.82,
+      "net": -492,
+      "per": -2.24,
+      "perday": 3.9,
+      "excess": -1.36
+     }
+    }
+   ],
+   [
+    [
+     "sy337RawBuy"
+    ],
+    {
+     "train": {
+      "trades": 189,
+      "hit": 111,
+      "miss": 62,
+      "wr": 62.43,
+      "net": 891,
+      "per": 4.71,
+      "perday": 2.2,
+      "excess": 4.11
+     },
+     "test": {
+      "trades": 220,
+      "hit": 107,
+      "miss": 80,
+      "wr": 56.82,
+      "net": -492,
+      "per": -2.24,
+      "perday": 3.9,
+      "excess": -1.36
+     }
+    }
+   ],
+   [
+    [
+     "localTrendBuy"
+    ],
+    {
+     "train": {
+      "trades": 702,
+      "hit": 388,
+      "miss": 241,
+      "wr": 58.26,
+      "net": 888,
+      "per": 1.27,
+      "perday": 8.4,
+      "excess": -0.06
+     },
+     "test": {
+      "trades": 452,
+      "hit": 213,
+      "miss": 163,
+      "wr": 52.65,
+      "net": -1919,
+      "per": -4.25,
+      "perday": 8.1,
+      "excess": -5.53
+     }
+    }
+   ],
+   [
+    [
+     "chWtB"
+    ],
+    {
+     "train": {
+      "trades": 459,
+      "hit": 268,
+      "miss": 169,
+      "wr": 59.91,
+      "net": 862,
+      "per": 1.88,
+      "perday": 5.5,
+      "excess": 1.59
+     },
+     "test": {
+      "trades": 279,
+      "hit": 155,
+      "miss": 89,
+      "wr": 58.78,
+      "net": 698,
+      "per": 2.5,
+      "perday": 5.0,
+      "excess": 0.6
+     }
+    }
+   ],
+   [
+    [
+     "sy360FibBoostBuy"
+    ],
+    {
+     "train": {
+      "trades": 755,
+      "hit": 404,
+      "miss": 261,
+      "wr": 58.41,
+      "net": 753,
+      "per": 1.0,
+      "perday": 9.0,
+      "excess": 0.09
+     },
+     "test": {
+      "trades": 593,
+      "hit": 267,
+      "miss": 222,
+      "wr": 50.76,
+      "net": -3524,
+      "per": -5.94,
+      "perday": 10.6,
+      "excess": -7.42
+     }
+    }
+   ],
+   [
+    [
+     "chPsB"
+    ],
+    {
+     "train": {
+      "trades": 60,
+      "hit": 38,
+      "miss": 20,
+      "wr": 65.0,
+      "net": 423,
+      "per": 7.05,
+      "perday": 0.7,
+      "excess": 6.68
+     },
+     "test": {
+      "trades": 28,
+      "hit": 18,
+      "miss": 7,
+      "wr": 71.43,
+      "net": 372,
+      "per": 13.28,
+      "perday": 0.5,
+      "excess": 13.25
+     }
+    }
+   ],
+   [
+    [
+     "capIchiUltraBuy"
+    ],
+    {
+     "train": {
+      "trades": 98,
+      "hit": 58,
+      "miss": 34,
+      "wr": 62.24,
+      "net": 420,
+      "per": 4.29,
+      "perday": 1.2,
+      "excess": 3.92
+     },
+     "test": {
+      "trades": 46,
+      "hit": 23,
+      "miss": 16,
+      "wr": 54.35,
+      "net": -120,
+      "per": -2.61,
+      "perday": 0.8,
+      "excess": -3.83
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4113,
+      "hit": 2325,
+      "miss": 1486,
+      "wr": 59.32,
+      "net": 5747,
+      "per": 1.4,
+      "perday": 49.0,
+      "excess": 1.0
+     },
+     "test": {
+      "trades": 2342,
+      "hit": 1163,
+      "miss": 804,
+      "wr": 55.38,
+      "net": -3307,
+      "per": -1.41,
+      "perday": 41.8,
+      "excess": -2.8
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy331Range20Buy"
+    ],
+    {
+     "train": {
+      "trades": 3832,
+      "hit": 2153,
+      "miss": 1387,
+      "wr": 59.11,
+      "net": 4736,
+      "per": 1.24,
+      "perday": 45.6,
+      "excess": 0.79
+     },
+     "test": {
+      "trades": 2211,
+      "hit": 1101,
+      "miss": 753,
+      "wr": 55.4,
+      "net": -2810,
+      "per": -1.27,
+      "perday": 39.5,
+      "excess": -2.78
+     }
+    }
+   ],
+   [
+    [
+     "chVzB",
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3883,
+      "hit": 2182,
+      "miss": 1407,
+      "wr": 59.08,
+      "net": 4651,
+      "per": 1.2,
+      "perday": 46.2,
+      "excess": 0.76
+     },
+     "test": {
+      "trades": 2232,
+      "hit": 1118,
+      "miss": 760,
+      "wr": 55.65,
+      "net": -2400,
+      "per": -1.08,
+      "perday": 39.9,
+      "excess": -2.53
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy336Range80Buy"
+    ],
+    {
+     "train": {
+      "trades": 3850,
+      "hit": 2160,
+      "miss": 1391,
+      "wr": 59.06,
+      "net": 4606,
+      "per": 1.2,
+      "perday": 45.8,
+      "excess": 0.74
+     },
+     "test": {
+      "trades": 2285,
+      "hit": 1133,
+      "miss": 781,
+      "wr": 55.27,
+      "net": -3226,
+      "per": -1.41,
+      "perday": 40.8,
+      "excess": -2.91
+     }
+    }
+   ],
+   [
+    [
+     "chUls2B",
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3812,
+      "hit": 2136,
+      "miss": 1379,
+      "wr": 59.0,
+      "net": 4427,
+      "per": 1.16,
+      "perday": 45.4,
+      "excess": 0.68
+     },
+     "test": {
+      "trades": 2271,
+      "hit": 1127,
+      "miss": 782,
+      "wr": 55.26,
+      "net": -3527,
+      "per": -1.55,
+      "perday": 40.6,
+      "excess": -2.92
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy328RangeEdgeBuy"
+    ],
+    {
+     "train": {
+      "trades": 3731,
+      "hit": 2090,
+      "miss": 1349,
+      "wr": 59.05,
+      "net": 4363,
+      "per": 1.17,
+      "perday": 44.4,
+      "excess": 0.73
+     },
+     "test": {
+      "trades": 2173,
+      "hit": 1082,
+      "miss": 737,
+      "wr": 55.45,
+      "net": -2564,
+      "per": -1.18,
+      "perday": 38.8,
+      "excess": -2.73
+     }
+    }
+   ],
+   [
+    [
+     "chSprB",
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3968,
+      "hit": 2222,
+      "miss": 1441,
+      "wr": 59.0,
+      "net": 4359,
+      "per": 1.1,
+      "perday": 47.2,
+      "excess": 0.68
+     },
+     "test": {
+      "trades": 2305,
+      "hit": 1136,
+      "miss": 801,
+      "wr": 54.97,
+      "net": -4361,
+      "per": -1.89,
+      "perday": 41.2,
+      "excess": -3.21
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "sy331Range20Buy"
+    ],
+    {
+     "train": {
+      "trades": 2467,
+      "hit": 1403,
+      "miss": 887,
+      "wr": 59.67,
+      "net": 4311,
+      "per": 1.75,
+      "perday": 29.4,
+      "excess": 1.35
+     },
+     "test": {
+      "trades": 1389,
+      "hit": 687,
+      "miss": 472,
+      "wr": 54.57,
+      "net": -2364,
+      "per": -1.7,
+      "perday": 24.8,
+      "excess": -3.61
+     }
+    }
+   ],
+   [
+    [
+     "chCmoB",
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3827,
+      "hit": 2145,
+      "miss": 1388,
+      "wr": 58.98,
+      "net": 4228,
+      "per": 1.1,
+      "perday": 45.6,
+      "excess": 0.66
+     },
+     "test": {
+      "trades": 2213,
+      "hit": 1104,
+      "miss": 751,
+      "wr": 55.54,
+      "net": -2570,
+      "per": -1.16,
+      "perday": 39.5,
+      "excess": -2.64
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy336Range60Buy"
+    ],
+    {
+     "train": {
+      "trades": 3787,
+      "hit": 2121,
+      "miss": 1374,
+      "wr": 58.99,
+      "net": 4136,
+      "per": 1.09,
+      "perday": 45.1,
+      "excess": 0.67
+     },
+     "test": {
+      "trades": 2197,
+      "hit": 1090,
+      "miss": 755,
+      "wr": 55.12,
+      "net": -3360,
+      "per": -1.53,
+      "perday": 39.2,
+      "excess": -3.06
+     }
+    }
+   ],
+   [
+    [
+     "chR14B",
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3846,
+      "hit": 2154,
+      "miss": 1398,
+      "wr": 58.97,
+      "net": 4122,
+      "per": 1.07,
+      "perday": 45.8,
+      "excess": 0.65
+     },
+     "test": {
+      "trades": 2286,
+      "hit": 1137,
+      "miss": 791,
+      "wr": 55.25,
+      "net": -3598,
+      "per": -1.57,
+      "perday": 40.8,
+      "excess": -2.93
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "rsi14ShiftBuy"
+    ],
+    {
+     "train": {
+      "trades": 3845,
+      "hit": 2153,
+      "miss": 1398,
+      "wr": 58.96,
+      "net": 4077,
+      "per": 1.06,
+      "perday": 45.8,
+      "excess": 0.64
+     },
+     "test": {
+      "trades": 2286,
+      "hit": 1137,
+      "miss": 791,
+      "wr": 55.25,
+      "net": -3598,
+      "per": -1.57,
+      "perday": 40.8,
+      "excess": -2.93
+     }
+    }
+   ],
+   [
+    [
+     "chCmoB",
+     "momentumBuy"
+    ],
+    {
+     "train": {
+      "trades": 2051,
+      "hit": 1173,
+      "miss": 731,
+      "wr": 59.73,
+      "net": 4005,
+      "per": 1.95,
+      "perday": 24.4,
+      "excess": 1.41
+     },
+     "test": {
+      "trades": 1167,
+      "hit": 589,
+      "miss": 397,
+      "wr": 54.76,
+      "net": -1560,
+      "per": -1.34,
+      "perday": 20.8,
+      "excess": -3.42
+     }
+    }
+   ],
+   [
+    [
+     "chKeltB",
+     "r11ConnB"
+    ],
+    {
+     "train": {
+      "trades": 3898,
+      "hit": 2184,
+      "miss": 1419,
+      "wr": 58.93,
+      "net": 3969,
+      "per": 1.02,
+      "perday": 46.4,
+      "excess": 0.61
+     },
+     "test": {
+      "trades": 2235,
+      "hit": 1113,
+      "miss": 764,
+      "wr": 55.44,
+      "net": -2924,
+      "per": -1.31,
+      "perday": 39.9,
+      "excess": -2.74
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 2993,
+      "hit": 1701,
+      "miss": 1089,
+      "wr": 59.31,
+      "net": 3969,
+      "per": 1.33,
+      "perday": 35.6,
+      "excess": 0.99
+     },
+     "test": {
+      "trades": 1682,
+      "hit": 834,
+      "miss": 581,
+      "wr": 54.7,
+      "net": -3048,
+      "per": -1.81,
+      "perday": 30.0,
+      "excess": -3.48
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4738,
+      "hit": 2689,
+      "miss": 1722,
+      "wr": 59.37,
+      "net": 6799,
+      "per": 1.43,
+      "perday": 56.4,
+      "excess": 1.05
+     },
+     "test": {
+      "trades": 2601,
+      "hit": 1291,
+      "miss": 896,
+      "wr": 55.36,
+      "net": -3833,
+      "per": -1.47,
+      "perday": 46.4,
+      "excess": -2.82
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4608,
+      "hit": 2618,
+      "miss": 1671,
+      "wr": 59.48,
+      "net": 6789,
+      "per": 1.47,
+      "perday": 54.9,
+      "excess": 1.16
+     },
+     "test": {
+      "trades": 2566,
+      "hit": 1271,
+      "miss": 899,
+      "wr": 55.11,
+      "net": -4949,
+      "per": -1.93,
+      "perday": 45.8,
+      "excess": -3.07
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 3521,
+      "hit": 2029,
+      "miss": 1277,
+      "wr": 59.87,
+      "net": 6461,
+      "per": 1.83,
+      "perday": 41.9,
+      "excess": 1.55
+     },
+     "test": {
+      "trades": 1971,
+      "hit": 978,
+      "miss": 706,
+      "wr": 54.39,
+      "net": -4846,
+      "per": -2.46,
+      "perday": 35.2,
+      "excess": -3.79
+     }
+    }
+   ],
+   [
+    [
+     "capIchiUltraBuy",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4162,
+      "hit": 2358,
+      "miss": 1502,
+      "wr": 59.39,
+      "net": 6212,
+      "per": 1.49,
+      "perday": 49.5,
+      "excess": 1.07
+     },
+     "test": {
+      "trades": 2364,
+      "hit": 1176,
+      "miss": 811,
+      "wr": 55.46,
+      "net": -3218,
+      "per": -1.36,
+      "perday": 42.2,
+      "excess": -2.72
+     }
+    }
+   ],
+   [
+    [
+     "chVzB",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4168,
+      "hit": 2360,
+      "miss": 1505,
+      "wr": 59.38,
+      "net": 6104,
+      "per": 1.46,
+      "perday": 49.6,
+      "excess": 1.06
+     },
+     "test": {
+      "trades": 2362,
+      "hit": 1175,
+      "miss": 812,
+      "wr": 55.46,
+      "net": -3263,
+      "per": -1.38,
+      "perday": 42.2,
+      "excess": -2.72
+     }
+    }
+   ],
+   [
+    [
+     "chSprB",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4425,
+      "hit": 2501,
+      "miss": 1608,
+      "wr": 59.41,
+      "net": 6036,
+      "per": 1.36,
+      "perday": 52.7,
+      "excess": 1.09
+     },
+     "test": {
+      "trades": 2464,
+      "hit": 1222,
+      "miss": 862,
+      "wr": 55.11,
+      "net": -4565,
+      "per": -1.85,
+      "perday": 44.0,
+      "excess": -3.07
+     }
+    }
+   ],
+   [
+    [
+     "chCmoB",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4168,
+      "hit": 2359,
+      "miss": 1506,
+      "wr": 59.36,
+      "net": 5963,
+      "per": 1.43,
+      "perday": 49.6,
+      "excess": 1.04
+     },
+     "test": {
+      "trades": 2364,
+      "hit": 1177,
+      "miss": 810,
+      "wr": 55.5,
+      "net": -3108,
+      "per": -1.31,
+      "perday": 42.2,
+      "excess": -2.68
+     }
+    }
+   ],
+   [
+    [
+     "chPsB",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4134,
+      "hit": 2339,
+      "miss": 1493,
+      "wr": 59.36,
+      "net": 5938,
+      "per": 1.44,
+      "perday": 49.2,
+      "excess": 1.04
+     },
+     "test": {
+      "trades": 2353,
+      "hit": 1169,
+      "miss": 808,
+      "wr": 55.42,
+      "net": -3280,
+      "per": -1.39,
+      "perday": 42.0,
+      "excess": -2.76
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy334TypeBuy",
+     "tvExactBalBuy"
+    ],
+    {
+     "train": {
+      "trades": 4428,
+      "hit": 2503,
+      "miss": 1603,
+      "wr": 59.24,
+      "net": 5937,
+      "per": 1.34,
+      "perday": 52.7,
+      "excess": 0.92
+     },
+     "test": {
+      "trades": 2491,
+      "hit": 1243,
+      "miss": 867,
+      "wr": 55.28,
+      "net": -3984,
+      "per": -1.6,
+      "perday": 44.5,
+      "excess": -2.9
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "r8WtBuy",
+     "sy331Range20Buy"
+    ],
+    {
+     "train": {
+      "trades": 3167,
+      "hit": 1820,
+      "miss": 1146,
+      "wr": 59.87,
+      "net": 5900,
+      "per": 1.86,
+      "perday": 37.7,
+      "excess": 1.55
+     },
+     "test": {
+      "trades": 1796,
+      "hit": 893,
+      "miss": 642,
+      "wr": 54.29,
+      "net": -4454,
+      "per": -2.48,
+      "perday": 32.1,
+      "excess": -3.89
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "r11ConnB",
+     "sy331Range20Buy"
+    ],
+    {
+     "train": {
+      "trades": 4471,
+      "hit": 2527,
+      "miss": 1628,
+      "wr": 59.23,
+      "net": 5848,
+      "per": 1.31,
+      "perday": 53.2,
+      "excess": 0.91
+     },
+     "test": {
+      "trades": 2473,
+      "hit": 1229,
+      "miss": 845,
+      "wr": 55.2,
+      "net": -3621,
+      "per": -1.46,
+      "perday": 44.2,
+      "excess": -2.98
+     }
+    }
+   ],
+   [
+    [
+     "localTrendBuy",
+     "momentumBuy",
+     "sy331Range20Buy"
+    ],
+    {
+     "train": {
+      "trades": 3055,
+      "hit": 1739,
+      "miss": 1086,
+      "wr": 59.74,
+      "net": 5827,
+      "per": 1.91,
+      "perday": 36.4,
+      "excess": 1.42
+     },
+     "test": {
+      "trades": 1746,
+      "hit": 859,
+      "miss": 604,
+      "wr": 54.3,
+      "net": -3772,
+      "per": -2.16,
+      "perday": 31.2,
+      "excess": -3.88
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy315WebBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4114,
+      "hit": 2326,
+      "miss": 1486,
+      "wr": 59.33,
+      "net": 5792,
+      "per": 1.41,
+      "perday": 49.0,
+      "excess": 1.01
+     },
+     "test": {
+      "trades": 2342,
+      "hit": 1163,
+      "miss": 804,
+      "wr": 55.38,
+      "net": -3307,
+      "per": -1.41,
+      "perday": 41.8,
+      "excess": -2.8
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnB",
+     "sy327RangeBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4114,
+      "hit": 2326,
+      "miss": 1486,
+      "wr": 59.33,
+      "net": 5792,
+      "per": 1.41,
+      "perday": 49.0,
+      "excess": 1.01
+     },
+     "test": {
+      "trades": 2342,
+      "hit": 1163,
+      "miss": 804,
+      "wr": 55.38,
+      "net": -3307,
+      "per": -1.41,
+      "perday": 41.8,
+      "excess": -2.8
+     }
+    }
+   ],
+   [
+    [
+     "chTriB",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4128,
+      "hit": 2334,
+      "miss": 1492,
+      "wr": 59.33,
+      "net": 5762,
+      "per": 1.4,
+      "perday": 49.1,
+      "excess": 1.01
+     },
+     "test": {
+      "trades": 2349,
+      "hit": 1168,
+      "miss": 806,
+      "wr": 55.43,
+      "net": -3212,
+      "per": -1.37,
+      "perday": 41.9,
+      "excess": -2.75
+     }
+    }
+   ],
+   [
+    [
+     "localTrendBuy",
+     "momentumBuy",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4110,
+      "hit": 2365,
+      "miss": 1476,
+      "wr": 59.85,
+      "net": 7879,
+      "per": 1.92,
+      "perday": 48.9,
+      "excess": 1.53
+     },
+     "test": {
+      "trades": 2327,
+      "hit": 1150,
+      "miss": 836,
+      "wr": 54.32,
+      "net": -6082,
+      "per": -2.61,
+      "perday": 41.6,
+      "excess": -3.86
+     }
+    }
+   ],
+   [
+    [
+     "chSprB",
+     "r11ConnB",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4855,
+      "hit": 2763,
+      "miss": 1763,
+      "wr": 59.65,
+      "net": 7635,
+      "per": 1.57,
+      "perday": 57.8,
+      "excess": 1.33
+     },
+     "test": {
+      "trades": 2666,
+      "hit": 1330,
+      "miss": 942,
+      "wr": 55.1,
+      "net": -5154,
+      "per": -1.93,
+      "perday": 47.6,
+      "excess": -3.08
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "r11ConnB",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 5188,
+      "hit": 2953,
+      "miss": 1893,
+      "wr": 59.43,
+      "net": 7486,
+      "per": 1.44,
+      "perday": 61.8,
+      "excess": 1.11
+     },
+     "test": {
+      "trades": 2804,
+      "hit": 1395,
+      "miss": 987,
+      "wr": 55.1,
+      "net": -5336,
+      "per": -1.9,
+      "perday": 50.1,
+      "excess": -3.08
+     }
+    }
+   ],
+   [
+    [
+     "momentumBuy",
+     "r11ConnB",
+     "sy334TypeBuy",
+     "tvExactBalBuy"
+    ],
+    {
+     "train": {
+      "trades": 5019,
+      "hit": 2852,
+      "miss": 1824,
+      "wr": 59.37,
+      "net": 7388,
+      "per": 1.47,
+      "perday": 59.8,
+      "excess": 1.05
+     },
+     "test": {
+      "trades": 2735,
+      "hit": 1368,
+      "miss": 947,
+      "wr": 55.47,
+      "net": -3720,
+      "per": -1.36,
+      "perday": 48.8,
+      "excess": -2.71
+     }
+    }
+   ],
+   [
+    [
+     "localTrendBuy",
+     "momentumBuy",
+     "r8WtBuy",
+     "sy331Range20Buy"
+    ],
+    {
+     "train": {
+      "trades": 3754,
+      "hit": 2154,
+      "miss": 1345,
+      "wr": 59.86,
+      "net": 7297,
+      "per": 1.94,
+      "perday": 44.7,
+      "excess": 1.54
+     },
+     "test": {
+      "trades": 2152,
+      "hit": 1064,
+      "miss": 775,
+      "wr": 54.04,
+      "net": -5982,
+      "per": -2.78,
+      "perday": 38.4,
+      "excess": -4.14
+     }
+    }
+   ],
+   [
+    [
+     "chVzB",
+     "momentumBuy",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 3639,
+      "hit": 2102,
+      "miss": 1315,
+      "wr": 60.04,
+      "net": 7292,
+      "per": 2.0,
+      "perday": 43.3,
+      "excess": 1.72
+     },
+     "test": {
+      "trades": 2024,
+      "hit": 1004,
+      "miss": 725,
+      "wr": 54.59,
+      "net": -4904,
+      "per": -2.42,
+      "perday": 36.1,
+      "excess": -3.59
+     }
+    }
+   ],
+   [
+    [
+     "chVzB",
+     "momentumBuy",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4792,
+      "hit": 2724,
+      "miss": 1740,
+      "wr": 59.43,
+      "net": 7222,
+      "per": 1.51,
+      "perday": 57.0,
+      "excess": 1.11
+     },
+     "test": {
+      "trades": 2617,
+      "hit": 1297,
+      "miss": 903,
+      "wr": 55.33,
+      "net": -4029,
+      "per": -1.54,
+      "perday": 46.7,
+      "excess": -2.85
+     }
+    }
+   ],
+   [
+    [
+     "chVzB",
+     "r11ConnB",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4654,
+      "hit": 2649,
+      "miss": 1686,
+      "wr": 59.54,
+      "net": 7200,
+      "per": 1.55,
+      "perday": 55.4,
+      "excess": 1.22
+     },
+     "test": {
+      "trades": 2584,
+      "hit": 1283,
+      "miss": 904,
+      "wr": 55.22,
+      "net": -4740,
+      "per": -1.83,
+      "perday": 46.1,
+      "excess": -2.96
+     }
+    }
+   ],
+   [
+    [
+     "chUtB",
+     "momentumBuy",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 3729,
+      "hit": 2152,
+      "miss": 1353,
+      "wr": 59.91,
+      "net": 7187,
+      "per": 1.93,
+      "perday": 44.4,
+      "excess": 1.59
+     },
+     "test": {
+      "trades": 2076,
+      "hit": 1031,
+      "miss": 740,
+      "wr": 54.87,
+      "net": -4608,
+      "per": -2.22,
+      "perday": 37.1,
+      "excess": -3.31
+     }
+    }
+   ],
+   [
+    [
+     "chCmoB",
+     "momentumBuy",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4796,
+      "hit": 2726,
+      "miss": 1742,
+      "wr": 59.42,
+      "net": 7152,
+      "per": 1.49,
+      "perday": 57.1,
+      "excess": 1.1
+     },
+     "test": {
+      "trades": 2620,
+      "hit": 1301,
+      "miss": 901,
+      "wr": 55.42,
+      "net": -3767,
+      "per": -1.44,
+      "perday": 46.8,
+      "excess": -2.76
+     }
+    }
+   ],
+   [
+    [
+     "chCmoB",
+     "momentumBuy",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 3619,
+      "hit": 2093,
+      "miss": 1311,
+      "wr": 60.02,
+      "net": 7128,
+      "per": 1.97,
+      "perday": 43.1,
+      "excess": 1.7
+     },
+     "test": {
+      "trades": 2012,
+      "hit": 1005,
+      "miss": 715,
+      "wr": 54.82,
+      "net": -4210,
+      "per": -2.09,
+      "perday": 35.9,
+      "excess": -3.36
+     }
+    }
+   ],
+   [
+    [
+     "chPsB",
+     "momentumBuy",
+     "r11ConnB",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4758,
+      "hit": 2703,
+      "miss": 1727,
+      "wr": 59.42,
+      "net": 7115,
+      "per": 1.5,
+      "perday": 56.6,
+      "excess": 1.1
+     },
+     "test": {
+      "trades": 2611,
+      "hit": 1295,
+      "miss": 901,
+      "wr": 55.34,
+      "net": -3961,
+      "per": -1.52,
+      "perday": 46.6,
+      "excess": -2.84
+     }
+    }
+   ],
+   [
+    [
+     "capIchiUltraBuy",
+     "r11ConnB",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4653,
+      "hit": 2647,
+      "miss": 1687,
+      "wr": 59.51,
+      "net": 7075,
+      "per": 1.52,
+      "perday": 55.4,
+      "excess": 1.19
+     },
+     "test": {
+      "trades": 2588,
+      "hit": 1285,
+      "miss": 907,
+      "wr": 55.18,
+      "net": -4885,
+      "per": -1.89,
+      "perday": 46.2,
+      "excess": -3.0
+     }
+    }
+   ],
+   [
+    [
+     "chCvdB",
+     "r11ConnB",
+     "r8WtBuy",
+     "sy334TypeBuy"
+    ],
+    {
+     "train": {
+      "trades": 4709,
+      "hit": 2676,
+      "miss": 1710,
+      "wr": 59.55,
+      "net": 7063,
+      "per": 1.5,
+      "perday": 56.1,
+      "excess": 1.23
+     },
+     "test": {
+      "trades": 2601,
+      "hit": 1293,
+      "miss": 910,
+      "wr": 55.25,
+      "net": -4593,
+      "per": -1.77,
+      "perday": 46.4,
+      "excess": -2.93
+     }
+    }
+   ],
+   [
+    [
+     "chSprB",
+     "chVzB",
+     "r11ConnB",
+     "r8WtBuy"
+    ],
+    {
+     "train": {
+      "trades": 4743,
+      "hit": 2694,
+      "miss": 1723,
+      "wr": 59.48,
+      "net": 7038,
+      "per": 1.48,
+      "perday": 56.5,
+      "excess": 1.16
+     },
+     "test": {
+      "trades": 2610,
+      "hit": 1307,
+      "miss": 917,
+      "wr": 55.13,
+      "net": -4609,
+      "per": -1.77,
+      "perday": 46.6,
+      "excess": -3.05
+     }
+    }
+   ]
+  ],
+  "SELL": [
+   [
+    [
+     "r11ConnS"
+    ],
+    {
+     "train": {
+      "trades": 3527,
+      "hit": 2001,
+      "miss": 1221,
+      "wr": 59.82,
+      "net": 7243,
+      "per": 2.05,
+      "perday": 42.0,
+      "excess": -0.93
+     },
+     "test": {
+      "trades": 2067,
+      "hit": 1113,
+      "miss": 634,
+      "wr": 59.89,
+      "net": 6545,
+      "per": 3.17,
+      "perday": 36.9,
+      "excess": -3.18
+     }
+    }
+   ],
+   [
+    [
+     "taOppSell"
+    ],
+    {
+     "train": {
+      "trades": 1639,
+      "hit": 941,
+      "miss": 562,
+      "wr": 60.16,
+      "net": 4418,
+      "per": 2.7,
+      "perday": 19.5,
+      "excess": -0.59
+     },
+     "test": {
+      "trades": 1088,
+      "hit": 576,
+      "miss": 331,
+      "wr": 59.56,
+      "net": 2752,
+      "per": 2.53,
+      "perday": 19.4,
+      "excess": -3.51
+     }
+    }
+   ],
+   [
+    [
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 964,
+      "hit": 542,
+      "miss": 307,
+      "wr": 60.68,
+      "net": 3426,
+      "per": 3.55,
+      "perday": 11.5,
+      "excess": -0.07
+     },
+     "test": {
+      "trades": 566,
+      "hit": 299,
+      "miss": 165,
+      "wr": 59.72,
+      "net": 1891,
+      "per": 3.34,
+      "perday": 10.1,
+      "excess": -3.35
+     }
+    }
+   ],
+   [
+    [
+     "qaRawSell"
+    ],
+    {
+     "train": {
+      "trades": 5136,
+      "hit": 2879,
+      "miss": 1881,
+      "wr": 58.59,
+      "net": 3371,
+      "per": 0.66,
+      "perday": 61.1,
+      "excess": -2.16
+     },
+     "test": {
+      "trades": 2766,
+      "hit": 1499,
+      "miss": 871,
+      "wr": 59.76,
+      "net": 7630,
+      "per": 2.76,
+      "perday": 49.4,
+      "excess": -3.31
+     }
+    }
+   ],
+   [
+    [
+     "sy320WeakOppSell"
+    ],
+    {
+     "train": {
+      "trades": 1881,
+      "hit": 1035,
+      "miss": 658,
+      "wr": 58.96,
+      "net": 2562,
+      "per": 1.36,
+      "perday": 22.4,
+      "excess": -1.79
+     },
+     "test": {
+      "trades": 965,
+      "hit": 494,
+      "miss": 304,
+      "wr": 57.72,
+      "net": 1228,
+      "per": 1.27,
+      "perday": 17.2,
+      "excess": -5.35
+     }
+    }
+   ],
+   [
+    [
+     "sy322DeadWeakSell"
+    ],
+    {
+     "train": {
+      "trades": 1706,
+      "hit": 928,
+      "miss": 586,
+      "wr": 58.44,
+      "net": 1984,
+      "per": 1.16,
+      "perday": 20.3,
+      "excess": -2.31
+     },
+     "test": {
+      "trades": 910,
+      "hit": 479,
+      "miss": 261,
+      "wr": 61.1,
+      "net": 3796,
+      "per": 4.17,
+      "perday": 16.2,
+      "excess": -1.97
+     }
+    }
+   ],
+   [
+    [
+     "rsi14ShiftSell"
+    ],
+    {
+     "train": {
+      "trades": 559,
+      "hit": 324,
+      "miss": 192,
+      "wr": 61.72,
+      "net": 1943,
+      "per": 3.48,
+      "perday": 6.7,
+      "excess": 0.97
+     },
+     "test": {
+      "trades": 309,
+      "hit": 169,
+      "miss": 106,
+      "wr": 58.25,
+      "net": 383,
+      "per": 1.24,
+      "perday": 5.5,
+      "excess": -4.82
+     }
+    }
+   ],
+   [
+    [
+     "chR14S"
+    ],
+    {
+     "train": {
+      "trades": 559,
+      "hit": 323,
+      "miss": 192,
+      "wr": 61.54,
+      "net": 1836,
+      "per": 3.28,
+      "perday": 6.7,
+      "excess": 0.79
+     },
+     "test": {
+      "trades": 309,
+      "hit": 169,
+      "miss": 106,
+      "wr": 58.25,
+      "net": 383,
+      "per": 1.24,
+      "perday": 5.5,
+      "excess": -4.82
+     }
+    }
+   ],
+   [
+    [
+     "chSprS"
+    ],
+    {
+     "train": {
+      "trades": 1391,
+      "hit": 767,
+      "miss": 481,
+      "wr": 58.59,
+      "net": 1615,
+      "per": 1.16,
+      "perday": 16.6,
+      "excess": -2.16
+     },
+     "test": {
+      "trades": 746,
+      "hit": 381,
+      "miss": 245,
+      "wr": 58.31,
+      "net": 529,
+      "per": 0.71,
+      "perday": 13.3,
+      "excess": -4.76
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell"
+    ],
+    {
+     "train": {
+      "trades": 720,
+      "hit": 405,
+      "miss": 246,
+      "wr": 60.0,
+      "net": 1580,
+      "per": 2.19,
+      "perday": 8.6,
+      "excess": -0.75
+     },
+     "test": {
+      "trades": 417,
+      "hit": 206,
+      "miss": 136,
+      "wr": 56.35,
+      "net": -207,
+      "per": -0.5,
+      "perday": 7.4,
+      "excess": -6.72
+     }
+    }
+   ],
+   [
+    [
+     "rawSell"
+    ],
+    {
+     "train": {
+      "trades": 2601,
+      "hit": 1434,
+      "miss": 939,
+      "wr": 58.52,
+      "net": 1525,
+      "per": 0.59,
+      "perday": 31.0,
+      "excess": -2.23
+     },
+     "test": {
+      "trades": 1538,
+      "hit": 840,
+      "miss": 470,
+      "wr": 60.27,
+      "net": 5680,
+      "per": 3.69,
+      "perday": 27.5,
+      "excess": -2.8
+     }
+    }
+   ],
+   [
+    [
+     "realRevSell"
+    ],
+    {
+     "train": {
+      "trades": 612,
+      "hit": 340,
+      "miss": 210,
+      "wr": 59.31,
+      "net": 1200,
+      "per": 1.96,
+      "perday": 7.3,
+      "excess": -1.44
+     },
+     "test": {
+      "trades": 281,
+      "hit": 151,
+      "miss": 76,
+      "wr": 61.21,
+      "net": 1344,
+      "per": 4.78,
+      "perday": 5.0,
+      "excess": -1.86
+     }
+    }
+   ],
+   [
+    [
+     "chCvdS"
+    ],
+    {
+     "train": {
+      "trades": 712,
+      "hit": 393,
+      "miss": 252,
+      "wr": 59.41,
+      "net": 1033,
+      "per": 1.45,
+      "perday": 8.5,
+      "excess": -1.34
+     },
+     "test": {
+      "trades": 387,
+      "hit": 199,
+      "miss": 115,
+      "wr": 59.43,
+      "net": 961,
+      "per": 2.48,
+      "perday": 6.9,
+      "excess": -3.64
+     }
+    }
+   ],
+   [
+    [
+     "typeGuardSell"
+    ],
+    {
+     "train": {
+      "trades": 2494,
+      "hit": 1365,
+      "miss": 897,
+      "wr": 58.26,
+      "net": 849,
+      "per": 0.34,
+      "perday": 29.7,
+      "excess": -2.49
+     },
+     "test": {
+      "trades": 1397,
+      "hit": 727,
+      "miss": 416,
+      "wr": 58.84,
+      "net": 3525,
+      "per": 2.52,
+      "perday": 24.9,
+      "excess": -4.23
+     }
+    }
+   ],
+   [
+    [
+     "researchVoteSell"
+    ],
+    {
+     "train": {
+      "trades": 3972,
+      "hit": 2193,
+      "miss": 1453,
+      "wr": 58.03,
+      "net": 823,
+      "per": 0.21,
+      "perday": 47.3,
+      "excess": -2.72
+     },
+     "test": {
+      "trades": 2183,
+      "hit": 1134,
+      "miss": 702,
+      "wr": 58.45,
+      "net": 3244,
+      "per": 1.49,
+      "perday": 39.0,
+      "excess": -4.62
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 3846,
+      "hit": 2194,
+      "miss": 1318,
+      "wr": 60.11,
+      "net": 9567,
+      "per": 2.49,
+      "perday": 45.8,
+      "excess": -0.64
+     },
+     "test": {
+      "trades": 2222,
+      "hit": 1188,
+      "miss": 682,
+      "wr": 59.5,
+      "net": 6129,
+      "per": 2.76,
+      "perday": 39.7,
+      "excess": -3.57
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell"
+    ],
+    {
+     "train": {
+      "trades": 3801,
+      "hit": 2166,
+      "miss": 1311,
+      "wr": 60.12,
+      "net": 8801,
+      "per": 2.32,
+      "perday": 45.2,
+      "excess": -0.63
+     },
+     "test": {
+      "trades": 2203,
+      "hit": 1184,
+      "miss": 685,
+      "wr": 59.56,
+      "net": 6182,
+      "per": 2.81,
+      "perday": 39.3,
+      "excess": -3.51
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "r11ConnS"
+    ],
+    {
+     "train": {
+      "trades": 3801,
+      "hit": 2165,
+      "miss": 1311,
+      "wr": 60.09,
+      "net": 8694,
+      "per": 2.29,
+      "perday": 45.2,
+      "excess": -0.66
+     },
+     "test": {
+      "trades": 2203,
+      "hit": 1184,
+      "miss": 685,
+      "wr": 59.56,
+      "net": 6182,
+      "per": 2.81,
+      "perday": 39.3,
+      "excess": -3.51
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS"
+    ],
+    {
+     "train": {
+      "trades": 4024,
+      "hit": 2284,
+      "miss": 1394,
+      "wr": 59.89,
+      "net": 8503,
+      "per": 2.11,
+      "perday": 47.9,
+      "excess": -0.86
+     },
+     "test": {
+      "trades": 2289,
+      "hit": 1218,
+      "miss": 718,
+      "wr": 59.2,
+      "net": 5506,
+      "per": 2.41,
+      "perday": 40.9,
+      "excess": -3.87
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4069,
+      "hit": 2323,
+      "miss": 1431,
+      "wr": 59.92,
+      "net": 8449,
+      "per": 2.08,
+      "perday": 48.4,
+      "excess": -0.83
+     },
+     "test": {
+      "trades": 2393,
+      "hit": 1297,
+      "miss": 737,
+      "wr": 59.8,
+      "net": 7295,
+      "per": 3.05,
+      "perday": 42.7,
+      "excess": -3.27
+     }
+    }
+   ],
+   [
+    [
+     "mapSell",
+     "r11ConnS"
+    ],
+    {
+     "train": {
+      "trades": 3922,
+      "hit": 2237,
+      "miss": 1369,
+      "wr": 59.89,
+      "net": 8175,
+      "per": 2.08,
+      "perday": 46.7,
+      "excess": -0.86
+     },
+     "test": {
+      "trades": 2287,
+      "hit": 1230,
+      "miss": 703,
+      "wr": 59.69,
+      "net": 6538,
+      "per": 2.86,
+      "perday": 40.8,
+      "excess": -3.38
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi34Sell"
+    ],
+    {
+     "train": {
+      "trades": 4911,
+      "hit": 2801,
+      "miss": 1758,
+      "wr": 59.6,
+      "net": 8053,
+      "per": 1.64,
+      "perday": 58.5,
+      "excess": -1.15
+     },
+     "test": {
+      "trades": 2680,
+      "hit": 1424,
+      "miss": 848,
+      "wr": 58.99,
+      "net": 5865,
+      "per": 2.19,
+      "perday": 47.9,
+      "excess": -4.08
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "taOppSell"
+    ],
+    {
+     "train": {
+      "trades": 4003,
+      "hit": 2283,
+      "miss": 1405,
+      "wr": 59.83,
+      "net": 7983,
+      "per": 1.99,
+      "perday": 47.7,
+      "excess": -0.92
+     },
+     "test": {
+      "trades": 2259,
+      "hit": 1217,
+      "miss": 697,
+      "wr": 60.38,
+      "net": 7355,
+      "per": 3.26,
+      "perday": 40.3,
+      "excess": -2.69
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "realRevSell"
+    ],
+    {
+     "train": {
+      "trades": 3751,
+      "hit": 2133,
+      "miss": 1300,
+      "wr": 59.9,
+      "net": 7897,
+      "per": 2.11,
+      "perday": 44.7,
+      "excess": -0.85
+     },
+     "test": {
+      "trades": 2137,
+      "hit": 1154,
+      "miss": 655,
+      "wr": 59.99,
+      "net": 6868,
+      "per": 3.21,
+      "perday": 38.2,
+      "excess": -3.08
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "researchVoteSell"
+    ],
+    {
+     "train": {
+      "trades": 5763,
+      "hit": 3278,
+      "miss": 2084,
+      "wr": 59.24,
+      "net": 7876,
+      "per": 1.37,
+      "perday": 68.6,
+      "excess": -1.51
+     },
+     "test": {
+      "trades": 2967,
+      "hit": 1574,
+      "miss": 953,
+      "wr": 59.22,
+      "net": 6140,
+      "per": 2.07,
+      "perday": 53.0,
+      "excess": -3.85
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy326DriverSell"
+    ],
+    {
+     "train": {
+      "trades": 4918,
+      "hit": 2802,
+      "miss": 1762,
+      "wr": 59.7,
+      "net": 7861,
+      "per": 1.6,
+      "perday": 58.5,
+      "excess": -1.05
+     },
+     "test": {
+      "trades": 2679,
+      "hit": 1420,
+      "miss": 858,
+      "wr": 58.72,
+      "net": 5285,
+      "per": 1.97,
+      "perday": 47.8,
+      "excess": -4.35
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy315WebSell"
+    ],
+    {
+     "train": {
+      "trades": 3567,
+      "hit": 2027,
+      "miss": 1233,
+      "wr": 59.94,
+      "net": 7593,
+      "per": 2.13,
+      "perday": 42.5,
+      "excess": -0.81
+     },
+     "test": {
+      "trades": 2079,
+      "hit": 1117,
+      "miss": 644,
+      "wr": 59.64,
+      "net": 6008,
+      "per": 2.89,
+      "perday": 37.1,
+      "excess": -3.43
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy327RangeSell"
+    ],
+    {
+     "train": {
+      "trades": 3567,
+      "hit": 2027,
+      "miss": 1233,
+      "wr": 59.94,
+      "net": 7593,
+      "per": 2.13,
+      "perday": 42.5,
+      "excess": -0.81
+     },
+     "test": {
+      "trades": 2079,
+      "hit": 1117,
+      "miss": 644,
+      "wr": 59.64,
+      "net": 6008,
+      "per": 2.89,
+      "perday": 37.1,
+      "excess": -3.43
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy320WeakOppSell"
+    ],
+    {
+     "train": {
+      "trades": 4481,
+      "hit": 2535,
+      "miss": 1580,
+      "wr": 59.54,
+      "net": 7581,
+      "per": 1.69,
+      "perday": 53.3,
+      "excess": -1.21
+     },
+     "test": {
+      "trades": 2451,
+      "hit": 1315,
+      "miss": 758,
+      "wr": 59.73,
+      "net": 7141,
+      "per": 2.91,
+      "perday": 43.8,
+      "excess": -3.34
+     }
+    }
+   ],
+   [
+    [
+     "chCmoS",
+     "r11ConnS"
+    ],
+    {
+     "train": {
+      "trades": 3685,
+      "hit": 2096,
+      "miss": 1281,
+      "wr": 59.86,
+      "net": 7529,
+      "per": 2.04,
+      "perday": 43.9,
+      "excess": -0.89
+     },
+     "test": {
+      "trades": 2155,
+      "hit": 1162,
+      "miss": 669,
+      "wr": 59.81,
+      "net": 6430,
+      "per": 2.98,
+      "perday": 38.5,
+      "excess": -3.26
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4090,
+      "hit": 2338,
+      "miss": 1403,
+      "wr": 60.29,
+      "net": 10556,
+      "per": 2.58,
+      "perday": 48.7,
+      "excess": -0.46
+     },
+     "test": {
+      "trades": 2349,
+      "hit": 1254,
+      "miss": 731,
+      "wr": 59.13,
+      "net": 5736,
+      "per": 2.44,
+      "perday": 41.9,
+      "excess": -3.94
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4090,
+      "hit": 2337,
+      "miss": 1403,
+      "wr": 60.27,
+      "net": 10449,
+      "per": 2.55,
+      "perday": 48.7,
+      "excess": -0.48
+     },
+     "test": {
+      "trades": 2349,
+      "hit": 1254,
+      "miss": 731,
+      "wr": 59.13,
+      "net": 5736,
+      "per": 2.44,
+      "perday": 41.9,
+      "excess": -3.94
+     }
+    }
+   ],
+   [
+    [
+     "mapSell",
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4224,
+      "hit": 2420,
+      "miss": 1463,
+      "wr": 60.16,
+      "net": 10367,
+      "per": 2.45,
+      "perday": 50.3,
+      "excess": -0.59
+     },
+     "test": {
+      "trades": 2418,
+      "hit": 1292,
+      "miss": 746,
+      "wr": 59.31,
+      "net": 6089,
+      "per": 2.52,
+      "perday": 43.2,
+      "excess": -3.76
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4299,
+      "hit": 2452,
+      "miss": 1484,
+      "wr": 59.97,
+      "net": 10115,
+      "per": 2.35,
+      "perday": 51.2,
+      "excess": -0.78
+     },
+     "test": {
+      "trades": 2424,
+      "hit": 1287,
+      "miss": 762,
+      "wr": 58.95,
+      "net": 5074,
+      "per": 2.09,
+      "perday": 43.3,
+      "excess": -4.12
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4341,
+      "hit": 2489,
+      "miss": 1520,
+      "wr": 60.17,
+      "net": 10068,
+      "per": 2.32,
+      "perday": 51.7,
+      "excess": -0.58
+     },
+     "test": {
+      "trades": 2531,
+      "hit": 1370,
+      "miss": 789,
+      "wr": 59.5,
+      "net": 6912,
+      "per": 2.73,
+      "perday": 45.2,
+      "excess": -3.57
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "rsi14ShiftSell"
+    ],
+    {
+     "train": {
+      "trades": 4301,
+      "hit": 2452,
+      "miss": 1488,
+      "wr": 60.17,
+      "net": 10056,
+      "per": 2.34,
+      "perday": 51.2,
+      "excess": -0.58
+     },
+     "test": {
+      "trades": 2428,
+      "hit": 1292,
+      "miss": 770,
+      "wr": 58.94,
+      "net": 5209,
+      "per": 2.15,
+      "perday": 43.4,
+      "excess": -4.13
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy360FibBoostSell",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4371,
+      "hit": 2501,
+      "miss": 1531,
+      "wr": 60.08,
+      "net": 10045,
+      "per": 2.3,
+      "perday": 52.0,
+      "excess": -0.67
+     },
+     "test": {
+      "trades": 2512,
+      "hit": 1348,
+      "miss": 777,
+      "wr": 59.36,
+      "net": 6553,
+      "per": 2.61,
+      "perday": 44.9,
+      "excess": -3.71
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy315WebSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 3886,
+      "hit": 2221,
+      "miss": 1331,
+      "wr": 60.22,
+      "net": 9962,
+      "per": 2.56,
+      "perday": 46.3,
+      "excess": -0.53
+     },
+     "test": {
+      "trades": 2235,
+      "hit": 1196,
+      "miss": 687,
+      "wr": 59.46,
+      "net": 6071,
+      "per": 2.72,
+      "perday": 39.9,
+      "excess": -3.61
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "sy327RangeSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 3886,
+      "hit": 2221,
+      "miss": 1331,
+      "wr": 60.22,
+      "net": 9962,
+      "per": 2.56,
+      "perday": 46.3,
+      "excess": -0.53
+     },
+     "test": {
+      "trades": 2235,
+      "hit": 1196,
+      "miss": 687,
+      "wr": 59.46,
+      "net": 6071,
+      "per": 2.72,
+      "perday": 39.9,
+      "excess": -3.61
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "r11ConnS",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4341,
+      "hit": 2488,
+      "miss": 1520,
+      "wr": 60.15,
+      "net": 9961,
+      "per": 2.29,
+      "perday": 51.7,
+      "excess": -0.6
+     },
+     "test": {
+      "trades": 2531,
+      "hit": 1370,
+      "miss": 789,
+      "wr": 59.5,
+      "net": 6912,
+      "per": 2.73,
+      "perday": 45.2,
+      "excess": -3.57
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "localTrendSell",
+     "r11ConnS"
+    ],
+    {
+     "train": {
+      "trades": 4301,
+      "hit": 2451,
+      "miss": 1488,
+      "wr": 60.15,
+      "net": 9949,
+      "per": 2.31,
+      "perday": 51.2,
+      "excess": -0.6
+     },
+     "test": {
+      "trades": 2428,
+      "hit": 1292,
+      "miss": 770,
+      "wr": 58.94,
+      "net": 5209,
+      "per": 2.15,
+      "perday": 43.4,
+      "excess": -4.13
+     }
+    }
+   ],
+   [
+    [
+     "chCmoS",
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 3998,
+      "hit": 2285,
+      "miss": 1376,
+      "wr": 60.16,
+      "net": 9900,
+      "per": 2.48,
+      "perday": 47.6,
+      "excess": -0.59
+     },
+     "test": {
+      "trades": 2307,
+      "hit": 1240,
+      "miss": 713,
+      "wr": 59.51,
+      "net": 6392,
+      "per": 2.77,
+      "perday": 41.2,
+      "excess": -3.56
+     }
+    }
+   ],
+   [
+    [
+     "mapSell",
+     "r11ConnS",
+     "rsi14ShiftSell"
+    ],
+    {
+     "train": {
+      "trades": 4192,
+      "hit": 2402,
+      "miss": 1457,
+      "wr": 60.16,
+      "net": 9815,
+      "per": 2.34,
+      "perday": 49.9,
+      "excess": -0.59
+     },
+     "test": {
+      "trades": 2426,
+      "hit": 1306,
+      "miss": 756,
+      "wr": 59.48,
+      "net": 6304,
+      "per": 2.6,
+      "perday": 43.3,
+      "excess": -3.59
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "realRevSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4050,
+      "hit": 2311,
+      "miss": 1396,
+      "wr": 60.12,
+      "net": 9768,
+      "per": 2.41,
+      "perday": 48.2,
+      "excess": -0.63
+     },
+     "test": {
+      "trades": 2286,
+      "hit": 1221,
+      "miss": 705,
+      "wr": 59.41,
+      "net": 6001,
+      "per": 2.63,
+      "perday": 40.8,
+      "excess": -3.66
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "rsi34Sell"
+    ],
+    {
+     "train": {
+      "trades": 5186,
+      "hit": 2969,
+      "miss": 1848,
+      "wr": 59.81,
+      "net": 9730,
+      "per": 1.88,
+      "perday": 61.7,
+      "excess": -0.94
+     },
+     "test": {
+      "trades": 2818,
+      "hit": 1498,
+      "miss": 899,
+      "wr": 58.84,
+      "net": 5619,
+      "per": 1.99,
+      "perday": 50.3,
+      "excess": -4.23
+     }
+    }
+   ],
+   [
+    [
+     "mapSell",
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4465,
+      "hit": 2563,
+      "miss": 1547,
+      "wr": 60.31,
+      "net": 11342,
+      "per": 2.54,
+      "perday": 53.2,
+      "excess": -0.44
+     },
+     "test": {
+      "trades": 2547,
+      "hit": 1362,
+      "miss": 797,
+      "wr": 59.09,
+      "net": 5841,
+      "per": 2.29,
+      "perday": 45.5,
+      "excess": -3.98
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "mapSell",
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4465,
+      "hit": 2562,
+      "miss": 1547,
+      "wr": 60.29,
+      "net": 11235,
+      "per": 2.52,
+      "perday": 53.2,
+      "excess": -0.46
+     },
+     "test": {
+      "trades": 2547,
+      "hit": 1362,
+      "miss": 797,
+      "wr": 59.09,
+      "net": 5841,
+      "per": 2.29,
+      "perday": 45.5,
+      "excess": -3.98
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "sy320WeakOppSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 5031,
+      "hit": 2872,
+      "miss": 1759,
+      "wr": 60.03,
+      "net": 11227,
+      "per": 2.23,
+      "perday": 59.9,
+      "excess": -0.72
+     },
+     "test": {
+      "trades": 2702,
+      "hit": 1432,
+      "miss": 855,
+      "wr": 58.77,
+      "net": 5427,
+      "per": 2.01,
+      "perday": 48.2,
+      "excess": -4.3
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy320WeakOppSell"
+    ],
+    {
+     "train": {
+      "trades": 5055,
+      "hit": 2887,
+      "miss": 1770,
+      "wr": 60.04,
+      "net": 11088,
+      "per": 2.19,
+      "perday": 60.2,
+      "excess": -0.71
+     },
+     "test": {
+      "trades": 2722,
+      "hit": 1452,
+      "miss": 863,
+      "wr": 59.18,
+      "net": 6147,
+      "per": 2.26,
+      "perday": 48.6,
+      "excess": -3.89
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4547,
+      "hit": 2598,
+      "miss": 1572,
+      "wr": 60.11,
+      "net": 11017,
+      "per": 2.42,
+      "perday": 54.1,
+      "excess": -0.64
+     },
+     "test": {
+      "trades": 2554,
+      "hit": 1357,
+      "miss": 812,
+      "wr": 58.73,
+      "net": 4836,
+      "per": 1.89,
+      "perday": 45.6,
+      "excess": -4.34
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy360FibBoostSell",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4614,
+      "hit": 2645,
+      "miss": 1616,
+      "wr": 60.23,
+      "net": 11000,
+      "per": 2.38,
+      "perday": 54.9,
+      "excess": -0.52
+     },
+     "test": {
+      "trades": 2642,
+      "hit": 1417,
+      "miss": 827,
+      "wr": 59.12,
+      "net": 6285,
+      "per": 2.38,
+      "perday": 47.2,
+      "excess": -3.95
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4805,
+      "hit": 2753,
+      "miss": 1687,
+      "wr": 60.17,
+      "net": 10987,
+      "per": 2.29,
+      "perday": 57.2,
+      "excess": -0.58
+     },
+     "test": {
+      "trades": 2724,
+      "hit": 1460,
+      "miss": 867,
+      "wr": 59.07,
+      "net": 5999,
+      "per": 2.2,
+      "perday": 48.6,
+      "excess": -4.0
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "localTrendSell",
+     "r11ConnS",
+     "sy320WeakOppSell"
+    ],
+    {
+     "train": {
+      "trades": 5055,
+      "hit": 2886,
+      "miss": 1770,
+      "wr": 60.02,
+      "net": 10981,
+      "per": 2.17,
+      "perday": 60.2,
+      "excess": -0.73
+     },
+     "test": {
+      "trades": 2722,
+      "hit": 1452,
+      "miss": 863,
+      "wr": 59.18,
+      "net": 6147,
+      "per": 2.26,
+      "perday": 48.6,
+      "excess": -3.89
+     }
+    }
+   ],
+   [
+    [
+     "localTrendSell",
+     "r11ConnS",
+     "sy360FibBoostSell",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4796,
+      "hit": 2745,
+      "miss": 1682,
+      "wr": 60.03,
+      "net": 10933,
+      "per": 2.28,
+      "perday": 57.1,
+      "excess": -0.72
+     },
+     "test": {
+      "trades": 2690,
+      "hit": 1430,
+      "miss": 853,
+      "wr": 58.85,
+      "net": 5162,
+      "per": 1.92,
+      "perday": 48.0,
+      "excess": -4.22
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "localTrendSell",
+     "r11ConnS",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4547,
+      "hit": 2597,
+      "miss": 1572,
+      "wr": 60.08,
+      "net": 10910,
+      "per": 2.4,
+      "perday": 54.1,
+      "excess": -0.67
+     },
+     "test": {
+      "trades": 2554,
+      "hit": 1357,
+      "miss": 812,
+      "wr": 58.73,
+      "net": 4836,
+      "per": 1.89,
+      "perday": 45.6,
+      "excess": -4.34
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "r11ConnS",
+     "sy360FibBoostSell",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4614,
+      "hit": 2644,
+      "miss": 1616,
+      "wr": 60.21,
+      "net": 10893,
+      "per": 2.36,
+      "perday": 54.9,
+      "excess": -0.54
+     },
+     "test": {
+      "trades": 2642,
+      "hit": 1417,
+      "miss": 827,
+      "wr": 59.12,
+      "net": 6285,
+      "per": 2.38,
+      "perday": 47.2,
+      "excess": -3.95
+     }
+    }
+   ],
+   [
+    [
+     "chR14S",
+     "localTrendSell",
+     "r11ConnS",
+     "tfCtxSell"
+    ],
+    {
+     "train": {
+      "trades": 4805,
+      "hit": 2752,
+      "miss": 1687,
+      "wr": 60.15,
+      "net": 10880,
+      "per": 2.26,
+      "perday": 57.2,
+      "excess": -0.6
+     },
+     "test": {
+      "trades": 2724,
+      "hit": 1460,
+      "miss": 867,
+      "wr": 59.07,
+      "net": 5999,
+      "per": 2.2,
+      "perday": 48.6,
+      "excess": -4.0
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy315WebSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4122,
+      "hit": 2359,
+      "miss": 1414,
+      "wr": 60.36,
+      "net": 10812,
+      "per": 2.62,
+      "perday": 49.1,
+      "excess": -0.39
+     },
+     "test": {
+      "trades": 2361,
+      "hit": 1262,
+      "miss": 735,
+      "wr": 59.13,
+      "net": 5744,
+      "per": 2.43,
+      "perday": 42.2,
+      "excess": -3.94
+     }
+    }
+   ],
+   [
+    [
+     "r11ConnS",
+     "rsi14ShiftSell",
+     "sy327RangeSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4122,
+      "hit": 2359,
+      "miss": 1414,
+      "wr": 60.36,
+      "net": 10812,
+      "per": 2.62,
+      "perday": 49.1,
+      "excess": -0.39
+     },
+     "test": {
+      "trades": 2361,
+      "hit": 1262,
+      "miss": 735,
+      "wr": 59.13,
+      "net": 5744,
+      "per": 2.43,
+      "perday": 42.2,
+      "excess": -3.94
+     }
+    }
+   ],
+   [
+    [
+     "mapSell",
+     "r11ConnS",
+     "sy315WebSell",
+     "sy360FibBoostSell"
+    ],
+    {
+     "train": {
+      "trades": 4266,
+      "hit": 2448,
+      "miss": 1476,
+      "wr": 60.24,
+      "net": 10804,
+      "per": 2.53,
+      "perday": 50.8,
+      "excess": -0.51
+     },
+     "test": {
+      "trades": 2435,
+      "hit": 1302,
+      "miss": 753,
+      "wr": 59.26,
+      "net": 6018,
+      "per": 2.47,
+      "perday": 43.5,
+      "excess": -3.81
+     }
+    }
+   ]
+  ]
+ }
+}

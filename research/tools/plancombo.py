@@ -17,7 +17,8 @@ SL = float(sys.argv[2]) if len(sys.argv) > 2 else 65.0
 BE = 100 * SL / (TP + SL)
 
 R = list(csv.DictReader(open('vault.csv')))
-NB = 60000                                    # نافذة الجرد
+import os
+NB = int(os.environ.get('NB', '60000'))       # نافذة الجرد
 R = R[:NB]
 H = np.array([float(r['high']) for r in R])
 L = np.array([float(r['low']) for r in R])
@@ -66,7 +67,7 @@ def side_of(nm):
     return None
 
 
-d = json.load(open('inventory_all.json'))
+d = json.load(open(os.environ.get('INV', 'inventory_all.json')))
 ENG = {}
 for nm, ev in (d['fires'] or {}).items():
     if not ev: continue
@@ -119,6 +120,9 @@ def walk_two(mB, mS):
     return tot, hit, miss, tw, tl, net, (dur / tot if tot else 0)
 
 
+SPLIT = int(N * 0.6)
+
+
 def score(r):
     tot, hit, miss, tw, tl, net, dur = r
     if tot < 30: return None
@@ -140,7 +144,7 @@ print('%-28s %5s %7s %6s %6s %7s %8s %7s' % ('المحرك', 'جهة', 'صفقا
 for nm, s in srt[:25]:
     print('%-28s %5s %7d %6d %6d %6.2f%% %+8d %7.1f' %
           (nm, s['side'], s['trades'], s['hit'], s['miss'], s['wr'], s['net'], s['perday']), flush=True)
-json.dump(solo, open('plancombo_solo.json', 'w'), ensure_ascii=False, indent=1)
+json.dump(solo, open(os.environ.get('TAG','plancombo')+'_solo.json', 'w'), ensure_ascii=False, indent=1)
 
 
 # ── 2. البحث التركيبي: OR داخل نفس الجهة، شعاع ٤٠ ──
@@ -181,7 +185,7 @@ for sn in ('BUY', 'SELL'):
     results[sn] = [(list(k), s) for k, s in best_all[:40]]
 
 json.dump({'plan': [TP, SL], 'days': DAYS, 'results': results},
-          open('plancombo_out.json', 'w'), ensure_ascii=False, indent=1)
+          open(os.environ.get('TAG','plancombo')+'_out.json', 'w'), ensure_ascii=False, indent=1)
 
 # ── 3. أفضل محفظة: أعلى تركيبة شراء + أعلى تركيبة بيع معاً ──
 print('\n══ المحفظة المدمجة ══', flush=True)
@@ -192,5 +196,5 @@ print('بيع  : %s' % ' + '.join(ss))
 print('  صفقات %d (%.1f/يوم) | هدف %d | وقف %d | ربح %.2f%% | تعادل %.2f%% | صافي %+d (%.1f/يوم) | %.1f دقيقة'
       % (r['trades'], r['perday'], r['hit'], r['miss'], r['wr'], BE, r['net'], r['netday'], r['mins']), flush=True)
 json.dump({'plan': [TP, SL], 'buy': bb, 'sell': ss, 'portfolio': r},
-          open('plancombo_port.json', 'w'), ensure_ascii=False, indent=1)
+          open(os.environ.get('TAG','plancombo')+'_port.json', 'w'), ensure_ascii=False, indent=1)
 print('\nتم الحفظ: plancombo_solo.json / plancombo_out.json / plancombo_port.json')
