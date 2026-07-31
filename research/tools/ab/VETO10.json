@@ -1,0 +1,3 @@
+{"name":"بيع فقط + فيتو الشراء 10 شمعة",
+ "rewrites":[["buySignal := buySignal or chTriB or chSniB\nsellSignal := sellSignal or chTriS or chSniS",
+ "buySignal := buySignal or chTriB or chSniB\nsellSignal := sellSignal or chTriS or chSniS\nvar int _lastBuySigBar = na\nif buySignal\n    _lastBuySigBar := bar_index\n_buyVetoOK = na(_lastBuySigBar) or bar_index - _lastBuySigBar >= 10\nbuySignal := false\nsellSignal := sellSignal and not sfBlock and _buyVetoOK"]]}
