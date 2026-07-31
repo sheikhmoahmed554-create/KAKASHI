@@ -2836,7 +2836,13 @@ plotshape(s31ShowDiv and nz(s31BearDivBar, -1) == bar_index, title="SYR31 Bear D
 //     • ADX < 15        → Expectancy −0.60  (سوق ميت، 884 صفقة)
 //     • VOL < 0.7×متوسط → Expectancy −0.91  (فوليوم ضعيف، 324 صفقة)
 //     • VOL > 2×متوسط   → Expectancy +10.02 (ذروة فوليوم، 102 صفقة)
-//   منع الاثنين معاً رفع الربح من 9336 إلى 10447 نقطة والـ PF من 1.068 إلى 1.093.
+//   النتيجة المقاسة فعلياً على المحرّك (6.5 شهر، 176068 شمعة):
+//     • فوليوم فقط (ADX مطفأ)  Net 9867  PF 1.072  Expect 1.538  ← الأفضل، وهو الافتراضي
+//     • بدون بوابات (SYR30)     Net 9336  PF 1.068  Expect 1.443
+//     • فوليوم + ADX            Net 7135  PF 1.055  Expect 1.188
+//     • ADX فقط                 Net 5643  PF 1.043  Expect 0.929
+//   ملاحظة: حساب «احذف الصفقات الخاسرة من الجدول» يعطي رقماً مضلِّلاً هنا،
+//   لأن الكولداون وقيد الصفقة الواحدة يستبدلان كل صفقة ممنوعة بأخرى لاحقة.
 //   لإرجاع سلوك SYR30 حرفياً: اجعل «فعّل بوابات قراءة السوق» = OFF.
 // ══════════════════════════════════════════════════════════════════
 G_CTX = "24 ■ CTX — قراءة السوق"
@@ -2844,7 +2850,9 @@ G_CTX = "24 ■ CTX — قراءة السوق"
 ctxUseGates = input.bool(true, "فعّل بوابات قراءة السوق", group = G_CTX)
 ctxVolLen = input.int(50, "طول متوسط الفوليوم", minval = 5, maxval = 300, group = G_CTX)
 ctxMinVolRatio = input.float(0.70, "أقل نسبة فوليوم مسموحة", minval = 0.0, maxval = 3.0, step = 0.05, group = G_CTX)
-ctxMinAdx = input.float(15.0, "أقل ADX مسموح (منع السوق الميت)", minval = 0.0, maxval = 40.0, step = 0.5, group = G_CTX)
+// مقاس على 6.5 شهر: بوابة ADX أضرّت (9336 ← 5643) لأن الكولداون يستبدل الصفقة الممنوعة
+// بصفقة أسوأ. لذلك الافتراضي 0 = مطفأة. بوابة الفوليوم وحدها هي التي حسّنت.
+ctxMinAdx = input.float(0.0, "أقل ADX مسموح (0 = مطفأة — أضرّت بالقياس)", minval = 0.0, maxval = 40.0, step = 0.5, group = G_CTX)
 ctxPeakVolRatio = input.float(2.00, "عتبة ذروة الفوليوم", minval = 1.0, maxval = 6.0, step = 0.1, group = G_CTX)
 ctxVolatileAtr = input.float(1.20, "عتبة التذبذب (ATR/متوسطه)", minval = 0.5, maxval = 4.0, step = 0.05, group = G_CTX)
 ctxTrendAdx = input.float(20.0, "عتبة الترند (ADX)", minval = 5.0, maxval = 50.0, step = 0.5, group = G_CTX)

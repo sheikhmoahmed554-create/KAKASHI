@@ -1,0 +1,72 @@
+[
+  {
+    "name": "CTX_ON_default",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6004,
+      "win_rate": 60.59,
+      "net_points": 7135,
+      "profit_factor": 1.055,
+      "expectancy": 1.188,
+      "max_loss_streak": 12
+    },
+    "seconds": 713
+  },
+  {
+    "name": "CTX_adx_only",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6074,
+      "win_rate": 60.39,
+      "net_points": 5643,
+      "profit_factor": 1.043,
+      "expectancy": 0.929,
+      "max_loss_streak": 12
+    },
+    "seconds": 713
+  },
+  {
+    "name": "CTX_OFF_parity",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6469,
+      "win_rate": 60.92,
+      "net_points": 9336,
+      "profit_factor": 1.068,
+      "expectancy": 1.443,
+      "max_loss_streak": 8
+    },
+    "seconds": 713
+  },
+  {
+    "name": "CTX_strict_vol09",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 5656,
+      "win_rate": 59.69,
+      "net_points": 1884,
+      "profit_factor": 1.015,
+      "expectancy": 0.333,
+      "max_loss_streak": 8
+    },
+    "seconds": 705
+  },
+  {
+    "name": "CTX_vol_only",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6415,
+      "win_rate": 61,
+      "net_points": 9867,
+      "profit_factor": 1.072,
+      "expectancy": 1.538,
+      "max_loss_streak": 8
+    },
+    "seconds": 715
+  }
+]
