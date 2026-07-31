@@ -10,7 +10,6 @@ import json, re, sys
 # ترجمة كل خاصية من مكتبة methods.py إلى Pine — الأسماء مطابقة للتعريفات الأصلية
 PINE_DEFS = """
 // ══════════ الخصائص ══════════
-pu   = 0.1
 dayIdx = int(time / 86400000)
 newDay = dayIdx != dayIdx[1]
 atrR = ta.rma(ta.tr(true), 14)
@@ -243,27 +242,50 @@ def main(src, out, title):
              % (t['win_rate'], t['per_day'], t['expectancy'], t['avg_bars']))
     L.append('// القيود: صفقة واحدة مفتوحة • وقف زمني 30 شمعة • هدف 30 / وقف 50')
     L.append('indicator("%s", overlay=true, max_bars_back=600)' % title)
+    L.append('''
+// ══════════ الإعدادات ══════════
+G_EXIT = "الخروج"
+G_SIDE = "الجهات"
+G_SESS = "الجلسة"
+G_TRND = "فلتر الاتجاه"
+G_QUAL = "جودة القواعد"
+
+pu             = input.float(0.10, "Point Unit", minval=0.001, step=0.01, group=G_EXIT)
+tradeTargetPts = input.float(30.0, "الهدف — نقاط", minval=5,  step=1, group=G_EXIT)
+tradeStopPts   = input.float(50.0, "الوقف — نقاط", minval=5,  step=1, group=G_EXIT)
+maxHoldBars    = input.int(30,     "أقصى عمر للصفقة — شموع", minval=1, maxval=500, group=G_EXIT)
+
+useBuys  = input.bool(true, "تفعيل الشراء", group=G_SIDE)
+useSells = input.bool(true, "تفعيل البيع",  group=G_SIDE)
+
+useSession = input.bool(true, "تفعيل فلتر الجلسة", group=G_SESS)
+sessMaxHr  = input.int(22, "آخر ساعة مسموحة UTC", minval=1, maxval=24, group=G_SESS)
+maxGapMin  = input.int(5,  "أقصى فجوة بين الشمعتين — دقائق", minval=1, group=G_SESS)
+
+useTrendFilter = input.bool(false, "تفعيل فلتر الاتجاه", group=G_TRND)
+trendThresh    = input.float(50.0, "حد ميل الفريم الساعي — نقاط", minval=0, step=5, group=G_TRND)
+
+minQuality = input.float(0.0, "أقل نسبة فوز مقبولة للقاعدة %", minval=0, maxval=100, step=0.5, group=G_QUAL)
+''')
     L.append(PINE_DEFS)
     L.append('\n// ══════════ القواعد ══════════')
 
     # القواعد بترتيب الأولوية نفسه المستخدم في القياس: أول قاعدة تُطلق هي التي تُنفَّذ
     for i, r in enumerate(rules, 1):
         expr = ' and '.join(cond_to_pine(p) for p in r['name'].split(' & '))
-        L.append('r%03d = %s   // %s %.1f%% / %.1f%%'
-                 % (i, expr, r['side'], r['wr_train'], r['wr_test']))
+        L.append('r%03d = %.1f >= minQuality and (%s)   // %s %.1f%% / %.1f%%'
+                 % (i, min(r['wr_train'], r['wr_test']), expr,
+                    r['side'], r['wr_train'], r['wr_test']))
 
     L.append('\n// الاختيار بالأولوية — أول قاعدة تُطلق تحدد الجهة')
     chain = ' : '.join('r%03d ? %d' % (i, 1 if r['side'] == 'BUY' else -1)
                        for i, r in enumerate(rules, 1))
     L.append('sideSel = %s : 0' % chain)
     L.append('')
+    L.append('pointUnit = pu')
     L.append('// ══════════ إدارة الصفقة: واحدة مفتوحة فقط ══════════')
     L.append('// بدون هذه الحالة يرسم المؤشر إشارة على كل شمعة يتحقق فيها الشرط،')
     L.append('// بينما القياس فتح صفقة واحدة وحجب الباقي حتى إغلاقها.')
-    L.append('tradeTargetPts = 30.0')
-    L.append('tradeStopPts   = 50.0')
-    L.append('maxHoldBars    = 30')
-    L.append('pointUnit      = pu')
     L.append('')
     L.append('var bool  active   = false')
     L.append('var int   posSide  = 0')
@@ -289,12 +311,16 @@ def main(src, out, title):
     L.append('    else if posBars >= maxHoldBars')
     L.append('        active := false')
     L.append('')
-    L.append('// فلتر الجلسة — مطابق للقياس: تُستبعد الساعتان 22 و23 UTC وشموع الفجوات')
+    L.append('// فلتر الجلسة — القياس استبعد الساعتين 22 و23 UTC وشموع الفجوات')
     L.append('barGapMin = (time - time[1]) / 60000')
-    L.append('sessOK    = hUTC < 22 and barGapMin <= 5')
+    L.append('sessOK    = not useSession or (hUTC < sessMaxHr and barGapMin <= maxGapMin)')
     L.append('')
-    L.append('canEnterLong  = not active and sessOK and sideSel ==  1')
-    L.append('canEnterShort = not active and sessOK and sideSel == -1')
+    L.append('// فلتر الاتجاه — يمنع مصادمة ميل الفريم الساعي')
+    L.append('trendOKLong  = not useTrendFilter or htf60_slope > -trendThresh')
+    L.append('trendOKShort = not useTrendFilter or htf60_slope <  trendThresh')
+    L.append('')
+    L.append('canEnterLong  = not active and sessOK and useBuys  and trendOKLong  and sideSel ==  1')
+    L.append('canEnterShort = not active and sessOK and useSells and trendOKShort and sideSel == -1')
     L.append('')
     L.append('if canEnterLong or canEnterShort')
     L.append('    active   := true')
