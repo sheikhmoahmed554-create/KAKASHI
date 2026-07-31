@@ -94,6 +94,12 @@ for (const m of months) {
     if (!done || !done.ok) { console.error(`${m} ${name}: فشل`); continue; }
     const t = done.trades.filter(x => Number.isFinite(Date.parse(x.entry_time))
                                       && x.entry_time.slice(0, 7) === m);
+    // صفقات الأساس تُحفظ كاملة: مسح آلاف الإعدادات لاحقاً يتم عليها بلا محرك
+    if (i === 0 && cfgFile) {
+      fs.appendFileSync(out.replace(/\.json$/, '_trades.jsonl'),
+        t.map(x => JSON.stringify([x.entry_time, x.side, x.outcome, x.points,
+                                   x.target, x.stop, x.source])).join('\n') + '\n');
+    }
     const e = res[name] || (res[name] = { trades: 0, wins: 0, losses: 0, net: 0, days: [], months: {} });
     let w = 0, net = 0;
     for (const x of t) {
