@@ -33,7 +33,7 @@ function applyRewrites(src, rewrites) {
   return { src, done, failed };
 }
 
-const b = await chromium.launch({ args: ['--js-flags=--max-old-space-size=8192'] });
+const b = await chromium.launch({ args: ['--js-flags=--max-old-space-size=' + (process.env.HEAP || 8192), '--disable-dev-shm-usage'] });
 const page = await b.newPage();
 page.on('pageerror', e => console.log('PAGEERROR:', e.message));
 page.on('console', m => { if (m.text().startsWith('[')) console.log(m.text()); });
