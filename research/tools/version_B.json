@@ -1,0 +1,914 @@
+{
+ "version": "B",
+ "overlap": 0.55,
+ "families": 150,
+ "test": {
+  "trades": 1999,
+  "win_rate": 67.83,
+  "per_day": 35.07,
+  "expectancy": 4.72,
+  "avg_bars": 7.0
+ },
+ "rules": [
+  {
+   "name": "piv_r1_dist>697.3 & pos20>82.83 & vwap_dist_atr>13.67",
+   "side": "SELL",
+   "wr_train": 79.1,
+   "wr_test": 79.2
+  },
+  {
+   "name": "rsi14<26.99 & or_brk_up=1 & sar_dist_atr<-2.862 & dist_swing_lo<-48.3",
+   "side": "BUY",
+   "wr_train": 76.4,
+   "wr_test": 76.9
+  },
+  {
+   "name": "kelt_z<-1.489 & or_brk_up=1 & mfi14<30.01 & donch20_brk_dn=1",
+   "side": "BUY",
+   "wr_train": 75.2,
+   "wr_test": 80.9
+  },
+  {
+   "name": "atr_ratio<0.7661 & vwap_dist_atr>10.69 & sess_ny=1 & atr_accel<0.7666",
+   "side": "SELL",
+   "wr_train": 75.6,
+   "wr_test": 75.0
+  },
+  {
+   "name": "piv_r1_dist>697.3 & rsi3>74.73 & vwap_dist_atr>13.67",
+   "side": "SELL",
+   "wr_train": 75.0,
+   "wr_test": 74.5
+  },
+  {
+   "name": "or_pos>680.3 & vwap_dist_atr>13.67 & willr5>-15.55",
+   "side": "SELL",
+   "wr_train": 75.4,
+   "wr_test": 74.4
+  },
+  {
+   "name": "piv_r1_dist>697.3 & mfi14>63.5 & piv_dist>1319",
+   "side": "SELL",
+   "wr_train": 74.4,
+   "wr_test": 75.7
+  },
+  {
+   "name": "or_pos>466.2 & sweep_high=1 & vwap_dist_atr>10.69",
+   "side": "SELL",
+   "wr_train": 80.5,
+   "wr_test": 74.0
+  },
+  {
+   "name": "piv_dist>1319 & mfi14>56.36 & or_pos>466.2",
+   "side": "SELL",
+   "wr_train": 73.9,
+   "wr_test": 75.8
+  },
+  {
+   "name": "rsi14<26.99 & or_brk_up=1 & sar_dist_atr<-2.198 & mfi14<30.01",
+   "side": "BUY",
+   "wr_train": 73.8,
+   "wr_test": 74.2
+  },
+  {
+   "name": "or_pos>466.2 & stoch21>82.8 & vwap_dist_atr>18.37",
+   "side": "SELL",
+   "wr_train": 74.0,
+   "wr_test": 73.6
+  },
+  {
+   "name": "or_pos>466.2 & stoch21>82.8 & atr_ratio<0.8338 & willr21>-17.18",
+   "side": "SELL",
+   "wr_train": 77.5,
+   "wr_test": 73.6
+  },
+  {
+   "name": "or_pos>680.3 & vwap_dist_atr>13.67 & stoch21>82.8",
+   "side": "SELL",
+   "wr_train": 78.0,
+   "wr_test": 73.3
+  },
+  {
+   "name": "or_pos>466.2 & rsi3>84.28 & piv_dist>929.4",
+   "side": "SELL",
+   "wr_train": 73.2,
+   "wr_test": 76.5
+  },
+  {
+   "name": "vwap_dist_atr>24.58 & or_pos>466.2 & vwap_dist>203.5",
+   "side": "SELL",
+   "wr_train": 73.2,
+   "wr_test": 73.2
+  },
+  {
+   "name": "ichi_price_kij_atr<-2.047 & fib_382_dist_atr<-5.683 & roc5<-13.68",
+   "side": "BUY",
+   "wr_train": 73.2,
+   "wr_test": 80.5
+  },
+  {
+   "name": "sar_dist_atr<-3.399 & donch55_pos<2.167 & or_brk_up=1 & dn_streak>2",
+   "side": "BUY",
+   "wr_train": 73.1,
+   "wr_test": 73.9
+  },
+  {
+   "name": "fib_382_dist_atr<-4.993 & adx>38.24 & dist_swing_lo<-48.3 & donch55_pos<5.649",
+   "side": "BUY",
+   "wr_train": 73.4,
+   "wr_test": 73.1
+  },
+  {
+   "name": "piv_r1_dist>-114.7 & kelt_z<-0.5562 & bb_squeeze>4.111 & rsi14<40.72",
+   "side": "BUY",
+   "wr_train": 73.5,
+   "wr_test": 73.1
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & pos20>87.48 & ret5>23.1",
+   "side": "SELL",
+   "wr_train": 73.0,
+   "wr_test": 73.5
+  },
+  {
+   "name": "ichi_price_kij_atr<-2.725 & htf15_slope>13.02 & mfi14<25.84",
+   "side": "BUY",
+   "wr_train": 73.0,
+   "wr_test": 79.1
+  },
+  {
+   "name": "piv_r1_dist>697.3 & mfi14>63.5 & willr5>-15.55",
+   "side": "SELL",
+   "wr_train": 72.9,
+   "wr_test": 76.2
+  },
+  {
+   "name": "vwap_dist_atr>13.67 & sweep_high=1 & piv_s1_dist_atr>69.87",
+   "side": "SELL",
+   "wr_train": 73.0,
+   "wr_test": 72.9
+  },
+  {
+   "name": "ichi_price_kij_atr<-2.047 & fib_382_dist_atr<-5.683 & mfi14<32.32",
+   "side": "BUY",
+   "wr_train": 72.8,
+   "wr_test": 72.7
+  },
+  {
+   "name": "fib_382_dist_atr<-4.557 & mfi14<27.84 & vol_ratio>1.312",
+   "side": "BUY",
+   "wr_train": 73.1,
+   "wr_test": 72.7
+  },
+  {
+   "name": "vwap_dist_atr>13.67 & sweep_high=1 & vwap_dist>332.4",
+   "side": "SELL",
+   "wr_train": 72.6,
+   "wr_test": 76.9
+  },
+  {
+   "name": "vwap_dist_atr>24.58 & rsi3>74.73 & bb_z>1.708",
+   "side": "SELL",
+   "wr_train": 72.5,
+   "wr_test": 79.5
+  },
+  {
+   "name": "or_pos>466.2 & stoch21>82.8 & vwap_dist_atr>8.461 & atr_accel<0.7978",
+   "side": "SELL",
+   "wr_train": 80.5,
+   "wr_test": 72.5
+  },
+  {
+   "name": "fib_382_dist_atr<-4.993 & di_diff<-12.41 & vol_ratio>1.356",
+   "side": "BUY",
+   "wr_train": 72.5,
+   "wr_test": 73.4
+  },
+  {
+   "name": "donch55_brk_dn=1 & or_brk_up=1 & dist_swing_lo<-48.3 & mfi14<30.01",
+   "side": "BUY",
+   "wr_train": 77.1,
+   "wr_test": 72.5
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & rsi3>82.23 & vwap_dist>403.2",
+   "side": "SELL",
+   "wr_train": 72.4,
+   "wr_test": 72.6
+  },
+  {
+   "name": "fib_382_dist_atr<-4.557 & vol_ratio>1.312 & roc5<-13.68",
+   "side": "BUY",
+   "wr_train": 72.6,
+   "wr_test": 72.4
+  },
+  {
+   "name": "piv_r1_dist>697.3 & piv_s1_dist_atr>69.87 & bb_z>1.249",
+   "side": "SELL",
+   "wr_train": 76.2,
+   "wr_test": 72.3
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & rsi3>82.23 & sar_dist_atr>3.816",
+   "side": "SELL",
+   "wr_train": 74.5,
+   "wr_test": 72.3
+  },
+  {
+   "name": "fib_382_dist_atr<-4.993 & sar_dist_atr<-2.862 & di_diff<-29.32",
+   "side": "BUY",
+   "wr_train": 75.7,
+   "wr_test": 72.3
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & piv_s1_dist_atr>83.99 & stoch5>68.67",
+   "side": "SELL",
+   "wr_train": 72.3,
+   "wr_test": 73.0
+  },
+  {
+   "name": "vwap_dist_atr>21.78 & or_pos>402.1 & piv_s1_dist_atr>77.53",
+   "side": "SELL",
+   "wr_train": 72.1,
+   "wr_test": 76.9
+  },
+  {
+   "name": "rsi3>79.32 & bb_z>1.463 & vwap_dist_atr>15.24 & sess_ny=1",
+   "side": "SELL",
+   "wr_train": 72.1,
+   "wr_test": 74.5
+  },
+  {
+   "name": "or_pos>801.8 & vwap_dist_atr>12.4 & vwap_dist>403.2",
+   "side": "SELL",
+   "wr_train": 75.5,
+   "wr_test": 72.1
+  },
+  {
+   "name": "or_pos>466.2 & mfi14>56.36 & piv_s1_dist_atr>59.79",
+   "side": "SELL",
+   "wr_train": 73.2,
+   "wr_test": 72.0
+  },
+  {
+   "name": "vwap_dist>332.4 & rsi3>90.11 & vwap_dist_atr>18.37",
+   "side": "SELL",
+   "wr_train": 72.0,
+   "wr_test": 73.2
+  },
+  {
+   "name": "dn_streak>6 & dist_swing_lo<-13.1 & di_diff<-26.72",
+   "side": "BUY",
+   "wr_train": 72.0,
+   "wr_test": 73.1
+  },
+  {
+   "name": "mfi14<25.84 & sar_dist<-63.48 & or_brk_up=1",
+   "side": "BUY",
+   "wr_train": 71.9,
+   "wr_test": 73.9
+  },
+  {
+   "name": "piv_r1_dist>697.3 & rsi3>74.73 & piv_s1_dist_atr>69.87",
+   "side": "SELL",
+   "wr_train": 73.2,
+   "wr_test": 71.9
+  },
+  {
+   "name": "bb_z<-2.094 & mfi14<25.84 & or_brk_up=1 & di_diff<-18.43",
+   "side": "BUY",
+   "wr_train": 73.2,
+   "wr_test": 71.9
+  },
+  {
+   "name": "or_pos>466.2 & pos20>78.05 & atr_ratio<0.8091",
+   "side": "SELL",
+   "wr_train": 78.8,
+   "wr_test": 71.7
+  },
+  {
+   "name": "kelt_z<-1.489 & or_brk_up=1 & dist_swing_lo<-48.3 & pos60<5.755",
+   "side": "BUY",
+   "wr_train": 71.7,
+   "wr_test": 75.9
+  },
+  {
+   "name": "piv_r1_dist>697.3 & piv_s1_dist_atr>83.99 & piv_dist>929.4",
+   "side": "SELL",
+   "wr_train": 76.7,
+   "wr_test": 71.7
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & stoch21>90.22 & rsi3>82.23",
+   "side": "SELL",
+   "wr_train": 71.6,
+   "wr_test": 76.6
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & rsi3>87.71 & vwap_dist>298.6",
+   "side": "SELL",
+   "wr_train": 71.6,
+   "wr_test": 72.6
+  },
+  {
+   "name": "piv_r1_dist>697.3 & rsi3>84.28 & vwap_dist>203.5",
+   "side": "SELL",
+   "wr_train": 80.0,
+   "wr_test": 71.4
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & piv_s1_dist_atr>83.99 & vwap_dist>203.5",
+   "side": "SELL",
+   "wr_train": 73.9,
+   "wr_test": 71.4
+  },
+  {
+   "name": "rsi3<17.95 & fib_382_dist_atr<-5.683 & ema9_21<-21.24",
+   "side": "BUY",
+   "wr_train": 71.9,
+   "wr_test": 71.4
+  },
+  {
+   "name": "or_pos>466.2 & mfi14>65.72 & piv_s1_dist_atr>59.79",
+   "side": "SELL",
+   "wr_train": 75.4,
+   "wr_test": 71.4
+  },
+  {
+   "name": "atr_ratio<0.7661 & vwap_dist_atr>15.24 & sess_ny=1",
+   "side": "SELL",
+   "wr_train": 71.6,
+   "wr_test": 71.4
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & stoch5>79.43 & sar_dist_atr>2.042",
+   "side": "SELL",
+   "wr_train": 71.3,
+   "wr_test": 71.3
+  },
+  {
+   "name": "or_pos>466.2 & vwap_dist>470 & bb_z>1.249",
+   "side": "SELL",
+   "wr_train": 71.3,
+   "wr_test": 72.2
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & rsi14>66.99 & vwap_dist>403.2",
+   "side": "SELL",
+   "wr_train": 71.3,
+   "wr_test": 77.8
+  },
+  {
+   "name": "vwap_dist_atr>24.58 & piv_s1_dist_atr>52.38 & stoch21>82.8",
+   "side": "SELL",
+   "wr_train": 71.2,
+   "wr_test": 72.4
+  },
+  {
+   "name": "rsi3>79.32 & vwap_dist>257 & vwap_dist_atr>15.24 & pos20>93.92",
+   "side": "SELL",
+   "wr_train": 71.2,
+   "wr_test": 73.6
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & piv_s1_dist_atr>83.99 & roc5>2.715",
+   "side": "SELL",
+   "wr_train": 71.0,
+   "wr_test": 71.9
+  },
+  {
+   "name": "atr14<15.67 & pos60>91.41 & htf15_slope>16.79",
+   "side": "BUY",
+   "wr_train": 71.0,
+   "wr_test": 71.8
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & piv_s1_dist_atr>83.99 & mfi14>56.36",
+   "side": "SELL",
+   "wr_train": 70.8,
+   "wr_test": 83.3
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & pos20>90.25 & vwap_dist>403.2",
+   "side": "SELL",
+   "wr_train": 73.1,
+   "wr_test": 70.8
+  },
+  {
+   "name": "rsi14>61.92 & vwap_dist_atr>10.69 & sess_london=1 & htf60_slope>47.95",
+   "side": "SELL",
+   "wr_train": 71.0,
+   "wr_test": 70.8
+  },
+  {
+   "name": "or_pos>466.2 & piv_dist>929.4 & piv_s1_dist_atr>69.87",
+   "side": "SELL",
+   "wr_train": 70.8,
+   "wr_test": 75.0
+  },
+  {
+   "name": "vwap_dist_atr>8.461 & dnwick>0.8005 & piv_s1_dist_atr>52.38",
+   "side": "SELL",
+   "wr_train": 70.7,
+   "wr_test": 71.4
+  },
+  {
+   "name": "kelt_z<-0.8696 & htf15_slope>16.79 & mfi14<30.01",
+   "side": "BUY",
+   "wr_train": 70.8,
+   "wr_test": 70.7
+  },
+  {
+   "name": "vwap_dist_atr>10.69 & piv_s1_dist_atr>83.99 & or_pos>466.2",
+   "side": "SELL",
+   "wr_train": 81.2,
+   "wr_test": 70.7
+  },
+  {
+   "name": "sar_dist_atr<-3.399 & mfi14<25.84 & or_brk_up=1 & donch55_pos<11.18",
+   "side": "BUY",
+   "wr_train": 70.7,
+   "wr_test": 71.4
+  },
+  {
+   "name": "piv_r1_dist>697.3 & up_streak>2 & piv_s1_dist_atr>52.38",
+   "side": "SELL",
+   "wr_train": 76.3,
+   "wr_test": 70.6
+  },
+  {
+   "name": "fib_382_dist_atr<-4.557 & willr5<-90.22 & kelt_z<-1.737",
+   "side": "BUY",
+   "wr_train": 70.5,
+   "wr_test": 74.4
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & stoch21>87.45 & stoch5>89.15",
+   "side": "SELL",
+   "wr_train": 72.1,
+   "wr_test": 70.5
+  },
+  {
+   "name": "rsi3>86.52 & bb_z>1.827 & vwap_dist_atr>15.24",
+   "side": "SELL",
+   "wr_train": 70.5,
+   "wr_test": 72.7
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & piv_s1_dist_atr>77.53 & rsi3>82.23",
+   "side": "SELL",
+   "wr_train": 70.5,
+   "wr_test": 72.0
+  },
+  {
+   "name": "htf15_slope>13.02 & htf5_slope<-6.87 & piv_r1_dist_atr>0.9323",
+   "side": "BUY",
+   "wr_train": 70.5,
+   "wr_test": 71.9
+  },
+  {
+   "name": "piv_r1_dist>-114.7 & ichi_price_kij_atr<-2.725 & rsi3<9.952",
+   "side": "BUY",
+   "wr_train": 71.4,
+   "wr_test": 70.5
+  },
+  {
+   "name": "vol_ratio>1.531 & htf15_slope>21.87 & ret1<-5.4",
+   "side": "BUY",
+   "wr_train": 70.5,
+   "wr_test": 73.2
+  },
+  {
+   "name": "piv_r1_dist>697.3 & mfi14>63.5 & vwap_dist_atr>13.67",
+   "side": "SELL",
+   "wr_train": 75.0,
+   "wr_test": 70.5
+  },
+  {
+   "name": "or_brk_up=1 & ret5<-45 & pos240<4.161",
+   "side": "BUY",
+   "wr_train": 71.4,
+   "wr_test": 70.4
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & piv_s1_dist_atr>83.99 & sar_dist_atr>2.042",
+   "side": "SELL",
+   "wr_train": 74.7,
+   "wr_test": 70.4
+  },
+  {
+   "name": "pos240>86.48 & body>0.8267 & vwap_dist_atr>15.24",
+   "side": "SELL",
+   "wr_train": 70.4,
+   "wr_test": 70.8
+  },
+  {
+   "name": "atr_ratio<0.8091 & pos60>93.18 & sess_ny=1",
+   "side": "SELL",
+   "wr_train": 70.4,
+   "wr_test": 70.9
+  },
+  {
+   "name": "roc5<-6.316 & htf60_slope>38.06 & kelt_z<-1.489",
+   "side": "BUY",
+   "wr_train": 70.3,
+   "wr_test": 72.5
+  },
+  {
+   "name": "vwap_dist_atr>12.4 & sweep_high=1 & rsi3>82.23",
+   "side": "SELL",
+   "wr_train": 70.3,
+   "wr_test": 72.4
+  },
+  {
+   "name": "rsi14>61.92 & pos20>87.48 & vwap_dist_atr>15.24 & sess_ny=1",
+   "side": "SELL",
+   "wr_train": 70.2,
+   "wr_test": 73.3
+  },
+  {
+   "name": "rsi3>79.32 & vwap_dist_atr>15.24 & htf60_slope>47.95 & sess_ny=1",
+   "side": "SELL",
+   "wr_train": 70.1,
+   "wr_test": 80.5
+  },
+  {
+   "name": "kelt_z<-1.02 & willr5<-98.5 & div_bull=1",
+   "side": "BUY",
+   "wr_train": 70.5,
+   "wr_test": 70.1
+  },
+  {
+   "name": "sar_dist_atr<-3.997 & or_brk_up=1 & mfi14<30.01",
+   "side": "BUY",
+   "wr_train": 70.1,
+   "wr_test": 73.7
+  },
+  {
+   "name": "rsi3>86.52 & vwap_dist>257 & vwap_dist_atr>10.69 & sess_ny=1",
+   "side": "SELL",
+   "wr_train": 70.1,
+   "wr_test": 70.5
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & bb_z>1.249 & piv_s1_dist_atr>52.38",
+   "side": "SELL",
+   "wr_train": 70.0,
+   "wr_test": 71.3
+  },
+  {
+   "name": "or_pos>466.2 & stoch21>87.45 & piv_s1_dist_atr>59.79",
+   "side": "SELL",
+   "wr_train": 72.6,
+   "wr_test": 70.0
+  },
+  {
+   "name": "piv_dist>1319 & vwap_dist_atr>10.69 & rsi3>79.32",
+   "side": "SELL",
+   "wr_train": 69.9,
+   "wr_test": 74.4
+  },
+  {
+   "name": "or_pos>466.2 & atr_ratio<0.8091 & stoch5>68.67",
+   "side": "SELL",
+   "wr_train": 72.3,
+   "wr_test": 69.9
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & or_pos>466.2 & piv_dist>929.4",
+   "side": "SELL",
+   "wr_train": 69.9,
+   "wr_test": 70.3
+  },
+  {
+   "name": "fib_382_dist_atr<-4.557 & stoch5<5.1 & dn_streak>3",
+   "side": "BUY",
+   "wr_train": 69.8,
+   "wr_test": 70.1
+  },
+  {
+   "name": "dist_swing_lo<-48.3 & di_diff<-29.32 & or_brk_up=1",
+   "side": "BUY",
+   "wr_train": 69.8,
+   "wr_test": 70.8
+  },
+  {
+   "name": "donch55_brk_dn=1 & or_brk_up=1 & ichi_price_kij_atr<-3.06",
+   "side": "BUY",
+   "wr_train": 69.8,
+   "wr_test": 69.8
+  },
+  {
+   "name": "vwap_dist_atr>16.18 & bb_z>1.604 & or_pos>402.1",
+   "side": "SELL",
+   "wr_train": 69.8,
+   "wr_test": 72.6
+  },
+  {
+   "name": "di_diff<-26.72 & or_brk_up=1 & rsi3<17.95",
+   "side": "BUY",
+   "wr_train": 69.8,
+   "wr_test": 73.1
+  },
+  {
+   "name": "rsi14<26.99 & fib_382_dist_atr<-4.993 & pos240<2.743",
+   "side": "BUY",
+   "wr_train": 69.7,
+   "wr_test": 70.9
+  },
+  {
+   "name": "piv_dist>1319 & or_pos>466.2 & piv_s1_dist_atr>59.79",
+   "side": "SELL",
+   "wr_train": 69.7,
+   "wr_test": 73.0
+  },
+  {
+   "name": "or_pos>466.2 & atr_ratio<0.8091 & mfi14>56.36",
+   "side": "SELL",
+   "wr_train": 70.5,
+   "wr_test": 69.6
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & stoch5>89.15 & ret5>23.1",
+   "side": "SELL",
+   "wr_train": 70.9,
+   "wr_test": 69.6
+  },
+  {
+   "name": "or_pos>466.2 & pos20>78.05 & piv_dist>1319",
+   "side": "SELL",
+   "wr_train": 69.6,
+   "wr_test": 74.2
+  },
+  {
+   "name": "donch55_brk_dn=1 & htf60_slope>38.06 & sar_dist_atr<-3.399",
+   "side": "BUY",
+   "wr_train": 69.6,
+   "wr_test": 75.0
+  },
+  {
+   "name": "piv_r1_dist>697.3 & stoch14>83.21 & piv_s1_dist_atr>69.87",
+   "side": "SELL",
+   "wr_train": 76.7,
+   "wr_test": 69.6
+  },
+  {
+   "name": "piv_r1_dist>697.3 & pos20>82.83 & piv_s1_dist_atr>69.87",
+   "side": "SELL",
+   "wr_train": 78.7,
+   "wr_test": 69.6
+  },
+  {
+   "name": "di_diff<-26.72 & fib_382_dist_atr<-4.557 & pos240<1.305",
+   "side": "BUY",
+   "wr_train": 69.6,
+   "wr_test": 71.6
+  },
+  {
+   "name": "vwap_dist_atr>12.4 & sweep_high=1 & willr21>-9.772",
+   "side": "SELL",
+   "wr_train": 69.6,
+   "wr_test": 70.0
+  },
+  {
+   "name": "or_pos>466.2 & stoch21>82.8 & vwap_dist_atr>13.67 & piv_s1_dist_atr>69.87",
+   "side": "SELL",
+   "wr_train": 81.1,
+   "wr_test": 69.6
+  },
+  {
+   "name": "bb_z<-1.935 & htf60_slope>56.29 & ichi_price_kij_atr<-2.493",
+   "side": "BUY",
+   "wr_train": 69.5,
+   "wr_test": 69.6
+  },
+  {
+   "name": "willr14<-90.65 & ema21_50>22.82 & adx>38.24",
+   "side": "BUY",
+   "wr_train": 75.5,
+   "wr_test": 69.5
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & rsi3>84.28 & bb_z>1.249",
+   "side": "SELL",
+   "wr_train": 69.5,
+   "wr_test": 70.8
+  },
+  {
+   "name": "fib_382_dist_atr<-4.993 & willr14<-95.68 & ret5<-51.2",
+   "side": "BUY",
+   "wr_train": 69.5,
+   "wr_test": 71.3
+  },
+  {
+   "name": "or_pos>466.2 & stoch14>83.21 & vwap_dist_atr>13.67",
+   "side": "SELL",
+   "wr_train": 69.5,
+   "wr_test": 70.3
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & stoch5>79.43 & piv_s1_dist_atr>59.79",
+   "side": "SELL",
+   "wr_train": 69.5,
+   "wr_test": 69.6
+  },
+  {
+   "name": "fib_382_dist_atr<-4.557 & vol_ratio>1.312 & adx>36.6",
+   "side": "BUY",
+   "wr_train": 69.4,
+   "wr_test": 72.2
+  },
+  {
+   "name": "di_diff<-16.95 & fib_382_dist_atr<-5.683 & ret1<-20.3",
+   "side": "BUY",
+   "wr_train": 69.4,
+   "wr_test": 71.4
+  },
+  {
+   "name": "pos60<2.237 & dn_streak>3 & or_brk_up=1",
+   "side": "BUY",
+   "wr_train": 70.3,
+   "wr_test": 69.3
+  },
+  {
+   "name": "bb_z<-1.935 & mfi14<15.44 & rsi3<7.031",
+   "side": "BUY",
+   "wr_train": 69.3,
+   "wr_test": 72.1
+  },
+  {
+   "name": "piv_s1_dist_atr>69.87 & vwap_dist>203.5 & mfi14>63.5",
+   "side": "SELL",
+   "wr_train": 69.3,
+   "wr_test": 73.6
+  },
+  {
+   "name": "donch55_brk_dn=1 & sar_dist<-72.69 & dn_streak>6",
+   "side": "BUY",
+   "wr_train": 69.3,
+   "wr_test": 73.4
+  },
+  {
+   "name": "mfi14<20.01 & ret5<-51.2 & or_brk_up=1",
+   "side": "BUY",
+   "wr_train": 69.3,
+   "wr_test": 70.5
+  },
+  {
+   "name": "sar_dist_atr<-3.748 & or_brk_up=1 & donch55_brk_dn=1",
+   "side": "BUY",
+   "wr_train": 69.7,
+   "wr_test": 69.2
+  },
+  {
+   "name": "rsi3>82.23 & piv_dist>1142 & vwap_dist_atr>12.4",
+   "side": "SELL",
+   "wr_train": 70.0,
+   "wr_test": 69.2
+  },
+  {
+   "name": "or_pos>466.2 & vwap_dist>470 & atr_ratio<0.8091",
+   "side": "SELL",
+   "wr_train": 69.2,
+   "wr_test": 83.3
+  },
+  {
+   "name": "bb_z<-2.094 & mfi14<20.01 & donch55_brk_dn=1",
+   "side": "BUY",
+   "wr_train": 69.2,
+   "wr_test": 70.4
+  },
+  {
+   "name": "fib_382_dist_atr<-4.993 & roc5<-11.05 & rsi3<9.952",
+   "side": "BUY",
+   "wr_train": 69.6,
+   "wr_test": 69.2
+  },
+  {
+   "name": "ichi_price_kij_atr<-2.725 & htf15_slope>13.02 & bb_squeeze>3.189",
+   "side": "BUY",
+   "wr_train": 69.1,
+   "wr_test": 78.9
+  },
+  {
+   "name": "atr_accel<0.6759 & piv_r1_dist_atr>0.9323 & willr5<-66.3",
+   "side": "BUY",
+   "wr_train": 69.1,
+   "wr_test": 75.6
+  },
+  {
+   "name": "vol_ratio>1.531 & htf15_slope>21.87 & dist_swing_hi>51.4",
+   "side": "BUY",
+   "wr_train": 69.1,
+   "wr_test": 70.4
+  },
+  {
+   "name": "rsi14>66.99 & or_pos>402.1 & piv_s1_dist_atr>65.44",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 74.4
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & or_pos>466.2 & mfi14>56.36",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 72.0
+  },
+  {
+   "name": "vol_ratio<0.7543 & ema21_50<-27.83 & sess_asia=1",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 72.8
+  },
+  {
+   "name": "piv_dist>1319 & vwap_dist_atr>10.69 & willr14>-12.11",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 72.7
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & rsi3>79.32 & mfi14>65.72",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 69.8
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & stoch5>89.15 & mfi14>56.36",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 69.4
+  },
+  {
+   "name": "mfi14>80.46 & sweep_high=1 & rsi3>74.73",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 70.7
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & stoch5>79.43 & vwap_dist>470",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 70.4
+  },
+  {
+   "name": "vwap_dist_atr>12.4 & sar_dist_atr>3.816 & rsi3>92.98",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 69.2
+  },
+  {
+   "name": "fib_382_dist_atr<-4.993 & bb_squeeze>2.929 & adx>43.97",
+   "side": "BUY",
+   "wr_train": 69.0,
+   "wr_test": 70.7
+  },
+  {
+   "name": "donch55_pos<5.649 & piv_r1_dist_atr>0.9323 & pos240<18.06",
+   "side": "BUY",
+   "wr_train": 73.0,
+   "wr_test": 69.0
+  },
+  {
+   "name": "donch55_brk_dn=1 & willr5<-87.33 & piv_r1_dist_atr>0.9323",
+   "side": "BUY",
+   "wr_train": 69.7,
+   "wr_test": 69.0
+  },
+  {
+   "name": "vwap_dist_atr>18.37 & or_pos>466.2 & ret5>23.1",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 70.3
+  },
+  {
+   "name": "rsi3>87.71 & or_pos>402.1 & vwap_dist_atr>12.4",
+   "side": "SELL",
+   "wr_train": 69.4,
+   "wr_test": 68.9
+  },
+  {
+   "name": "bb_z<-2.481 & or_brk_up=1 & dist_swing_hi>81.3",
+   "side": "BUY",
+   "wr_train": 68.9,
+   "wr_test": 70.2
+  },
+  {
+   "name": "di_diff<-26.72 & fib_382_dist_atr<-4.557 & dn_streak>3",
+   "side": "BUY",
+   "wr_train": 69.2,
+   "wr_test": 68.9
+  },
+  {
+   "name": "or_pos>466.2 & willr14>-12.11 & mfi14>56.36",
+   "side": "SELL",
+   "wr_train": 69.0,
+   "wr_test": 68.9
+  },
+  {
+   "name": "rsi14>61.92 & bb_z>1.463 & vwap_dist_atr>15.24 & ret5>39",
+   "side": "SELL",
+   "wr_train": 68.8,
+   "wr_test": 69.7
+  }
+ ]
+}
