@@ -30,6 +30,9 @@ const ONE = {
   'سحب نافذة 20 عمق 1.3': { kkUseLongSweep: true, kkSweepMinATR: 1.3 },
   'كفاءة الحركة ≤0.20': { kkUseER: true },
   'كفاءة الحركة ≤0.35': { kkUseER: true, kkERMax: 0.35 },
+  'ستوب أكبر من الهدف +5': { kkUseStopGap: true },
+  'ستوب أكبر من الهدف +10': { kkUseStopGap: true, kkMinGapPts: 10 },
+  'ستوب أكبر +5 مع موضع الإغلاق': { kkUseStopGap: true, kkUseClosePos: true },
 };
 const CONFIGS = [['بلا إضافات', {}], ...Object.entries(ONE)];
 

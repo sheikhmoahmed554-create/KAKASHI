@@ -2474,6 +2474,11 @@ kkER = kkTravel > 0 ? math.abs(close - close[kkERLen]) / kkTravel : 1.0
 kkEROK = not kkUseER or kkER <= kkERMax
 
 // ── تجميع المرشّحات
+// ── ٨ فرض ستوب أكبر من الهدف: ٧٥٣ صفقة خرجت بفارق صفر، وخطة ٦٠/٦٠ حافتها −١١.٩
+kkUseStopGap = input.bool(false, "فرض أن يكون الستوب أكبر من الهدف", group=G_ADD)
+kkMinGapPts  = input.float(5.0,  "أقل فارق للستوب فوق الهدف", minval=0, step=1, group=G_ADD)
+kkMaxGapPts  = input.float(20.0, "أقصى فارق للستوب فوق الهدف", minval=1, step=1, group=G_ADD)
+
 kkBuyOK  = kkSpeedOK and kkCloseBuyOK  and kkRunBuyOK  and kkPathBuyOK  and kkPoolBuyOK  and kkSweepBuyOK  and kkEROK
 kkSellOK = kkSpeedOK and kkCloseSellOK and kkRunSellOK and kkPathSellOK and kkPoolSellOK and kkSweepSellOK and kkEROK
 
@@ -2496,6 +2501,8 @@ if canEnterLong or canEnterShort
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
     tradeTargetPts := math.max(30.0, plannedTarget)
     tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
+    if kkUseStopGap
+        tradeStopPts := math.min(math.max(tradeStopPts, tradeTargetPts + kkMinGapPts), tradeTargetPts + kkMaxGapPts)
     tradeExitMode := plannedExitMode
     tradeDirectionScore := plannedDirectionScore
 
