@@ -1,0 +1,1 @@
+{"name":"إصلاح + تبريد عام ٤٥","flags":{"cooldownBars":45},"rewrites":[["buySignal := buySignal or chTriB or chSniB\nsellSignal := sellSignal or chTriS or chSniS","buySignal := buySignal or chTriB or chSniB\nsellSignal := sellSignal or chTriS or chSniS\nbuySignal := buySignal and allowLong and not sfBlock\nsellSignal := sellSignal and allowShort and not sfBlock"]]}
