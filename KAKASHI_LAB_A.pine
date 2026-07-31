@@ -1,4 +1,4 @@
-//@version=5
+//@version=6
 // KAKASHI LAB A — مولّد آلياً من بحث كاكاشي
 // النسخة A • 20 عائلة (8 شراء، 12 بيع)
 // قياس خارج العينة: 73.6% فوز • 11.9 صفقة/يوم • توقّع +9.39 نقطة • متوسط 7.1 شمعة
@@ -237,16 +237,120 @@ r020 = piv_r1_dist > 697.3 and piv_s1_dist_atr > 69.87 and bb_z > 1.249   // SEL
 // الاختيار بالأولوية — أول قاعدة تُطلق تحدد الجهة
 sideSel = r001 ? -1 : r002 ? 1 : r003 ? -1 : r004 ? -1 : r005 ? -1 : r006 ? -1 : r007 ? 1 : r008 ? -1 : r009 ? -1 : r010 ? -1 : r011 ? 1 : r012 ? 1 : r013 ? 1 : r014 ? 1 : r015 ? 1 : r016 ? -1 : r017 ? 1 : r018 ? -1 : r019 ? -1 : r020 ? -1 : 0
 
-canEnterLong  = sideSel ==  1
-canEnterShort = sideSel == -1
-
-// خطة الخروج التي قيست عليها الأرقام
+// ══════════ إدارة الصفقة: واحدة مفتوحة فقط ══════════
+// بدون هذه الحالة يرسم المؤشر إشارة على كل شمعة يتحقق فيها الشرط،
+// بينما القياس فتح صفقة واحدة وحجب الباقي حتى إغلاقها.
 tradeTargetPts = 30.0
 tradeStopPts   = 50.0
+maxHoldBars    = 30
 pointUnit      = pu
+
+var bool  active   = false
+var int   posSide  = 0
+var float posEntry = na
+var float posTP    = na
+var float posSL    = na
+var int   posBars  = 0
+var bool  exitTP   = false
+var bool  exitSL   = false
+
+exitTP := false
+exitSL := false
+if active
+    posBars := posBars + 1
+    hitSL = posSide == 1 ? low  <= posSL : high >= posSL
+    hitTP = posSide == 1 ? high >= posTP : low  <= posTP
+    if hitSL
+        active := false
+        exitSL := true
+    else if hitTP
+        active := false
+        exitTP := true
+    else if posBars >= maxHoldBars
+        active := false
+
+canEnterLong  = not active and sideSel ==  1
+canEnterShort = not active and sideSel == -1
+
+if canEnterLong or canEnterShort
+    active   := true
+    posSide  := canEnterLong ? 1 : -1
+    posEntry := close
+    posTP    := canEnterLong ? close + tradeTargetPts * pu : close - tradeTargetPts * pu
+    posSL    := canEnterLong ? close - tradeStopPts   * pu : close + tradeStopPts   * pu
+    posBars  := 0
+
+entryPrice = close
 tpPrice = canEnterLong ? close + tradeTargetPts * pu : canEnterShort ? close - tradeTargetPts * pu : na
 slPrice = canEnterLong ? close - tradeStopPts   * pu : canEnterShort ? close + tradeStopPts   * pu : na
-entryPrice = close
+
+
+// ══════════ جدول الإحصائيات ══════════
+var int   stWins   = 0
+var int   stLoss   = 0
+var float stNet    = 0.0
+var int   stCurW   = 0
+var int   stCurL   = 0
+var int   stMaxW   = 0
+var int   stMaxL   = 0
+var float stSumTP  = 0.0
+var float stSumSL  = 0.0
+var float stLast   = 0.0
+var int   stFrom   = 0
+if stFrom == 0 and not na(close)
+    stFrom := time
+if exitTP
+    stWins  := stWins + 1
+    stNet   := stNet + tradeTargetPts
+    stSumTP := stSumTP + tradeTargetPts
+    stLast  := tradeTargetPts
+    stCurW  := stCurW + 1
+    stCurL  := 0
+    stMaxW  := math.max(stMaxW, stCurW)
+if exitSL
+    stLoss  := stLoss + 1
+    stNet   := stNet - tradeStopPts
+    stSumSL := stSumSL + tradeStopPts
+    stLast  := -tradeStopPts
+    stCurL  := stCurL + 1
+    stCurW  := 0
+    stMaxL  := math.max(stMaxL, stCurL)
+
+stTotal = stWins + stLoss
+stWR    = stTotal > 0 ? 100.0 * stWins / stTotal : 0.0
+stAvgTP = stWins > 0 ? stSumTP / stWins : 0.0
+stAvgSL = stLoss > 0 ? stSumSL / stLoss : 0.0
+stExp   = stTotal > 0 ? stNet / stTotal : 0.0
+
+BG  = color.new(color.rgb(10, 15, 25), 10)
+BGH = color.new(color.rgb(20, 32, 50), 0)
+BG1 = color.new(color.rgb(14, 20, 32), 0)
+BG2 = color.new(color.rgb(18, 26, 40), 0)
+GRN = color.rgb(32, 209, 122)
+RED = color.rgb(255, 89, 104)
+YLW = color.rgb(255, 212, 90)
+LBL = color.rgb(220, 225, 235)
+var table tb = table.new(position.top_right, 2, 11, bgcolor=BG, border_width=0)
+f_row(_r, _k, _v, _c, _bg) =>
+    table.cell(tb, 0, _r, _k, text_color=LBL,  bgcolor=_bg, text_size=size.small)
+    table.cell(tb, 1, _r, _v, text_color=_c,   bgcolor=_bg, text_size=size.small)
+if barstate.islast
+    f_row(0,  "KAKASHI LAB A", "20 قاعدة", YLW, BGH)
+    f_row(1,  "Win",    str.tostring(stWins),  GRN, BG1)
+    f_row(2,  "Loss",   str.tostring(stLoss),  RED, BG2)
+    f_row(3,  "Trades", str.tostring(stTotal), LBL, BG1)
+    f_row(4,  "WR",     str.tostring(stWR, "#.##") + "%%", stWR >= 70 ? GRN : stWR >= 62.5 ? YLW : RED, BG2)
+    f_row(5,  "Net",    str.tostring(stNet, "#.#"),  stNet  >= 0 ? GRN : RED, BG1)
+    f_row(6,  "Exp/Tr", str.tostring(stExp, "#.##"), stExp  >= 0 ? GRN : RED, BG2)
+    f_row(7,  "Max W",  str.tostring(stMaxW), GRN, BG1)
+    f_row(8,  "Max L",  str.tostring(stMaxL), RED, BG2)
+    f_row(9,  "Last",   str.tostring(stLast, "#.#"), stLast >= 0 ? GRN : RED, BG1)
+    f_row(10, "From",   str.format_time(stFrom, "dd MMM HH:mm", "UTC"), LBL, BG2)
+
+plot(active ? posTP : na, "TP", color.new(color.green, 30), 1, plot.style_linebr)
+plot(active ? posSL : na, "SL", color.new(color.red,   30), 1, plot.style_linebr)
+plotshape(exitTP, "خروج ربح",   shape.xcross, location.absolute, color.green, size=size.tiny)
+plotshape(exitSL, "خروج خسارة", shape.xcross, location.absolute, color.red,   size=size.tiny)
 
 plotshape(canEnterLong,  "BUY",  shape.labelup,   location.belowbar, color.new(color.green, 0), text="BUY",  textcolor=color.white, size=size.tiny)
 plotshape(canEnterShort, "SELL", shape.labeldown, location.abovebar, color.new(color.red,   0), text="SELL", textcolor=color.white, size=size.tiny)
