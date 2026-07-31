@@ -2490,9 +2490,49 @@ kkRsiVal = ta.rsi(close, kkRsiLen)
 kkRsiBuyOK  = not kkUseRsiSide or kkRsiVal <= kkRsiHi
 kkRsiSellOK = not kkUseRsiSide or kkRsiVal >= kkRsiLo
 
+// ── ١٠ نطاق السرعة: القياس يقول نطاقاً لا أرضية. الأرضية وحدها (إضافة ١)
+// تترك السوق العنيف مفتوحاً، والعنيف هو الذي ينقلب فيه حكم الجهة.
+// ATR بين ١٢ و٢٧ نقطة: ٦٧.٨٣٪ و٦٤.٩٧٪ في النصفين مع السحب.
+kkUseAtrBand = input.bool(false, "نطاق السرعة بدل الأرضية", group=G_ADD)
+kkAtrLo      = input.float(12.0, "أدنى ATR بالنقاط", minval=0, step=1, group=G_ADD)
+kkAtrHi      = input.float(27.0, "أعلى ATR بالنقاط", minval=1, step=1, group=G_ADD)
+kkBandOK = not kkUseAtrBand or (kkAtrPts >= kkAtrLo and kkAtrPts <= kkAtrHi)
+
+// ── ١١ نظام التذبذب: ATR الحالي ÷ ATR البعيد — مفهوم غائب كلياً عن المؤشر.
+// الانكماش (<٠.٧٥) يفضّل البيع ٥٩.٣٧٪ مقابل شراء ٥٥.٥٣٪، والتوسّع يعكسها.
+// إذن جهة لا إسكات: يُمنع الشراء في الانكماش الشديد والبيع في التوسّع الشديد.
+kkUseRegime = input.bool(false, "إذن الجهة بنظام التذبذب", group=G_ADD)
+kkRegLen    = input.int(240, "نافذة التذبذب البعيد", minval=30, group=G_ADD)
+kkRegLo     = input.float(0.75, "امنع الشراء تحت", minval=0.1, step=0.05, group=G_ADD)
+kkRegHi     = input.float(1.21, "امنع البيع فوق", minval=0.5, step=0.05, group=G_ADD)
+kkAtrLong = ta.sma(kkAtrPts, kkRegLen)
+kkRegime  = kkAtrLong > 0 ? kkAtrPts / kkAtrLong : 1.0
+kkRegBuyOK  = not kkUseRegime or kkRegime >= kkRegLo
+kkRegSellOK = not kkUseRegime or kkRegime <= kkRegHi
+
+// ── ١٢ نسبة الحجم: الحجم الهادئ يفضّل الشراء ٥٨.٨٢٪، والمتوسط يفضّل البيع ٥٩.٧٣٪.
+kkUseVol  = input.bool(false, "إذن الجهة بنسبة الحجم", group=G_ADD)
+kkVolLen  = input.int(60, "نافذة متوسط الحجم", minval=10, group=G_ADD)
+kkVolThr  = input.float(0.53, "حد الفصل بين هادئ ومتوسط", minval=0.05, step=0.05, group=G_ADD)
+kkVolAvg  = ta.sma(volume, kkVolLen)
+kkVolRatio = kkVolAvg > 0 ? volume / kkVolAvg : 1.0
+kkVolBuyOK  = not kkUseVol or kkVolRatio < kkVolThr
+kkVolSellOK = not kkUseVol or kkVolRatio >= kkVolThr
+
+// ── ١٣ الموضع في نطاق الساعة: قاع النطاق يفضّل الشراء ٥٨.٩٩٪ مقابل بيع ٥٥.٧٤٪.
+kkUsePosRange = input.bool(false, "إذن الجهة بالموضع في النطاق", group=G_ADD)
+kkPosLen  = input.int(60, "نافذة النطاق", minval=10, group=G_ADD)
+kkPosLo   = input.float(12.0, "امنع البيع تحت ٪", minval=0, maxval=50, step=1, group=G_ADD)
+kkPosHi   = input.float(88.0, "امنع الشراء فوق ٪", minval=50, maxval=100, step=1, group=G_ADD)
+kkRangeHi = ta.highest(high, kkPosLen)
+kkRangeLo = ta.lowest(low, kkPosLen)
+kkPosPct  = kkRangeHi > kkRangeLo ? 100.0 * (close - kkRangeLo) / (kkRangeHi - kkRangeLo) : 50.0
+kkPosBuyOK  = not kkUsePosRange or kkPosPct <= kkPosHi
+kkPosSellOK = not kkUsePosRange or kkPosPct >= kkPosLo
+
 // ── تجميع المرشّحات
-kkBuyOK  = kkSpeedOK and kkCloseBuyOK  and kkRunBuyOK  and kkPathBuyOK  and kkPoolBuyOK  and kkSweepBuyOK  and kkEROK and kkRsiBuyOK
-kkSellOK = kkSpeedOK and kkCloseSellOK and kkRunSellOK and kkPathSellOK and kkPoolSellOK and kkSweepSellOK and kkEROK and kkRsiSellOK
+kkBuyOK  = kkSpeedOK and kkCloseBuyOK  and kkRunBuyOK  and kkPathBuyOK  and kkPoolBuyOK  and kkSweepBuyOK  and kkEROK and kkRsiBuyOK  and kkBandOK and kkRegBuyOK  and kkVolBuyOK  and kkPosBuyOK
+kkSellOK = kkSpeedOK and kkCloseSellOK and kkRunSellOK and kkPathSellOK and kkPoolSellOK and kkSweepSellOK and kkEROK and kkRsiSellOK and kkBandOK and kkRegSellOK and kkVolSellOK and kkPosSellOK
 
 canEnterLongRaw = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and kkBuyOK
 canEnterShortRaw = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and kkSellOK
