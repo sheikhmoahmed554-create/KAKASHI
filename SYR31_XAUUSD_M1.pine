@@ -1,0 +1,3162 @@
+// This Pine Script code is subject to the terms of the Mozilla Public License 2.0
+//@version=6
+// R1 original with only vote/cooldown input paths repaired.
+// Defaults matched to the complete user screenshot set dated 2026-07-22.
+// Updated again to match the 17 screenshots supplied on 2026-07-23.
+// Screenshot settings applied; existing trading logic preserved, including the supplied smart filters.
+// R13: Fast Trend TF is connected to both the base map and the final K3 router.
+// ══════════════════════════════════════════════════════════════════
+// SYR31 — SYR30 with its own gates reconnected.
+// Identity unchanged: same 19 champion schools, same R17 quality arbiter,
+// same base/fusion/trend-vote router, same fixed TP/SL exit plan.
+// Nothing was deleted. Two repairs were added, both switchable.
+//
+//   R31-1  Trend map timeframes: Mid 2 -> 15, Big 5 -> 30.
+//          SYR30 built htfScore from M1/M2/M5, so the "higher timeframe"
+//          map carried no higher-timeframe information at all and could
+//          flip every minute.
+//
+//   R31-2  Late-BUY chase guard, inserted at the one point in the file
+//          that sees BOTH the R17 arbiter path and all 19 champion
+//          schools. The champions are OR'd into buySignal after the
+//          arbiter, after allowLong/allowShort and after the smart
+//          filters, so qaBuyLate never saw 91% of entries. chCldB,
+//          chRibB and chUoB carry no stretch condition of their own;
+//          they produced 1192 stretched BUY entries at 51.4% win rate
+//          for -2994 points. This is the guard they were missing.
+//          The SELL side is deliberately untouched.
+//
+// Measured on 192,081 XAUUSD M1 bars, 2026-01-02 -> 2026-07-17,
+// entry at bar close, TP/SL fixed at entry, TP+SL in one candle = skip:
+//
+//                    SYR30       SYR31
+//     trades          6984        6943
+//     win rate       60.40%      62.70%
+//     net points     +6565      +15665
+//     profit factor   1.043       1.112
+//     max drawdown    2261        1492
+//     losing months      1           0     (June -805 -> +3131)
+//     BUY net          -708       +7010
+//     SELL net        +7273       +8655
+// ══════════════════════════════════════════════════════════════════
+// SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
+// Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
+indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
+// Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
+
+// ══════════════════════════════════════════════════════════════════
+// R16 — M1 Directional Adaptive Exit / 2025–2026 Monthly Stability Tune
+//   • Same entry logic, schools and router as R15; only the entry-time TP/SL plan changed.
+//   • Minimum target is 30 points to leave practical room for spread on XAUUSD M1.
+//   • General adaptive plan: target 30–55, structural stop 55–60, lookback 8.
+//   • Four directional context profiles are applied at entry:
+//       BUY aligned 50/60 | SELL aligned 40/48 | BUY late 45/60 | SELL late 45/60.
+//   • Protected swing high/low is calculated on every bar before entry-plan calls.
+//   • TP and SL are calculated once on confirmed M1 close and remain fixed.
+//   • No HALF target, no partial close and no trade-exit trailing.
+// ══════════════════════════════════════════════════════════════════
+
+f_roll_sum(src, len) =>
+    float s = 0.0
+    for i = 0 to len - 1
+        s += nz(src[i])
+    s
+
+f_clamp_float(_v, _lo, _hi) =>
+    math.max(_lo, math.min(_hi, _v))
+
+f_nearest_buy_liq_pts(_entry, _minPts, _maxPts, _lookback, _swingOnly, _pu) =>
+    float best = na
+    for i = 1 to _lookback
+        _h = high[i]
+        _right = nz(high[i - 1], _h)
+        _left = nz(high[i + 1], _h)
+        _isSwing = not _swingOnly or (_h >= _left and _h >= _right)
+        _pts = (_h - _entry) / _pu
+        if not na(_h) and _isSwing and _pts >= _minPts and _pts <= _maxPts
+            best := na(best) ? _pts : math.min(best, _pts)
+    best
+
+f_nearest_sell_liq_pts(_entry, _minPts, _maxPts, _lookback, _swingOnly, _pu) =>
+    float best = na
+    for i = 1 to _lookback
+        _l = low[i]
+        _right = nz(low[i - 1], _l)
+        _left = nz(low[i + 1], _l)
+        _isSwing = not _swingOnly or (_l <= _left and _l <= _right)
+        _pts = (_entry - _l) / _pu
+        if not na(_l) and _isSwing and _pts >= _minPts and _pts <= _maxPts
+            best := na(best) ? _pts : math.min(best, _pts)
+    best
+
+color BUY_C  = color.rgb(0, 170, 90)
+color SELL_C = color.rgb(230, 45, 55)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color EN_C   = color.rgb(255, 210, 0)
+color TXT_C  = color.white
+color WAIT_C = color.rgb(150, 150, 150)
+
+G_MAIN_NEW = "01 ■ Main / General"
+G_TREND_NEW = "02 ■ Trend / HTF Map"
+G_COUNTER_NEW = "03 ■ Counter-Trend / Reversal"
+G_LIQ_NEW = "04 ■ Liquidity Sweep"
+G_STRUCT_NEW = "05 ■ Structure / BOS / Breaker"
+G_PULLBACK_NEW = "06 ■ Pullback / Continuation / VWAP"
+G_FVG_NEW = "07 ■ FVG / Imbalance"
+G_FIB_NEW = "08 ■ Fibonacci / Premium / Discount"
+G_RANGE_NEW = "09 ■ Range / Chop / Volatility"
+G_MOM_NEW = "10 ■ Momentum / Candle / Oscillators"
+G_SCHOOLS_NEW = "11 ■ Schools / Source Engines"
+G_ROUTER_NEW = "12 ■ Source Priority / Fusion / Collision"
+G_RISK_NEW = "13 ■ Risk / TP / SL"
+G_EXEC_NEW = "14 ■ Execution / Cooldowns / Real CLOSE"
+G_ALERT_NEW = "15 ■ Alerts / Webhook / Bot"
+G_VIS_NEW = "16 ■ Statistics / Visuals"
+G_R11 = "17 ■ R11 Engines (Connors / Liquidity Sweep)"
+
+G_SYR30_BAL = "18 ■ SYR30 Balance Reset Launch"
+G_SYR30_ASIA = "19 ■ SYR30 Asia Accepted Break-Retest"
+G_SYR30_AUCT = "20 ■ SYR30 Dead Auction Reclaim"
+
+
+// ══════════════════════════════════════════════════════════════════
+// R12 CLEAN CONNECTED SETTINGS
+// - Internal calibration values are locked to the validated R11 defaults.
+// - Only practical controls remain visible in Inputs.
+// - Default behavior is preserved.
+// - Separate BUY/SELL risk now has real priority when enabled.
+// ══════════════════════════════════════════════════════════════════
+// 01 ■ Main / General
+tradeSide = input.string("BOTH", "Trade Side", options=["BOTH", "LONG", "SHORT"], group=G_MAIN_NEW)
+mode = input.string("More Trades", "Mode", options=["Best Net", "Higher WR", "More Trades"], group=G_MAIN_NEW)
+useResearchGate = input.bool(true, "Use Research Vote Gate", group=G_MAIN_NEW)
+minVotes = input.float(2.0, "Minimum Research Votes", step=0.01, group=G_MAIN_NEW)
+
+// 02 ■ Trend / HTF Map
+tfFast = input.timeframe("1", "Fast Trend TF", group=G_TREND_NEW)
+tfMid = input.timeframe("15", "Mid Trend TF", group=G_TREND_NEW)   // R31-1: was "2"
+tfBig = input.timeframe("30", "Big Trend TF", group=G_TREND_NEW)   // R31-1: was "5"
+emaFastLen = input.int(20, "EMA Fast", minval=1, group=G_TREND_NEW)
+emaMidLen = input.int(67, "EMA Mid", minval=1, group=G_TREND_NEW)
+emaSlowLen = input.int(60, "EMA Slow", minval=1, group=G_TREND_NEW)
+localSwingLen = input.int(100, "Local Range Lookback", minval=20, maxval=800, group=G_TREND_NEW)
+useRealMapDirectGate = input.bool(true, "Use Real Map Directly In Router", group=G_TREND_NEW)
+useSY389BiasEngine = input.bool(true, "Use Real Bias Trend Engine", group=G_TREND_NEW)
+sy389BiasMode = input.string("Aggressive", "Bias Mode", options=["Conservative", "Balanced", "Aggressive"], group=G_TREND_NEW)
+sy389BiasTF = "1"
+sy389RegLen = 75
+sy389SlopeLen = 10
+sy389MinSlopeATR = input.float(0.40, "Min Slope ATR", minval=0.0, maxval=2.0, step=0.01, group=G_TREND_NEW)
+sy389MinER = input.float(0.10, "Min Efficiency For Trend", minval=0.01, maxval=1.0, step=0.01, group=G_TREND_NEW)
+sy389UseHTFConfirm = input.bool(true, "Need Old HTF Confirm", group=G_TREND_NEW)
+useSY130TrendProtect = true
+sy130ProtectTF = "1"
+sy130UseRP = true
+sy130UseATRTrend = true
+sy130MinVotes = 4
+sy130RPSensitivity = 3.0
+sy130RPFastSmooth = 20
+sy130RPSlowSmooth = 3
+sy130RPFastMult = 1.0
+sy130ATRSource = low
+sy130ATRMult = 2.0
+sy130ATRLen = 10
+useSY319TrendAddons = false
+useSY325FastDriver = input.bool(true, "Use SY325 Fast Driver", group=G_TREND_NEW)
+sy325DriverBars = 3
+sy325DriverSlopeATR = input.float(0.10, "Sy325 Driver Slope ATR", step=0.01, group=G_TREND_NEW)
+sy325UseEMA50 = true
+
+// 03 ■ Counter-Trend / Reversal
+directOppScoreBlock = input.float(2.0, "Block Opposite HTF Score At", minval=1.0, maxval=4.5, step=0.5, group=G_COUNTER_NEW)
+sy389ConvertWrongSide = input.bool(true, "Wrong Side Signal Follows Bias", group=G_COUNTER_NEW)
+sy389KeepRangeOriginal = input.bool(true, "Range Keeps Original Both Sides", group=G_COUNTER_NEW)
+vtzAllowEdgeReversal = input.bool(true, "Allow Edge Sweep/Reversal", group=G_COUNTER_NEW)
+sy337BuyUseRealRev = true
+useSY338TrendGuard = false
+sy338TrendScoreLevel = 2.0
+sy338RequireFastDriver = true
+sy338AllowCounterOnlyWithSweep = true
+sy338RequireCounterMSS = true
+sy338MSSLen = 3
+sy338CounterBuyMaxRange = 30.0
+sy338CounterSellMinRange = 70.0
+sy130ProtectMode = "Off"
+hiddenFibCanBypassTrendBlock = true
+useHTFMasterGuard = false
+htfBlockLevel = input.float(5.0, "HTF Block Level", step=0.01, group=G_COUNTER_NEW)
+allowCounterReversal = input.bool(true, "Allow Counter Reversal", group=G_COUNTER_NEW)
+counterNeedsZone = false
+counterNeedsCandle = false
+useSY320PhaseGuard = false
+useSY320WeakHTFBlock = false
+useSY320SellTrixBlock = false
+sy320Trix34BlockLevel = 0.10
+sy325AllowRealReversal = false
+k3CacheOpposeLimit = input.float(3.0, "K3 Cache Opposite Trend Limit", step=0.01, minval=0.0, group=G_COUNTER_NEW)
+pbRequireSlowTrend = input.bool(true, "Block Opposite Slow Structure", group=G_COUNTER_NEW)
+baseBlockOppositePower = false
+baseAllowRealReversalBypass = false
+
+// 04 ■ Liquidity Sweep
+sy337BuyUseSweep = input.bool(true, "BUY Use Sweep", group=G_LIQ_NEW)
+sy337SellUseSweep = input.bool(true, "SELL Use Sweep", group=G_LIQ_NEW)
+hiddenLiqUseAssist = false
+hiddenLiqFastTF = "1"
+hiddenLiqSlowTF = "15"
+hiddenLiqLookback = input.int(40, "Liquidity Sweep Lookback", minval=3, maxval=300, group=G_LIQ_NEW)
+hiddenLiqValidBars = input.int(22, "Liquidity Assist Valid M1 Bars", minval=1, maxval=50, group=G_LIQ_NEW)
+hiddenLiqRequireCloseReclaim = true
+hiddenLiqMaxLatePoints = input.int(17, "Liquidity Assist Max Late Points", minval=1, maxval=250, group=G_LIQ_NEW)
+hiddenLiqNeedM1Reaction = true
+hiddenLiqNeedRoom = true
+hiddenLiqEntryAlone = input.bool(true, "Use Liquidity As Entry Alone", group=G_LIQ_NEW)
+baseSweepLookback = input.int(6, "Base Sweep Lookback", minval=1, group=G_LIQ_NEW)
+baseSweepRequireCloseReclaim = true
+
+// 05 ■ Structure / BOS / Breaker
+usePocBreakerPair = input.bool(true, "Use POC OB + Breaker Addition", group=G_STRUCT_NEW)
+pbEnableBuy = input.bool(true, "Enable BUY Addition", group=G_STRUCT_NEW, inline="PBSIDE")
+pbEnableSell = input.bool(true, "Enable SELL Addition", group=G_STRUCT_NEW, inline="PBSIDE")
+pbPairMode = input.string("Breaker Then POC", "Confirmation Order", options=["Either Order", "POC Then Breaker", "Breaker Then POC"], group=G_STRUCT_NEW)
+pbHarmonyWindow = input.int(1, "Maximum Bars Between POC And Breaker", minval=0, maxval=20, group=G_STRUCT_NEW)
+pbObTF = "1"
+pbStructureTF = "15"
+pbSlowTF = "30"
+pbObBosLookback = 8
+pbStructurePivotLen = 4
+pbObInvalidATR = 0.30
+pbBreakValidBars = 15
+pbM1MinBodyPct = 40.0
+pbM1MinClosePos = 0.58
+pbRetestTolATR = 0.20
+baseRetestLookback = input.int(20, "Base Retest Lookback", minval=1, group=G_STRUCT_NEW)
+baseRetestToleranceATR = input.float(0.22, "Base Retest Tolerance ATR", step=0.01, minval=0.0, group=G_STRUCT_NEW)
+baseRetestRequireDirectionCandle = true
+
+// 06 ■ Pullback / Continuation / VWAP
+sy337BuyUseVWAPPull = input.bool(true, "BUY Use VWAP Pullback", group=G_PULLBACK_NEW)
+sy337BuyUseVWAPZ = input.bool(true, "BUY Use VWAP Z Reclaim", group=G_PULLBACK_NEW)
+useTrendCorrection = input.bool(true, "Use Trend Correction", group=G_PULLBACK_NEW)
+sy326VWAPTouchBars = 3
+sy326VWAPTouchATR = input.float(0.10, "Sy326 VWAP Touch ATR", step=0.01, group=G_PULLBACK_NEW)
+sy326VWAPMaxDistATR = input.float(2.00, "Sy326 VWAP Max Dist ATR", step=0.01, group=G_PULLBACK_NEW)
+sy326RSIBuyMin = 40.0
+sy326RSIBuyMax = 72.0
+sy326RSISellMin = 28.0
+sy326RSISellMax = 52.0
+baseValueToleranceATR = 0.30
+baseCleanMoveLookback = 20
+baseCleanMoveMinEfficiency = 0.20
+
+// 07 ■ FVG / Imbalance
+useBaseFVG = input.bool(true, "Use Base FVG", group=G_FVG_NEW)
+baseFVGMinATR = input.float(0.01, "Base FVG Min ATR", step=0.01, minval=0.0, group=G_FVG_NEW)
+baseFVGRequireEMA = true
+
+// 08 ■ Fibonacci / Premium / Discount
+premiumLevel = input.float(87.0, "Premium Sell Area %", minval=50, maxval=98, step=1, group=G_FIB_NEW)
+discountLevel = input.float(10.0, "Discount Buy Area %", minval=2, maxval=50, step=1, group=G_FIB_NEW)
+useZoneDirectGate = input.bool(false, "Premium/Discount Directly Controls Entry", group=G_FIB_NEW)
+hiddenFibMode = input.string("Assist Only", "Hidden Fib Assist Mode", options=["Off", "Assist Only", "Smart Assist Score", "Filter Middle Only", "Require Fib Zone"], group=G_FIB_NEW)
+hiddenFibTF = input.timeframe("15", "Hidden Fib TF", group=G_FIB_NEW)
+hiddenFibPivotLen = input.int(2, "Hidden Fib Pivot Strength", minval=2, maxval=30, group=G_FIB_NEW)
+hiddenFibMinWaveATR = 1.4
+hiddenFibZoneTop = input.float(0.48, "Hidden Fib Zone Top", minval=0.0, maxval=1.0, step=0.001, group=G_FIB_NEW)
+hiddenFibZoneBottom = input.float(0.70, "Hidden Fib Zone Bottom", minval=0.0, maxval=1.0, step=0.001, group=G_FIB_NEW)
+hiddenFibToleranceATR = input.float(0.50, "Hidden Fib Tolerance ATR", minval=0.0, maxval=3.0, step=0.05, group=G_FIB_NEW)
+hiddenFibRequireReaction = true
+hiddenFibUseRealAssist = true
+hiddenFibValidBars = 4
+hiddenFibMaxLatePoints = 17
+hiddenFibNeedM1Reaction = true
+hiddenFibNeedRoom = true
+hiddenFibEntryAlone = input.bool(true, "Use Fib As Entry Alone", group=G_FIB_NEW)
+hiddenFibMinScore = 1
+hiddenFibMiddleLow = 40.0
+hiddenFibMiddleHigh = 58.0
+hiddenFibBuyMaxNoFib = 60.0
+hiddenFibSellMinNoFib = 45.0
+baseFibBuyMin = 21.0
+baseFibBuyMax = 50.0
+baseFibSellMin = 50.0
+baseFibSellMax = 79.0
+
+// 09 ■ Range / Chop / Volatility
+useVTZ = true
+vtzMode = input.string("Assist Only", "VTZ Mode", options=["Off", "Assist Only", "Zone Guard", "Retest Guard"], group=G_RANGE_NEW)
+vtzBoxLookback = input.int(45, "Compression Box Lookback", minval=10, maxval=120, group=G_RANGE_NEW)
+vtzATRLenFast = 5
+vtzATRLenSlow = 120
+vtzMaxBoxATR = 9.0
+vtzQuietATRRatio = 0.90
+vtzBreakBufferPts = input.float(8.0, "Break Buffer Points", minval=0.0, maxval=80.0, step=1.0, group=G_RANGE_NEW)
+vtzImpulseTR = input.float(1.00, "Min Break Candle x Slow ATR", minval=0.80, maxval=4.0, step=0.05, group=G_RANGE_NEW)
+vtzFollowBars = input.int(12, "Transition Zone Active Bars", minval=1, maxval=60, group=G_RANGE_NEW)
+vtzRetestTolerancePts = input.float(6.0, "Retest Zone Tolerance Points", minval=2.0, maxval=100.0, step=1.0, group=G_RANGE_NEW)
+vtzLateChasePts = input.float(30.0, "Late Chase Max Points", minval=10.0, maxval=200.0, step=1.0, group=G_RANGE_NEW)
+vtzBlockMiddleFade = true
+sy337SellUseRange = true
+squeezeLookback = 60
+useSY322RegimeGuard = input.bool(true, "Use SY322 Regime Guard", group=G_RANGE_NEW)
+useSY322ShockATRBlock = false
+sy322MaxAtrRatio = 3.0
+useSY322DeadATRWeakHTF = input.bool(true, "Use SY322 Dead ATR Weak HTF", group=G_RANGE_NEW)
+sy322DeadAtrRatio = input.float(0.90, "Sy322 Dead ATR Ratio", step=0.01, group=G_RANGE_NEW)
+useSY324QuietFix = input.bool(true, "Use SY324 Quiet Fix", group=G_RANGE_NEW)
+sy324ImpulseLookback = 120
+sy324CompressionLookback = 40
+sy324MinImpulseATR = 8.0
+sy324MaxCompression = 0.25
+sy324MiddleMin = 25.0
+sy324MiddleMax = 75.0
+useSY327QuietRange = input.bool(true, "Use SY327 Quiet Range — UPGRADED", group=G_RANGE_NEW)
+sy327RangeLen = 60
+sy327MaxRangeATR = 7.0
+sy327BuyEdge = 18.0
+sy327SellEdge = 82.0
+useSY328RangeEdgeToMid = input.bool(true, "Use SY328 Range Edge To Mid", group=G_RANGE_NEW)
+sy328RangeLen = 50
+sy328MaxRangeATR = 7.0
+sy328BuyEdge = 20.0
+sy336UseRangeBuy = input.bool(true, "Sy336 Use Range Buy", group=G_RANGE_NEW)
+sy336UseSellRange = input.bool(true, "Sy336 Use Sell Range", group=G_RANGE_NEW)
+baseBBLength = 22
+baseBBDeviation = 6.0
+baseRangeMaxADX = 20.0
+baseRangeMaxHTFScore = 4.0
+
+// 10 ■ Momentum / Candle / Oscillators
+atrLen = input.int(13, "ATR Length", minval=1, group=G_MOM_NEW)
+atrAvgLen = input.int(20, "ATR Average Length", minval=10, maxval=500, group=G_MOM_NEW)
+minBodyPct = input.float(30.0, "Min Rejection Body %", minval=5, maxval=95, step=1, group=G_MOM_NEW)
+strongBodyPct = input.float(35.0, "Strong Body %", minval=10, maxval=95, step=1, group=G_MOM_NEW)
+minWickPct = input.float(50.0, "Min Rejection Wick %", minval=0, maxval=90, step=1, group=G_MOM_NEW)
+maxSignalCandleATR = input.float(6.00, "Max Signal Candle ATR", minval=0.3, maxval=10, step=0.05, group=G_MOM_NEW)
+newsSpikeATR = input.float(2.90, "Block Crazy Candle ATR", minval=0.8, maxval=10, step=0.05, group=G_MOM_NEW)
+minAtrVsAvg = input.float(0.18, "Min ATR / Avg ATR", minval=0.01, maxval=3, step=0.01, group=G_MOM_NEW)
+maxAtrVsAvg = input.float(4.30, "Max ATR / Avg ATR", minval=0.5, maxval=15, step=0.05, group=G_MOM_NEW)
+useCandleDirectGate = input.bool(false, "Candle Settings Directly Gate Router", group=G_MOM_NEW)
+rsiRangeBars = 60
+sy327CCILen = 20
+sy327CCIBuyLevel = -100.0
+sy327CCISellLevel = 100.0
+
+// 11 ■ Schools / Source Engines
+useSmartExitPlanner = true
+useRealCloseSender = input.bool(false, "Send Confirmed Real CLOSE Requests", group=G_SCHOOLS_NEW)
+useSY315WebAddons = input.bool(true, "Use SY315 Web Addons", group=G_SCHOOLS_NEW)
+sy328TenkanLen = 6
+sy328KijunLen = 24
+// ── إعدادات المدارس المطورة (قيم مثبتة بالمختبر) ──
+schBBDev = input.float(1.0, "BB Fade: deviation", minval=1.0, maxval=4.0, step=0.1, group=G_SCHOOLS_NEW)
+schBBRsi = input.float(30.0, "BB Fade: max RSI14 (BUY) / min (SELL)", minval=20.0, maxval=80.0, step=1.0, group=G_SCHOOLS_NEW)
+schR20Atr = input.float(8.0, "Range20: ATR cap", minval=2.0, maxval=20.0, step=0.5, group=G_SCHOOLS_NEW)
+schR20Pos = input.float(12.0, "Range20: position %", minval=2.0, maxval=30.0, step=1.0, group=G_SCHOOLS_NEW)
+schR40Atr = input.float(10.0, "Range40: ATR cap", minval=2.0, maxval=20.0, step=0.5, group=G_SCHOOLS_NEW)
+schR40Pos = input.float(15.0, "Range40: position %", minval=2.0, maxval=30.0, step=1.0, group=G_SCHOOLS_NEW)
+schR60Atr = input.float(10.0, "Range60: ATR cap", minval=2.0, maxval=20.0, step=0.5, group=G_SCHOOLS_NEW)
+schR60Pos = input.float(15.0, "Range60: position %", minval=2.0, maxval=30.0, step=1.0, group=G_SCHOOLS_NEW)
+schR80Atr = input.float(10.0, "Range80: ATR cap", minval=2.0, maxval=20.0, step=0.5, group=G_SCHOOLS_NEW)
+schR80Pos = input.float(15.0, "Range80: position %", minval=2.0, maxval=30.0, step=1.0, group=G_SCHOOLS_NEW)
+schREdgeAtr = input.float(8.0, "RangeEdge: ATR cap", minval=2.0, maxval=20.0, step=0.5, group=G_RANGE_NEW)
+schREdgePos = input.float(15.0, "RangeEdge: position %", minval=2.0, maxval=30.0, step=1.0, group=G_RANGE_NEW)
+schTCRsi = input.float(18.0, "TrendCorr: RSI3 threshold", minval=5.0, maxval=30.0, step=1.0, group=G_PULLBACK_NEW)
+schBigK = input.float(1.5, "Chassis: big candle x ATR", minval=0.5, maxval=4.0, step=0.1, group=G_SCHOOLS_NEW)
+schRsiTh = input.float(18.0, "Chassis: RSI3 extreme", minval=5.0, maxval=30.0, step=1.0, group=G_SCHOOLS_NEW)
+useSY331BuySchools = input.bool(true, "Use SY331 Buy Schools", group=G_SCHOOLS_NEW)
+sy334Engine = input.string("Legacy Only", "Decision Engine Route", options=["Legacy Only", "Type + Legacy", "Type Schools Only"], group=G_SCHOOLS_NEW)
+sy334UseBuyRange = true
+sy334UseBuySweep = true
+sy334UseBuyTrend = true
+sy334UseSellRange = true
+sy334UseSellSweep = true
+sy334UseSellTrend = true
+sy334ApplyOldGuardsToType = input.bool(true, "Sy334 Apply Old Guards To Type", group=G_SCHOOLS_NEW)
+useSY336Best = input.bool(true, "Use SY336 Best", group=G_SCHOOLS_NEW)
+sy336UseKeltnerSell = false
+
+// 12 ■ Source Priority / Fusion / Collision
+pbOriginalPriority = input.bool(true, "Original 8100 Signal Has Priority", group=G_ROUTER_NEW)
+useTrendVoteAddon = input.bool(true, "Use Trend Vote Add-On", group=G_ROUTER_NEW)
+trendVoteEnableBuy = input.bool(true, "Enable Exact BUY Add-On", group=G_ROUTER_NEW)
+trendVoteEnableSell = input.bool(true, "Enable Strict SELL Add-On", group=G_ROUTER_NEW)
+trendVoteShowMarks = input.bool(false, "Show Trend Vote Add-On Marks", group=G_ROUTER_NEW)
+useFinalSchoolFusion = input.bool(true, "Use Final School Fusion", group=G_ROUTER_NEW)
+useSY337QuickRouter = input.bool(true, "Use SY339 Active Router", group=G_ROUTER_NEW)
+sy337RouterModeAffects = input.bool(true, "Mode Changes Router Sensitivity", group=G_ROUTER_NEW)
+sy337UseNotLate = input.bool(true, "Use Not-Late Guard", group=G_ROUTER_NEW)
+sy337LateLookback = input.int(9, "Late Move Lookback", minval=2, maxval=50, group=G_ROUTER_NEW)
+sy337MaxLateMovePts = input.int(37, "Max Late Move Points", minval=10, maxval=300, group=G_ROUTER_NEW)
+sy337Cooldown = input.int(8, "Router Cooldown", minval=0, maxval=500, group=G_ROUTER_NEW)
+sy337LossCooldown = input.int(0, "Router Loss Cooldown", minval=0, maxval=500, group=G_ROUTER_NEW)
+sy354UseDirectGates = input.bool(false, "Use Direct Active Gates", group=G_ROUTER_NEW)
+sy354BuyMaxRange = input.float(90.0, "BUY Allowed Under Range %", minval=1.0, maxval=90.0, step=1.0, group=G_ROUTER_NEW)
+sy354SellMinRange = input.float(10.0, "SELL Allowed Over Range %", minval=10.0, maxval=99.0, step=1.0, group=G_ROUTER_NEW)
+sy354RequireReaction = input.bool(true, "Require Rejection/Momentum Candle", group=G_ROUTER_NEW)
+sy337SellUseTrend = true
+sy337SellUseSY336Best = true
+sy337SellUseBase = true
+k3UseCacheGateBase = input.bool(true, "Apply Cache Gate To Base", group=G_ROUTER_NEW)
+k3UseCacheGateTrendVote = input.bool(true, "Apply Cache Gate To Trend Vote", group=G_ROUTER_NEW)
+k3UseCacheGateFusion = input.bool(true, "Apply Cache Gate To Fusion", group=G_ROUTER_NEW)
+k3SourcePriority = input.string("Fusion > Trend Vote > Base", "Final Source Priority", options=["Fusion > Trend Vote > Base", "Trend Vote > Fusion > Base", "Base > Fusion > Trend Vote", "Base > Trend Vote > Fusion"], group=G_ROUTER_NEW)
+trendVoteBuyMinVotes = input.int(2, "Trend Vote BUY Minimum Votes", minval=1, group=G_ROUTER_NEW)
+trendVoteSellMinVotes = input.int(2, "Trend Vote SELL Minimum Votes", minval=1, group=G_ROUTER_NEW)
+fusionMinVoteAdvantage = input.int(1, "Fusion Minimum Vote Advantage", minval=1, group=G_ROUTER_NEW)
+useFinalQualityArbiter = input.bool(true, "R17 Final Quality Arbiter", group=G_ROUTER_NEW)
+qaMinScore = input.float(3.20, "R17 Minimum Candidate Score", minval=0.0, maxval=15.0, step=0.05, group=G_ROUTER_NEW)
+qaMinEdge = input.float(0.45, "R17 Minimum BUY/SELL Score Edge", minval=0.0, maxval=5.0, step=0.05, group=G_ROUTER_NEW)
+qaMaxLatePts = input.float(45.0, "R17 Maximum Late Move Points", minval=5.0, maxval=300.0, step=1.0, group=G_ROUTER_NEW)
+qaRequireRoom = input.bool(true, "R17 Require Target Room", group=G_ROUTER_NEW)
+qaAllowStrongReversal = input.bool(true, "R17 Allow Confirmed Sweep Reversal", group=G_ROUTER_NEW)
+fusionUseMomentum = input.bool(false, "Fusion Use Momentum", group=G_ROUTER_NEW)
+fusionUseBBKC = input.bool(true, "Fusion Use BB/KC (اعدادات المستخدم: مفعله)", group=G_ROUTER_NEW)
+fusionUseQQEVortex = input.bool(false, "Fusion Use QQE + Vortex (اعدادات المستخدم: مفعله)", group=G_ROUTER_NEW)
+fusionUseIchimoku = input.bool(true, "Fusion Use Ichimoku", group=G_ROUTER_NEW)
+fusionUseSidePack = input.bool(true, "Fusion Use Side-Specific Pack", group=G_ROUTER_NEW)
+fusionUseLiquidity = input.bool(true, "Fusion Use Liquidity", group=G_ROUTER_NEW)
+baseBuyPlaceMaxRange = input.float(8.0, "Base Buy Place Max Range", step=0.01, group=G_ROUTER_NEW)
+baseSellPlaceMinRange = input.float(67.0, "Base Sell Place Min Range", step=0.01, group=G_ROUTER_NEW)
+tvERLen = 20
+tvLinLen = 40
+tvVolFastLen = 10
+tvVolSlowLen = 60
+tvRetZLen = 40
+tvAutoCorrLen = 20
+tvShareLen = 12
+tvBuyBreakFastLen = 8
+tvBuyBreakBalancedLen = 12
+tvBuyBreakStrictLen = 20
+tvSellBreakFastLen = 10
+tvSellBreakBalancedLen = 15
+tvSellBreakStrictLen = 24
+tvBuyFastER = 0.25
+tvBuyFastSlopeATR = 0.015
+tvBuyFastAutoCorr = -0.08
+tvBuyFastUpShare = 0.58
+tvBuyBalancedER = 0.35
+tvBuyBalancedSlopeATR = 0.025
+tvBuyBalancedAutoCorr = -0.02
+tvBuyBalancedVolRatio = 0.82
+tvBuyStrictER = 0.45
+tvBuyStrictSlopeATR = 0.035
+tvBuyStrictAutoCorr = 0.02
+tvBuyStrictVolRatio = 0.90
+tvBuyImpulseZ = 1.50
+tvBuyImpulseER = 0.35
+tvBuyImpulseSlopeATR = 0.025
+tvBuyImpulseUpShare = 0.67
+tvBuyImpulseBodyPct = 48.0
+tvBuyImpulseClosePos = 0.70
+tvSellFastER = 0.30
+tvSellFastSlopeATR = 0.020
+tvSellFastAutoCorr = -0.04
+tvSellFastDownShare = 0.62
+tvSellBalancedER = 0.40
+tvSellBalancedSlopeATR = 0.030
+tvSellBalancedAutoCorr = 0.00
+tvSellBalancedVolRatio = 0.88
+tvSellStrictER = 0.50
+tvSellStrictSlopeATR = 0.045
+tvSellStrictAutoCorr = 0.05
+tvSellStrictVolRatio = 0.95
+tvSellImpulseZ = 1.80
+tvSellImpulseER = 0.42
+tvSellImpulseSlopeATR = 0.035
+tvSellImpulseDownShare = 0.72
+tvSellImpulseBodyPct = 55.0
+tvSellImpulseClosePos = 0.76
+
+// 13 ■ Risk / TP / SL
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK_NEW)
+stopPoints = input.int(65, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
+targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
+sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK_NEW)
+trendAlignFilter = input.string("Medium (max 3 oppose) — R10", "R4 Trend Alignment Filter", options=["Off", "Light (max 4 oppose)", "Medium (max 3 oppose) — R10", "Balanced (max 2 + Sweep)", "Strict (max 2 oppose)"], group=G_RISK_NEW)
+useDirectionalAdaptiveExit = input.bool(true, "Use M1 Directional Adaptive Exit", group=G_RISK_NEW)
+daeM5TF = input.timeframe("3", "Exit Direction TF 1", group=G_RISK_NEW)
+daeM15TF = input.timeframe("15", "Exit Direction TF 2", group=G_RISK_NEW)
+daeMinTargetPts = input.float(30.0, "Directional Exit Min Target", minval=5.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeBaseTargetPts = input.float(50.0, "Directional Exit Base Target", minval=5.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
+daeMaxTargetPts = input.float(55.0, "Directional Exit Max Target", minval=10.0, maxval=250.0, step=1.0, group=G_RISK_NEW)
+daeRangeTargetCap = input.float(30.0, "Range Target Cap", minval=5.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeCounterTargetCap = input.float(30.0, "Counter-Trend Target Cap", minval=5.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeLateTargetCap = input.float(30.0, "Late Entry Target Cap", minval=5.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeMinStopPts = input.float(55.0, "Directional Exit Min Stop", minval=5.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
+daeMaxStopPts = input.float(60.0, "Directional Exit Max Stop", minval=10.0, maxval=250.0, step=1.0, group=G_RISK_NEW)
+daeStopLookback = input.int(8, "Protected Swing Stop Lookback", minval=3, maxval=80, group=G_RISK_NEW)
+daeLiquidityLookback = input.int(60, "Target Liquidity Lookback", minval=10, maxval=300, group=G_RISK_NEW)
+daeStrongScore = input.float(4.0, "Strong Direction Score", minval=1.0, maxval=8.0, step=0.25, group=G_RISK_NEW)
+daeMaxChaseATR = input.float(0.90, "Late Entry Max Distance From EMA20 ATR", minval=0.20, maxval=4.0, step=0.05, group=G_RISK_NEW)
+daeUseContextProfiles = input.bool(true, "Use R16 Direction Context Profiles", group=G_RISK_NEW)
+daeBuyAlignedTargetPts = input.float(50.0, "R16 BUY Aligned Target", minval=30.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeBuyAlignedStopPts = input.float(60.0, "R16 BUY Aligned Stop", minval=1.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
+daeSellAlignedTargetPts = input.float(40.0, "R16 SELL Aligned Target", minval=30.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeSellAlignedStopPts = input.float(65.0, "R16 SELL Aligned Stop", minval=1.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
+daeBuyLateTargetPts = input.float(60.0, "R16 BUY Late Target", minval=30.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeBuyLateStopPts = input.float(60.0, "R16 BUY Late Stop", minval=1.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
+daeSellLateTargetPts = input.float(45.0, "R16 SELL Late Target", minval=30.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
+daeSellLateStopPts = input.float(60.0, "R16 SELL Late Stop", minval=1.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
+r6UseObSellFilter = input.bool(true, "R6 Block SELL inside Bearish OB (experimental — feed-fragile)", group=G_RISK_NEW)
+r6UseObBuyFilter = input.bool(true, "R6 Block BUY inside Bullish OB", group=G_RISK_NEW)
+r6ObSize = 5
+r6ObMax = 60
+r8UseExtraSources = input.bool(true, "R8 Extra Sources (UT Bot+WaveTrend+BB) — test first!", group=G_RISK_NEW)
+r8ExtraAtrMin = 16.0
+r8MaxSigDensity = 105.0
+r8DensityWin = 5000
+// ━━━ R11 inputs ━━━
+r11UseConnors = input.bool(true, "R11 Connors RSI(2) Source (validated 4/4 datasets)", group=G_R11)
+r11ConnorsThB = input.float(18.0, "Connors RSI3 Buy Below — UPGRADED", minval=2.0, maxval=40.0, step=1.0, group=G_R11)
+r11ConnorsThS = input.float(82.0, "Connors RSI3 Sell Above — UPGRADED", minval=60.0, maxval=98.0, step=1.0, group=G_R11)
+r11ConnorsCD = input.int(9, "Connors Cooldown Bars", minval=5, maxval=100, group=G_R11)
+
+
+// ━━━ SYR30 replacement-school controls ━━━
+syr30UseSchoolRouter = input.bool(true, "Connect SYR30 Schools To Final Router", group=G_ROUTER_NEW)
+
+syr30UseBalance = input.bool(false, "Enable Balance Reset Launch", group=G_SYR30_BAL)
+syr30BalanceBuyEnabled = input.bool(true, "Enable BUY", group=G_SYR30_BAL, inline="BAL_SIDE")
+syr30BalanceSellEnabled = input.bool(true, "Enable SELL", group=G_SYR30_BAL, inline="BAL_SIDE")
+syr30BalanceBars = input.int(6, "Balance Bars", minval=3, maxval=12, group=G_SYR30_BAL)
+syr30ImpulseBars = input.int(6, "Pre-Balance Impulse Bars", minval=3, maxval=12, group=G_SYR30_BAL)
+syr30ImpulseMinATR = input.float(0.80, "Minimum Pre-Balance Impulse ATR", minval=0.20, maxval=2.50, step=0.05, group=G_SYR30_BAL)
+syr30BalanceMinWidthATR = input.float(0.55, "Minimum Balance Width ATR", minval=0.20, maxval=2.00, step=0.05, group=G_SYR30_BAL)
+syr30BalanceMaxWidthATR = input.float(1.80, "Maximum Balance Width ATR", minval=0.50, maxval=4.00, step=0.05, group=G_SYR30_BAL)
+syr30BalanceMinADX = input.float(25.0, "Minimum ADX", minval=5.0, maxval=50.0, step=0.5, group=G_SYR30_BAL)
+syr30BalanceMinBodyATR = input.float(0.25, "Launch Minimum Body ATR", minval=0.05, maxval=1.50, step=0.05, group=G_SYR30_BAL)
+syr30BalanceMaxBodyATR = input.float(1.00, "Launch Maximum Body ATR", minval=0.20, maxval=2.50, step=0.05, group=G_SYR30_BAL)
+syr30BalanceMinClosePos = input.float(0.68, "Directional Close Position", minval=0.50, maxval=0.95, step=0.01, group=G_SYR30_BAL)
+syr30BalanceRequireVolumeContract = input.bool(true, "Require Volume Contraction", group=G_SYR30_BAL)
+syr30BalanceVolumeLookback = input.int(30, "Older Volume Lookback", minval=5, maxval=40, group=G_SYR30_BAL)
+
+syr30UseAsia = input.bool(false, "Enable Asia Accepted Break-Retest", group=G_SYR30_ASIA)
+syr30AsiaBuyEnabled = input.bool(true, "Enable BUY", group=G_SYR30_ASIA, inline="ASIA_SIDE")
+syr30AsiaSellEnabled = input.bool(true, "Enable SELL", group=G_SYR30_ASIA, inline="ASIA_SIDE")
+syr30AsiaBuildStartUTC = input.int(0, "Asia Range Start Minute UTC", minval=0, maxval=1439, group=G_SYR30_ASIA)
+syr30AsiaBuildEndUTC = input.int(360, "Asia Range End Minute UTC", minval=1, maxval=1440, group=G_SYR30_ASIA)
+syr30AsiaTradeStartUTC = input.int(390, "Retest Window Start Minute UTC", minval=0, maxval=1439, group=G_SYR30_ASIA)
+syr30AsiaTradeEndUTC = input.int(720, "Retest Window End Minute UTC", minval=1, maxval=1440, group=G_SYR30_ASIA)
+syr30AsiaBreakMemory = input.int(2, "Accepted Break Memory Bars", minval=1, maxval=10, group=G_SYR30_ASIA)
+syr30AsiaBreakBufferATR = input.float(0.08, "Break Buffer ATR", minval=0.00, maxval=0.50, step=0.01, group=G_SYR30_ASIA)
+syr30AsiaRetestToleranceATR = input.float(0.15, "Retest Tolerance ATR", minval=0.02, maxval=0.60, step=0.01, group=G_SYR30_ASIA)
+syr30AsiaMinClosePos = input.float(0.62, "Directional Close Position", minval=0.50, maxval=0.95, step=0.01, group=G_SYR30_ASIA)
+syr30AsiaBuyMinFlowZ = input.float(-0.05, "BUY Minimum Flow Z", minval=-3.0, maxval=3.0, step=0.05, group=G_SYR30_ASIA)
+syr30AsiaSellMaxFlowZ = input.float(0.05, "SELL Maximum Flow Z", minval=-3.0, maxval=3.0, step=0.05, group=G_SYR30_ASIA)
+syr30AsiaRequireFastTrend = input.bool(false, "Require Fast Trend Not Opposite", group=G_SYR30_ASIA)
+
+syr30UseDeadAuction = input.bool(false, "Enable Dead Auction Reclaim", group=G_SYR30_AUCT)
+syr30AuctionBuyEnabled = input.bool(false, "Enable BUY", group=G_SYR30_AUCT, inline="AUCT_SIDE")
+syr30AuctionSellEnabled = input.bool(false, "Enable SELL", group=G_SYR30_AUCT, inline="AUCT_SIDE")
+syr30AuctionLookback = input.int(40, "Auction Lookback", minval=15, maxval=80, group=G_SYR30_AUCT)
+syr30AuctionMaxADX = input.float(15.0, "Maximum ADX", minval=8.0, maxval=35.0, step=0.5, group=G_SYR30_AUCT)
+syr30AuctionMaxER = input.float(0.040, "Maximum Efficiency Ratio", minval=0.01, maxval=0.20, step=0.005, group=G_SYR30_AUCT)
+syr30AuctionMaxMidSlopeATR = input.float(0.65, "Maximum Midpoint Drift ATR", minval=0.10, maxval=1.50, step=0.05, group=G_SYR30_AUCT)
+syr30AuctionMinCenterAcceptance = input.float(0.14, "Minimum Center Acceptance", minval=0.05, maxval=0.60, step=0.01, group=G_SYR30_AUCT)
+syr30AuctionTouchBand = input.float(0.15, "Edge Touch Band Of Auction", minval=0.05, maxval=0.30, step=0.01, group=G_SYR30_AUCT)
+syr30AuctionTouchLookback = input.int(10, "Edge Touch Count Lookback", minval=3, maxval=30, group=G_SYR30_AUCT)
+syr30AuctionMinTouches = input.float(1.0, "Minimum Touches Per Edge", minval=1.0, maxval=8.0, step=1.0, group=G_SYR30_AUCT)
+syr30AuctionMinWidthPts = input.float(60.0, "Minimum Auction Width Points", minval=30.0, maxval=250.0, step=5.0, group=G_SYR30_AUCT)
+syr30AuctionMaxWidthPts = input.float(360.0, "Maximum Auction Width Points", minval=100.0, maxval=800.0, step=10.0, group=G_SYR30_AUCT)
+syr30AuctionMinValueDistancePts = input.float(32.0, "Minimum Distance From Rolling Value", minval=5.0, maxval=150.0, step=1.0, group=G_SYR30_AUCT)
+syr30AuctionMinClosePos = input.float(0.62, "Reclaim Close Position", minval=0.50, maxval=0.90, step=0.01, group=G_SYR30_AUCT)
+syr30AuctionMinBodyATR = input.float(0.10, "Minimum Reclaim Body ATR", minval=0.05, maxval=0.80, step=0.05, group=G_SYR30_AUCT)
+syr30AuctionMaxBodyATR = input.float(0.80, "Maximum Reclaim Body ATR", minval=0.20, maxval=1.50, step=0.05, group=G_SYR30_AUCT)
+useRoomFilter = input.bool(true, "Require Room For TP", group=G_RISK_NEW)
+smartShowExitState = input.bool(false, "Show TP/SL Plan On Entry", group=G_RISK_NEW)
+smartMinStopPts = 60.0
+smartMaxStopPts = 65.0
+smartMinTargetPts = 20.0
+smartMaxTargetPts = 65.0
+smartStopLookback = 40
+smartTargetLookback = 120
+smartFixedBufferPts = 20.0
+smartATRBufferMult = 0.40
+smartMinRR = 0.80
+smartMaxRR = 3.00
+smartMomentumADX = 10.0
+smartHighVolRatio = 1.00
+smartChopADX = 18.0
+smartChopTargetCut = 1.0
+smartMomentumTargetAdd = 20.0
+smartMomentumStopAdd = 5.0
+smartUseSwingTargetOnly = false
+useSourceRiskManager = true
+usePocTargetExtension = false
+pocTargetAddPoints = 50
+pocKeepAdaptiveStop = true
+pocFixedStopPoints = 65
+useSeparateSideRisk = false
+useSY333TypeRisk = true
+buyTargetPoints = 60
+buyStopPoints = 65
+sellTargetPoints = 50
+sellStopPoints = 65
+buyRangeTarget = 50
+buyRangeStop = 65
+buySweepTarget = 50
+buySweepStop = 65
+buyTrendTarget = 50
+buyTrendStop = 65
+sellRangeTarget = 50
+sellRangeStop = 65
+sellSweepTarget = 50
+sellSweepStop = 65
+sellTrendTarget = 50
+sellTrendStop = 65
+
+// 14 ■ Execution / Cooldowns / Real CLOSE
+realCostPts = 5.0
+wfPriorWinRate = 0.61
+wfPriorStrength = 20.0
+wfMinSamples = 10
+wfMinExitAdvantage = 8.0
+wfConfidenceZ = 1.0
+wfWarmupTrades = input.int(70, "Warmup Baseline Trades", minval=0, maxval=500, group=G_EXEC_NEW)
+sy999CloseAction = input.string("CLOSE", "BOT Close Action Text", group=G_EXEC_NEW)
+realCloseMaxAttempts = input.int(3, "Total CLOSE Attempts", minval=1, maxval=6, group=G_EXEC_NEW)
+realCloseRetryEveryBars = input.int(1, "Retry Every Closed M1 Bars", minval=1, maxval=10, group=G_EXEC_NEW)
+realCloseOnlyIfProfit = input.bool(false, "Send CLOSE Only When Profitable", group=G_EXEC_NEW)
+realCloseShowMarks = input.bool(false, "Show CLOSE Request Marks", group=G_EXEC_NEW)
+cooldownBars = input.int(21, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)
+lossCooldownBars = input.int(12, "② Cooldown بعد الخسارة — LOSS", minval=0, maxval=1000, group=G_MAIN_NEW)
+buyLossCooldownBars = input.int(24, "② Cooldown شراء — BUY", minval=0, maxval=1000, group=G_MAIN_NEW)
+sellLossCooldownBars = input.int(13, "② Cooldown بيع — SELL", minval=0, maxval=1000, group=G_MAIN_NEW)
+sy999ShowExitMarks = input.bool(true, "Show Early EXIT Marks", group=G_EXEC_NEW)
+
+// 15 ■ Alerts / Webhook / Bot
+sy963UseAlertFunction = input.bool(true, "Send BOT Message alert()", group=G_ALERT_NEW)
+sy963WebhookKey = input.string("SECRET_135", "BOT Secret Key", group=G_ALERT_NEW)
+sy963BotSymbol = input.string("XAUUSD", "BOT Symbol - Message Only", group=G_ALERT_NEW)
+sy963LotSize = input.float(0.02, "BOT Lot Size - Message Only", minval=0.01, step=0.01, group=G_ALERT_NEW)
+sy963WebhookTargetPoints = input.int(50, "BOT Fallback Target Points — only if plan is na", minval=1, group=G_ALERT_NEW)
+sy963WebhookStopPoints = input.int(65, "BOT Fallback Stop Points — only if plan is na", minval=1, group=G_ALERT_NEW)
+sy963AlertFormat = input.string("JSON", "alert() Message Format", options=["JSON", "Simple"], group=G_ALERT_NEW)
+sy963UseBuyCondition = true
+sy963UseSellCondition = true
+
+// 16 ■ Statistics / Visuals
+showFinalFusionMarks = input.bool(false, "Show Final Fusion Marks", group=G_VIS_NEW)
+showPocBreakerMarks = input.bool(false, "Show POC/Breaker Diagnostics", group=G_VIS_NEW)
+sy389ShowBiasMarks = input.bool(false, "Show Bias Marks", group=G_VIS_NEW)
+sy389ShowBiasTable = input.bool(false, "Show Bias Table", group=G_VIS_NEW)
+vtzShowBox = input.bool(false, "Show Transition Box", group=G_VIS_NEW)
+vtzShowMarks = input.bool(false, "Show VTZ Marks", group=G_VIS_NEW)
+sy338ShowBlocked = input.bool(false, "Show Blocked Countertrend Marks", group=G_VIS_NEW)
+sy130ShowBlocked = input.bool(false, "Show SY130 Blocked Marks", group=G_VIS_NEW)
+showSignals = input.bool(true, "Show BUY / SELL", group=G_VIS_NEW)
+showTradeLines = input.bool(true, "Show Entry / TP / SL", group=G_VIS_NEW)
+showTable = input.bool(true, "Show Stats Table", group=G_VIS_NEW)
+showResearchMarks = input.bool(false, "Show Research / School Marks", group=G_VIS_NEW)
+lineBars = input.int(70, "Active Line Bars", minval=5, maxval=500, group=G_VIS_NEW)
+statsMode = input.string("All Loaded History", "Stats Count", options=["All Loaded History", "From Custom Time"], group=G_VIS_NEW)
+statsStartTime = input.time(1784512800000, "Start Stats From (UTC)", group=G_VIS_NEW)
+manualResetKey = input.int(0, "Manual Reset Number", minval=0, group=G_VIS_NEW)
+sy325ShowDriverBg = input.bool(false, "Sy325 Show Driver Bg", group=G_VIS_NEW)
+
+allowLong = tradeSide == "BOTH" or tradeSide == "LONG"
+allowShort = tradeSide == "BOTH" or tradeSide == "SHORT"
+pointUnit = math.max(pointUnitInput, syminfo.mintick)
+statsActive = statsMode == "All Loaded History" or time >= statsStartTime
+statsResetByTime = statsMode == "From Custom Time" and time >= statsStartTime and (na(time[1]) or time[1] < statsStartTime)
+f_hidden_fib_assist() =>
+    _atr = ta.atr(14)
+    _pHigh = ta.pivothigh(high, hiddenFibPivotLen, hiddenFibPivotLen)
+    _pLow = ta.pivotlow(low, hiddenFibPivotLen, hiddenFibPivotLen)
+
+    var float _lastPivotHigh = na
+    var float _lastPivotLow = na
+    var int _lastPivotHighBar = na
+    var int _lastPivotLowBar = na
+    var float _lockedHigh = na
+    var float _lockedLow = na
+    var int _lockedDir = 0
+
+    if not na(_pHigh)
+        _lastPivotHigh := _pHigh
+        _lastPivotHighBar := bar_index - hiddenFibPivotLen
+
+    if not na(_pLow)
+        _lastPivotLow := _pLow
+        _lastPivotLowBar := bar_index - hiddenFibPivotLen
+
+    _ready = not na(_lastPivotHigh) and not na(_lastPivotLow) and not na(_lastPivotHighBar) and not na(_lastPivotLowBar)
+    _wave = _ready ? math.abs(_lastPivotHigh - _lastPivotLow) : na
+    _strongWave = _ready and _wave >= _atr * hiddenFibMinWaveATR
+
+    _newUpWave = _strongWave and _lastPivotHighBar > _lastPivotLowBar
+    _newDownWave = _strongWave and _lastPivotLowBar > _lastPivotHighBar
+
+    if _strongWave
+        if _newUpWave and (_lockedDir != 1 or _lockedHigh != _lastPivotHigh or _lockedLow != _lastPivotLow)
+            _lockedHigh := _lastPivotHigh
+            _lockedLow := _lastPivotLow
+            _lockedDir := 1
+        if _newDownWave and (_lockedDir != -1 or _lockedHigh != _lastPivotHigh or _lockedLow != _lastPivotLow)
+            _lockedHigh := _lastPivotHigh
+            _lockedLow := _lastPivotLow
+            _lockedDir := -1
+
+    _hasFib = not na(_lockedHigh) and not na(_lockedLow) and _lockedDir != 0
+    _rng = _hasFib ? math.max(_lockedHigh - _lockedLow, syminfo.mintick) : na
+
+    _zTop = math.min(hiddenFibZoneTop, hiddenFibZoneBottom)
+    _zBot = math.max(hiddenFibZoneTop, hiddenFibZoneBottom)
+
+    _buyTop = _hasFib ? _lockedHigh - _rng * _zTop : na
+    _buyBot = _hasFib ? _lockedHigh - _rng * _zBot : na
+
+    _sellBot = _hasFib ? _lockedLow + _rng * _zTop : na
+    _sellTop = _hasFib ? _lockedLow + _rng * _zBot : na
+
+    _tol = _atr * hiddenFibToleranceATR
+    _cRange = math.max(high - low, syminfo.mintick)
+    _closePos = (close - low) / _cRange
+    _bullReject = close > open and _closePos >= 0.55
+    _bearReject = close < open and _closePos <= 0.45
+
+    _inBuy = _hasFib and _lockedDir == 1 and close <= _buyTop + _tol and close >= _buyBot - _tol
+    _inSell = _hasFib and _lockedDir == -1 and close >= _sellBot - _tol and close <= _sellTop + _tol
+
+    _buyOK = _inBuy and (not hiddenFibRequireReaction or _bullReject)
+    _sellOK = _inSell and (not hiddenFibRequireReaction or _bearReject)
+
+    [_buyOK[1], _sellOK[1], _inBuy[1], _inSell[1], _lockedDir[1]]
+
+f_hidden_liq_sweep_assist() =>
+    _prevLow = ta.lowest(low, hiddenLiqLookback)[1]
+    _prevHigh = ta.highest(high, hiddenLiqLookback)[1]
+    _buySweep = not na(_prevLow) and low < _prevLow and (hiddenLiqRequireCloseReclaim ? close > _prevLow : close > low)
+    _sellSweep = not na(_prevHigh) and high > _prevHigh and (hiddenLiqRequireCloseReclaim ? close < _prevHigh : close < high)
+
+    [_buySweep[1], _sellSweep[1], _prevLow[1], _prevHigh[1]]
+
+f_sy130_smoothrng(_x, _t, _m) =>
+    _wper = _t * 2 - 1
+    _avrng = ta.ema(math.abs(_x - _x[1]), _t)
+    ta.ema(_avrng, _wper) * _m
+
+f_sy130_rngfilt(_x, _r) =>
+    var float _rf = na
+    _prev = nz(_rf[1], _x)
+    _rf := _x > _prev ? math.max(_prev, _x - _r) : math.min(_prev, _x + _r)
+    _rf
+
+f_sy130_rp_dir() =>
+    _src = close
+    _smrng1 = f_sy130_smoothrng(_src, sy130RPFastSmooth, sy130RPFastMult)
+    _smrng2 = f_sy130_smoothrng(_src, sy130RPSlowSmooth, sy130RPSensitivity)
+    _smrng = (_smrng1 + _smrng2) / 2.0
+    _filt = f_sy130_rngfilt(_src, _smrng)
+    int _dir = 0
+    _dir := _filt > _filt[1] ? 1 : _filt < _filt[1] ? -1 : nz(_dir[1], 0)
+    [_dir, _filt]
+
+f_sy130_ualgo_dir() =>
+    _atr = ta.atr(sy130ATRLen)
+    _up = sy130ATRSource - sy130ATRMult * _atr
+    _up1 = nz(_up[1], _up)
+    _up := close[1] > _up1 ? math.max(_up, _up1) : _up
+    _dn = sy130ATRSource + sy130ATRMult * _atr
+    _dn1 = nz(_dn[1], _dn)
+    _dn := close[1] < _dn1 ? math.min(_dn, _dn1) : _dn
+    var int _trend = 1
+    _trend := nz(_trend[1], _trend)
+    _trend := _trend == -1 and close > _dn1 ? 1 : _trend == 1 and close < _up1 ? -1 : _trend
+    [_trend, _up, _dn]
+
+f_sy130_rp_dir_only() =>
+    [_d, _line] = f_sy130_rp_dir()
+    _d
+
+f_sy130_ualgo_dir_only() =>
+    [_d, _up, _dn] = f_sy130_ualgo_dir()
+    _d
+
+f_sy389_bias() =>
+    _atr = ta.atr(14)
+    _ema20 = ta.ema(close, 20)
+    _ema50 = ta.ema(close, 50)
+    _reg = ta.linreg(close, sy389RegLen, 0)
+    _slope = (_reg - _reg[sy389SlopeLen]) / math.max(_atr, syminfo.mintick)
+    _move = math.abs(close - close[sy389RegLen])
+    _noise = ta.sma(math.abs(ta.change(close)), sy389RegLen) * sy389RegLen
+    _er = _noise <= syminfo.mintick ? 0.0 : _move / _noise
+    _up = _slope >= sy389MinSlopeATR and close > _ema50 and _ema20 >= _ema50 and _er >= sy389MinER
+    _down = _slope <= -sy389MinSlopeATR and close < _ema50 and _ema20 <= _ema50 and _er >= sy389MinER
+    _dir = _up ? 1 : _down ? -1 : 0
+    [_dir[1], _slope[1], _er[1], _ema20[1], _ema50[1], close[1]]
+
+f_poc_breaker_ob() =>
+    _atr = ta.atr(14)
+    _prevHigh = ta.highest(high, pbObBosLookback)[1]
+    _prevLow = ta.lowest(low, pbObBosLookback)[1]
+    _bullBos = not na(_prevHigh) and close > _prevHigh and close[1] <= _prevHigh and close > open
+    _bearBos = not na(_prevLow) and close < _prevLow and close[1] >= _prevLow and close < open
+
+    var float _bullTop = na
+    var float _bullBottom = na
+    var int _bullId = na
+    var bool _bullActive = false
+    var float _bearTop = na
+    var float _bearBottom = na
+    var int _bearId = na
+    var bool _bearActive = false
+
+    if _bullBos
+        _lb = int(math.abs(ta.lowestbars(low[1], pbObBosLookback))) + 1
+        _poc = (high[_lb] + low[_lb] + close[_lb]) / 3.0
+        _bullTop := math.max(math.max(open[_lb], close[_lb]), _poc)
+        _bullBottom := math.min(low[_lb], _poc)
+        _bullId := time
+        _bullActive := true
+
+    if _bearBos
+        _hb = int(math.abs(ta.highestbars(high[1], pbObBosLookback))) + 1
+        _poc = (high[_hb] + low[_hb] + close[_hb]) / 3.0
+        _bearTop := math.max(high[_hb], _poc)
+        _bearBottom := math.min(math.min(open[_hb], close[_hb]), _poc)
+        _bearId := time
+        _bearActive := true
+
+    if _bullActive and close < _bullBottom - _atr * pbObInvalidATR
+        _bullActive := false
+    if _bearActive and close > _bearTop + _atr * pbObInvalidATR
+        _bearActive := false
+
+    [_bullTop[1], _bullBottom[1], _bullId[1], _bullActive[1],
+     _bearTop[1], _bearBottom[1], _bearId[1], _bearActive[1]]
+
+f_poc_breaker_structure(_len) =>
+    _ph = ta.pivothigh(high, _len, _len)
+    _pl = ta.pivotlow(low, _len, _len)
+
+    var float _lastHigh = na
+    var float _lastLow = na
+    var int _trend = 0
+    var int _lastBullBreakTime = na
+    var int _lastBearBreakTime = na
+    var float _lastBullBreakLevel = na
+    var float _lastBearBreakLevel = na
+
+    if not na(_ph)
+        _lastHigh := _ph
+    if not na(_pl)
+        _lastLow := _pl
+
+    _bullBreak = not na(_lastHigh) and close > _lastHigh and close[1] <= _lastHigh
+    _bearBreak = not na(_lastLow) and close < _lastLow and close[1] >= _lastLow
+
+    if _bullBreak
+        _trend := 1
+        _lastBullBreakTime := time
+        _lastBullBreakLevel := _lastHigh
+
+    if _bearBreak
+        _trend := -1
+        _lastBearBreakTime := time
+        _lastBearBreakLevel := _lastLow
+
+    [_trend[1], _lastHigh[1], _lastLow[1],
+     _lastBullBreakTime[1], _lastBearBreakTime[1],
+     _lastBullBreakLevel[1], _lastBearBreakLevel[1]]
+
+f_htf_dir() =>
+    _ema20 = ta.ema(close, 20)[1]
+    _ema50 = ta.ema(close, 50)[1]
+    _ema100 = ta.ema(close, 100)[1]
+    [_p, _m, _adx] = ta.dmi(14, 14)
+    _c = close[1]
+    _buy = _ema20 > _ema50 and _ema50 > _ema100 and _c > _ema50 and _p[1] >= _m[1]
+    _sell = _ema20 < _ema50 and _ema50 < _ema100 and _c < _ema50 and _m[1] >= _p[1]
+    _dir = _buy ? 1 : _sell ? -1 : 0
+    [_dir, _adx[1], _p[1], _m[1], _c]
+
+f_dae_htf_dir_only() =>
+    [_d, _adx, _p, _m, _c] = f_htf_dir()
+    _d
+
+f_trix(_src, _len) =>
+    _e1 = ta.ema(_src, _len)
+    _e2 = ta.ema(_e1, _len)
+    _e3 = ta.ema(_e2, _len)
+    nz((_e3 - _e3[1]) / math.max(math.abs(_e3[1]), syminfo.mintick) * 10000.0)
+
+f_smi(_len) =>
+    _hh = ta.highest(high, _len)
+    _ll = ta.lowest(low, _len)
+    _mid = (_hh + _ll) / 2.0
+    _rng = math.max((_hh - _ll) / 2.0, syminfo.mintick)
+    _num = ta.ema(ta.ema(close - _mid, 3), 3)
+    _den = math.max(ta.ema(ta.ema(_rng, 3), 3), syminfo.mintick)
+    100.0 * _num / _den
+
+f_tr(_h, _l, _c) =>
+    math.max(_h - _l, math.max(math.abs(_h - nz(_c[1], _c)), math.abs(_l - nz(_c[1], _c))))
+
+[tf5Dir, tf5Adx, tf5P, tf5M, tf5Close] = request.security(syminfo.tickerid, tfFast, f_htf_dir(), barmerge.gaps_off, barmerge.lookahead_off)
+[tf15Dir, tf15Adx, tf15P, tf15M, tf15Close] = request.security(syminfo.tickerid, tfMid, f_htf_dir(), barmerge.gaps_off, barmerge.lookahead_off)
+[tf60Dir, tf60Adx, tf60P, tf60M, tf60Close] = request.security(syminfo.tickerid, tfBig, f_htf_dir(), barmerge.gaps_off, barmerge.lookahead_off)
+daeM5Dir = request.security(syminfo.tickerid, daeM5TF, f_dae_htf_dir_only(), barmerge.gaps_off, barmerge.lookahead_off)
+daeM15Dir = request.security(syminfo.tickerid, daeM15TF, f_dae_htf_dir_only(), barmerge.gaps_off, barmerge.lookahead_off)
+[sy389BiasDirHTF, sy389SlopeHTF, sy389ERHTF, sy389Ema20HTF, sy389Ema50HTF, sy389CloseHTF] = request.security(syminfo.tickerid, sy389BiasTF, f_sy389_bias(), barmerge.gaps_off, barmerge.lookahead_off)
+
+[pbObBullTop, pbObBullBottom, pbObBullId, pbObBullActive, pbObBearTop, pbObBearBottom, pbObBearId, pbObBearActive] = request.security(syminfo.tickerid, pbObTF, f_poc_breaker_ob(), barmerge.gaps_off, barmerge.lookahead_off)
+[pbBreakTrend, pbBreakHigh, pbBreakLow, pbBreakBullTime, pbBreakBearTime, pbBreakBullLevel, pbBreakBearLevel] = request.security(syminfo.tickerid, pbStructureTF, f_poc_breaker_structure(pbStructurePivotLen), barmerge.gaps_off, barmerge.lookahead_off)
+[pbSlowTrend, pbSlowHigh, pbSlowLow, pbSlowBullTime, pbSlowBearTime, pbSlowBullLevel, pbSlowBearLevel] = request.security(syminfo.tickerid, pbSlowTF, f_poc_breaker_structure(pbStructurePivotLen), barmerge.gaps_off, barmerge.lookahead_off)
+
+var int k3Cache5Dir = 0
+var int k3Cache15Dir = 0
+var int k3Cache60Dir = 0
+var int k3CacheBiasDir = 0
+
+if barstate.isfirst or timeframe.change(tfFast)
+    k3Cache5Dir := nz(tf5Dir, 0)
+if barstate.isfirst or timeframe.change(tfMid)
+    k3Cache15Dir := nz(tf15Dir, 0)
+if barstate.isfirst or timeframe.change(tfBig)
+    k3Cache60Dir := nz(tf60Dir, 0)
+if barstate.isfirst or timeframe.change(sy389BiasTF)
+    k3CacheBiasDir := nz(sy389BiasDirHTF, 0)
+
+k3CacheHTFScore = (k3Cache5Dir == 1 ? 1.0 : k3Cache5Dir == -1 ? -1.0 : 0.0) + (k3Cache15Dir == 1 ? 1.5 : k3Cache15Dir == -1 ? -1.5 : 0.0) + (k3Cache60Dir == 1 ? 2.0 : k3Cache60Dir == -1 ? -2.0 : 0.0)
+
+htfScore = (tf5Dir == 1 ? 1.0 : tf5Dir == -1 ? -1.0 : 0.0) + (tf15Dir == 1 ? 1.5 : tf15Dir == -1 ? -1.5 : 0.0) + (tf60Dir == 1 ? 2.0 : tf60Dir == -1 ? -2.0 : 0.0)
+mapBuy = htfScore > 1.0
+mapSell = htfScore < -1.0
+
+atr = ta.atr(atrLen)
+atrAvg = ta.sma(atr, atrAvgLen)
+atrRatio = atrAvg <= syminfo.mintick ? 1.0 : atr / atrAvg
+ema10 = ta.ema(close, emaFastLen)
+ema20 = ta.ema(close, 20)
+ema34 = ta.ema(close, 34)
+ema50 = ta.ema(close, emaMidLen)
+ema90 = ta.ema(close, emaSlowLen)
+ema100 = ta.ema(close, 100)
+vwapVal = ta.vwap(hlc3)
+[pDI, mDI, adx] = ta.dmi(14, 14)
+stStretch = atr == 0 ? 0.0 : (close - ta.ema(close, 20)) / atr
+stRsi3 = ta.rsi(close, 3)
+[macdLine, macdSignal, macdHist] = ta.macd(close, 12, 26, 9)
+
+barRange = math.max(high - low, syminfo.mintick)
+body = math.abs(close - open)
+bodyPct = body / barRange * 100.0
+upperWickPct = (high - math.max(open, close)) / barRange * 100.0
+lowerWickPct = (math.min(open, close) - low) / barRange * 100.0
+closePosBuy = (close - low) / barRange
+closePosSell = (high - close) / barRange
+bullReject = close > open and bodyPct >= minBodyPct and lowerWickPct >= minWickPct and closePosBuy >= 0.55
+bearReject = close < open and bodyPct >= minBodyPct and upperWickPct >= minWickPct and closePosSell >= 0.55
+bullMomentum = close > open and bodyPct >= strongBodyPct and closePosBuy >= 0.55
+bearMomentum = close < open and bodyPct >= strongBodyPct and closePosSell >= 0.55
+signalCandleOK = barRange <= atr * maxSignalCandleATR
+crazyCandle = barRange >= atr * newsSpikeATR or body >= atr * newsSpikeATR * 0.70
+atrOK = atrRatio >= minAtrVsAvg and atrRatio <= maxAtrVsAvg
+tradeableBase = barstate.isconfirmed and signalCandleOK and not crazyCandle and atrOK
+
+localHigh = ta.highest(high, localSwingLen)
+localLow = ta.lowest(low, localSwingLen)
+localRange = math.max(localHigh - localLow, syminfo.mintick)
+rangePos = (close - localLow) / localRange * 100.0
+premium = rangePos >= premiumLevel
+discount = rangePos <= discountLevel
+
+localTrendBuy = ema10 > ema50 and ema50 > ema90 and close > ema50 and pDI >= mDI
+localTrendSell = ema10 < ema50 and ema50 < ema90 and close < ema50 and mDI >= pDI
+powerUp = htfScore >= 2 and ema20 > ema50 and close > ema20
+powerDown = htfScore <= -2 and ema20 < ema50 and close < ema20
+
+roomBuy = not useRoomFilter or (localHigh - close) / pointUnit >= targetPoints
+roomSell = not useRoomFilter or (close - localLow) / pointUnit >= targetPoints
+
+vtzTR = ta.tr(true)
+vtzFastVol = ta.ema(vtzTR, vtzATRLenFast)
+vtzSlowVol = ta.sma(vtzTR, vtzATRLenSlow)
+vtzVolRatio = vtzSlowVol <= syminfo.mintick ? 1.0 : vtzFastVol / vtzSlowVol
+
+vtzBoxHigh = ta.highest(high, vtzBoxLookback)
+vtzBoxLow = ta.lowest(low, vtzBoxLookback)
+vtzBoxATR = (vtzBoxHigh - vtzBoxLow) / math.max(vtzSlowVol, syminfo.mintick)
+vtzCompressed = useVTZ and vtzMode != "Off" and vtzBoxATR <= vtzMaxBoxATR and vtzVolRatio <= vtzQuietATRRatio
+
+vtzBreakUpNow = vtzCompressed[1] and close > vtzBoxHigh[1] + vtzBreakBufferPts * pointUnit and vtzTR >= vtzSlowVol * vtzImpulseTR and close > open
+vtzBreakDownNow = vtzCompressed[1] and close < vtzBoxLow[1] - vtzBreakBufferPts * pointUnit and vtzTR >= vtzSlowVol * vtzImpulseTR and close < open
+
+var int vtzLastBreakBar = na
+var int vtzDir = 0
+var float vtzBreakHigh = na
+var float vtzBreakLow = na
+var float vtzBreakPrice = na
+
+if vtzBreakUpNow
+    vtzLastBreakBar := bar_index
+    vtzDir := 1
+    vtzBreakHigh := vtzBoxHigh[1]
+    vtzBreakLow := vtzBoxLow[1]
+    vtzBreakPrice := close
+
+if vtzBreakDownNow
+    vtzLastBreakBar := bar_index
+    vtzDir := -1
+    vtzBreakHigh := vtzBoxHigh[1]
+    vtzBreakLow := vtzBoxLow[1]
+    vtzBreakPrice := close
+
+vtzBarsFromBreak = na(vtzLastBreakBar) ? 100000 : bar_index - vtzLastBreakBar
+vtzActive = useVTZ and vtzMode != "Off" and not na(vtzLastBreakBar) and vtzBarsFromBreak <= vtzFollowBars
+vtzUp = vtzActive and vtzDir == 1
+vtzDown = vtzActive and vtzDir == -1
+
+vtzUpperRetest = not na(vtzBreakHigh) and math.abs(close - vtzBreakHigh) / pointUnit <= vtzRetestTolerancePts
+vtzLowerRetest = not na(vtzBreakLow) and math.abs(close - vtzBreakLow) / pointUnit <= vtzRetestTolerancePts
+vtzRetestBuyZone = vtzUp and vtzUpperRetest
+vtzRetestSellZone = vtzDown and vtzLowerRetest
+
+vtzChasePts = na(vtzBreakPrice) ? 0.0 : math.abs(close - vtzBreakPrice) / pointUnit
+vtzLateChase = vtzActive and vtzChasePts > vtzLateChasePts
+
+vtzMiddleFadeZone = not vtzBlockMiddleFade ? true : rangePos > discountLevel and rangePos < premiumLevel
+
+sweepHighLevel = ta.highest(high, baseSweepLookback)[1]
+sweepLowLevel = ta.lowest(low, baseSweepLookback)[1]
+sweepLow = not na(sweepLowLevel) and low < sweepLowLevel and (not baseSweepRequireCloseReclaim or close > sweepLowLevel)
+sweepHigh = not na(sweepHighLevel) and high > sweepHighLevel and (not baseSweepRequireCloseReclaim or close < sweepHighLevel)
+
+breakHigh20 = ta.highest(high, baseRetestLookback)[1]
+breakLow20 = ta.lowest(low, baseRetestLookback)[1]
+retestBuy = not na(breakHigh20) and low <= breakHigh20 + atr * baseRetestToleranceATR and close > breakHigh20 and (not baseRetestRequireDirectionCandle or close > open)
+retestSell = not na(breakLow20) and high >= breakLow20 - atr * baseRetestToleranceATR and close < breakLow20 and (not baseRetestRequireDirectionCandle or close < open)
+
+bullFVG = useBaseFVG and low > high[2] and (low - high[2]) >= atr * baseFVGMinATR and (not baseFVGRequireEMA or close > ema20)
+bearFVG = useBaseFVG and high < low[2] and (low[2] - high) >= atr * baseFVGMinATR and (not baseFVGRequireEMA or close < ema20)
+
+fibBuy = rangePos >= baseFibBuyMin and rangePos <= baseFibBuyMax and (bullReject or bullMomentum)
+fibSell = rangePos >= baseFibSellMin and rangePos <= baseFibSellMax and (bearReject or bearMomentum)
+
+bb20Basis = ta.sma(close, baseBBLength)
+bb20Dev = ta.stdev(close, baseBBLength) * baseBBDeviation
+bb20U = bb20Basis + bb20Dev
+bb20L = bb20Basis - bb20Dev
+rangeMarket = adx < baseRangeMaxADX and math.abs(htfScore) < baseRangeMaxHTFScore
+bbRangeBuy = rangeMarket and low <= bb20L and bullReject and discount
+bbRangeSell = rangeMarket and high >= bb20U and bearReject and premium
+
+valueBuy = low <= ema20 + atr * baseValueToleranceATR or low <= ema34 + atr * baseValueToleranceATR or low <= ema50 + atr * baseValueToleranceATR or (not na(vwapVal) and low <= vwapVal + atr * baseValueToleranceATR)
+valueSell = high >= ema20 - atr * baseValueToleranceATR or high >= ema34 - atr * baseValueToleranceATR or high >= ema50 - atr * baseValueToleranceATR or (not na(vwapVal) and high >= vwapVal - atr * baseValueToleranceATR)
+
+cleanMove = math.abs(close - close[baseCleanMoveLookback]) / math.max(ta.sma(math.abs(close - close[1]), baseCleanMoveLookback) * baseCleanMoveLookback, syminfo.mintick) >= baseCleanMoveMinEfficiency
+momentumBuy = cleanMove and mapBuy and bullMomentum and not premium
+momentumSell = cleanMove and mapSell and bearMomentum and not discount
+realRevBuy = sweepLow and (discount or bbRangeBuy) and (bullReject or bullMomentum)
+realRevSell = sweepHigh and (premium or bbRangeSell) and (bearReject or bearMomentum)
+
+buyStory = (localTrendBuy and valueBuy and (bullReject or bullMomentum) and (mapBuy or powerUp)) or (sweepLow and (discount or mapBuy) and (bullReject or bullMomentum)) or retestBuy or bullFVG or fibBuy or bbRangeBuy or momentumBuy or realRevBuy
+sellStory = (localTrendSell and valueSell and (bearReject or bearMomentum) and (mapSell or powerDown)) or (sweepHigh and (premium or mapSell) and (bearReject or bearMomentum)) or retestSell or bearFVG or fibSell or bbRangeSell or momentumSell or realRevSell
+buyPlace = discount or rangePos <= baseBuyPlaceMaxRange or sweepLow or retestBuy or bullFVG or realRevBuy
+sellPlace = premium or rangePos >= baseSellPlaceMinRange or sweepHigh or retestSell or bearFVG or realRevSell
+
+baseBuyPowerOK = true
+baseSellPowerOK = true
+baseBuy = tradeableBase and buyStory and buyPlace and baseBuyPowerOK and roomBuy
+baseSell = tradeableBase and sellStory and sellPlace and baseSellPowerOK and roomSell
+
+rsi14 = ta.rsi(close, 14)
+// ── بدائل inline للراوتر (نفس منطق الأبطال الجداد) ──
+quadBuy = stRsi3 < 18.0 and rsi14 < 40 and (high - low) > 1.5 * atr and close > open
+quadSell = stRsi3 > 82.0 and rsi14 > 60 and (high - low) > 1.5 * atr and close < open
+rsi14ShiftBuy = rsi14 < 30 and rsi14 > rsi14[1] and stStretch < -1.5
+rsi14ShiftSell = rsi14 > 70 and rsi14 < rsi14[1] and stStretch > 1.5
+bbkcEma55 = ta.ema(close, 55)
+bbkcBuy = close[1] <= math.max(ema20, bbkcEma55)[1] and close > math.max(ema20, bbkcEma55) and close > open
+bbkcSell = close[1] >= math.min(ema20, bbkcEma55)[1] and close < math.min(ema20, bbkcEma55) and close < open
+rsi28 = ta.rsi(close, 28)
+rsi34 = ta.rsi(close, 34)
+
+
+rsi28Buy = rsi28[1] < 55 and rsi28 >= 55 and close > ema20
+rsi28Sell = rsi28[1] > 45 and rsi28 <= 45 and close < ema20
+rsi34Buy = rsi34[1] < 55 and rsi34 >= 55 and close > ema20
+rsi34Sell = rsi34[1] > 45 and rsi34 <= 45 and close < ema20
+
+rsi14BullRange = ta.lowest(rsi14, rsiRangeBars) > 38
+rsi14BearRange = ta.highest(rsi14, rsiRangeBars) < 62
+
+bb50Basis = ta.sma(close, 50)
+bb50Dev = ta.stdev(close, 50) * 2.0
+bb50U = bb50Basis + bb50Dev
+bb50L = bb50Basis - bb50Dev
+kc50Basis = ta.ema(close, 50)
+kc50U = kc50Basis + atr * 1.5
+kc50L = kc50Basis - atr * 1.5
+squeeze50 = bb50U < kc50U and bb50L > kc50L
+wasSqueeze50 = ta.highest(squeeze50 ? 1.0 : 0.0, squeezeLookback) > 0
+
+
+trendCorrBuyContext = tf15Dir == 1 and tf60Dir == 1 and pDI >= mDI
+trendCorrSellContext = tf15Dir == -1 and tf60Dir == -1 and mDI >= pDI
+trendCorrBuy = useTrendCorrection and trendCorrBuyContext and stRsi3 < schTCRsi and (high - low) > schBigK * atr and close > open
+trendCorrSell = useTrendCorrection and trendCorrSellContext and stRsi3 > 100 - schTCRsi and (high - low) > schBigK * atr and close < open
+
+tfCtxBuy = tf15Dir == 1 and tf60Dir != -1
+tfCtxSell = tf15Dir == -1 and tf60Dir != 1
+
+rsi28Smooth = ta.ema(rsi28, 5)
+rsi28Signal = ta.ema(rsi28Smooth, 13)
+
+tr14 = f_roll_sum(f_tr(high, low, close), 14)
+viPlus14 = tr14 <= syminfo.mintick ? 0.0 : f_roll_sum(math.abs(high - low[1]), 14) / tr14
+viMinus14 = tr14 <= syminfo.mintick ? 0.0 : f_roll_sum(math.abs(low - high[1]), 14) / tr14
+
+don70High = ta.highest(high, 70)[1]
+don70Low = ta.lowest(low, 70)[1]
+don70Mid = (don70High + don70Low) / 2.0
+
+
+
+trix34 = f_trix(close, 34)
+trix34Sig = ta.ema(trix34, 9)
+sy319TrendBuy = false
+sy319TrendSell = false
+
+sy326VWAPSlope = (ema20 - ema20[5]) / math.max(atr, syminfo.mintick)
+sy326DriverBuy = close > ema20 and ema20 >= ema50 and sy326VWAPSlope >= 0.10
+sy326DriverSell = close < ema20 and ema20 <= ema50 and sy326VWAPSlope <= -0.10
+sy326TouchBuy = ta.lowest(low, sy326VWAPTouchBars) <= vwapVal + atr * sy326VWAPTouchATR
+sy326TouchSell = ta.highest(high, sy326VWAPTouchBars) >= vwapVal - atr * sy326VWAPTouchATR
+sy326DistVWAP = (close - vwapVal) / math.max(atr, syminfo.mintick)
+
+sy327CCI = ta.cci(hlc3, sy327CCILen)
+
+sy327RangeHigh = ta.highest(high, sy327RangeLen)
+sy327RangeLow = ta.lowest(low, sy327RangeLen)
+sy327Range = math.max(sy327RangeHigh - sy327RangeLow, syminfo.mintick)
+sy327RangeATR = sy327Range / math.max(atr, syminfo.mintick)
+sy327RangePos = (close - sy327RangeLow) / sy327Range * 100.0
+sy327Quiet = sy327RangeATR < sy327MaxRangeATR
+sy327RangeBuy = useSY327QuietRange and adx < 22 and sy327RangePos < 12 and stRsi3 < 18.0 and (high - low) > 1.5 * atr
+sy327RangeSell = useSY327QuietRange and adx < 22 and sy327RangePos > 88 and stRsi3 > 82.0 and (high - low) > 1.5 * atr
+
+sy328RangeHigh = ta.highest(high, sy328RangeLen)
+sy328RangeLow = ta.lowest(low, sy328RangeLen)
+sy328Range = math.max(sy328RangeHigh - sy328RangeLow, syminfo.mintick)
+sy328RangeATR = sy328Range / math.max(atr, syminfo.mintick)
+sy328RangePos = (close - sy328RangeLow) / sy328Range * 100.0
+sy328RangeEdgeBuy = useSY328RangeEdgeToMid and sy328RangeATR < schREdgeAtr and sy328RangePos < schREdgePos and stRsi3 < schRsiTh and (high - low) > schBigK * atr
+sy328Tenkan = (ta.highest(high, sy328TenkanLen) + ta.lowest(low, sy328TenkanLen)) / 2.0
+sy328Kijun = (ta.highest(high, sy328KijunLen) + ta.lowest(low, sy328KijunLen)) / 2.0
+
+
+sy331BBBasis = ta.sma(close, 20)
+sy331BBDev = ta.stdev(close, 20)
+sy331BBLower25 = sy331BBBasis - sy331BBDev * schBBDev
+sy331BBBuy = useSY331BuySchools and low < sy331BBLower25 and close > sy331BBLower25 and close > open and rsi14 < schBBRsi
+
+
+sy331Range20High = ta.highest(high, 20)
+sy331Range20Low = ta.lowest(low, 20)
+sy331Range20 = math.max(sy331Range20High - sy331Range20Low, syminfo.mintick)
+sy331Range20ATR = sy331Range20 / math.max(atr, syminfo.mintick)
+sy331Range20Pos = (close - sy331Range20Low) / sy331Range20 * 100.0
+sy331Range20Buy = useSY331BuySchools and sy331Range20ATR < schR20Atr and sy331Range20Pos < schR20Pos and stRsi3 < schRsiTh and (high - low) > schBigK * atr
+
+sy331Range40High = ta.highest(high, 40)
+sy331Range40Low = ta.lowest(low, 40)
+sy331Range40 = math.max(sy331Range40High - sy331Range40Low, syminfo.mintick)
+sy331Range40ATR = sy331Range40 / math.max(atr, syminfo.mintick)
+sy331Range40Pos = (close - sy331Range40Low) / sy331Range40 * 100.0
+sy331Range40Buy = useSY331BuySchools and sy331Range40ATR < schR40Atr and sy331Range40Pos < schR40Pos and stRsi3 < schRsiTh and (high - low) > schBigK * atr
+
+sy331Range160High = ta.highest(high, 160)
+sy331Range160Low = ta.lowest(low, 160)
+sy331Range160 = math.max(sy331Range160High - sy331Range160Low, syminfo.mintick)
+sy331Range160ATR = sy331Range160 / math.max(atr, syminfo.mintick)
+sy331Range160Pos = (close - sy331Range160Low) / sy331Range160 * 100.0
+sy331Range30High = ta.highest(high, 30)
+sy331Range30Low = ta.lowest(low, 30)
+sy331Range30 = math.max(sy331Range30High - sy331Range30Low, syminfo.mintick)
+sy331Range30ATR = sy331Range30 / math.max(atr, syminfo.mintick)
+sy331Range30Pos = (close - sy331Range30Low) / sy331Range30 * 100.0
+sy331Range50High = ta.highest(high, 50)
+sy331Range50Low = ta.lowest(low, 50)
+sy331Range50 = math.max(sy331Range50High - sy331Range50Low, syminfo.mintick)
+sy331Range50ATR = sy331Range50 / math.max(atr, syminfo.mintick)
+sy331Range50Pos = (close - sy331Range50Low) / sy331Range50 * 100.0
+sy331Range100High = ta.highest(high, 100)
+sy331Range100Low = ta.lowest(low, 100)
+sy331Range100 = math.max(sy331Range100High - sy331Range100Low, syminfo.mintick)
+sy331Range100ATR = sy331Range100 / math.max(atr, syminfo.mintick)
+sy331Range100Pos = (close - sy331Range100Low) / sy331Range100 * 100.0
+sy331Buy = sy331BBBuy or sy331Range20Buy or sy331Range40Buy
+
+
+
+
+sy336R80High = ta.highest(high, 80)
+sy336R80Low = ta.lowest(low, 80)
+sy336R80 = math.max(sy336R80High - sy336R80Low, syminfo.mintick)
+sy336R80Pos = (close - sy336R80Low) / sy336R80 * 100.0
+sy336R80ATR = sy336R80 / math.max(atr, syminfo.mintick)
+sy336Range80Buy = useSY336Best and sy336UseRangeBuy and sy336R80ATR < schR80Atr and sy336R80Pos < schR80Pos and close > open and closePosBuy >= 0.60
+
+sy336R60High = ta.highest(high, 60)
+sy336R60Low = ta.lowest(low, 60)
+sy336R60 = math.max(sy336R60High - sy336R60Low, syminfo.mintick)
+sy336R60Pos = (close - sy336R60Low) / sy336R60 * 100.0
+sy336R60ATR = sy336R60 / math.max(atr, syminfo.mintick)
+sy336Range60Buy = useSY336Best and sy336UseRangeBuy and sy336R60ATR < schR60Atr and sy336R60Pos < schR60Pos and stRsi3 < schRsiTh and (high - low) > schBigK * atr
+sy336Range60Sell = useSY336Best and sy336UseSellRange and sy336R60ATR < schR60Atr and sy336R60Pos > 100 - schR60Pos and stRsi3 > 100 - schRsiTh and (high - low) > schBigK * atr
+
+sy336VolMA50 = ta.sma(volume, 50)
+
+sy336KeltMid80 = ta.ema(hlc3, 80)
+sy336KeltAtr80 = ta.rma(ta.tr(true), 80)
+sy336KeltUpper80 = sy336KeltMid80 + sy336KeltAtr80 * 1.5
+
+sy336BuyBest = sy336Range80Buy or sy336Range60Buy
+sy336SellBest = sy336Range60Sell
+
+sy334BuyRangeRaw = sy331BBBuy or sy331Range20Buy or sy331Range40Buy
+sy334BuySweepRaw = false
+sy334BuyTrendRaw = sy336BuyBest
+
+sy334SellRangeRaw = false
+sy334SellSweepRaw = false
+sy334SellTrendRaw = sy336SellBest
+
+sy334BuyRange = sy334UseBuyRange and sy334BuyRangeRaw
+sy334BuySweep = sy334UseBuySweep and sy334BuySweepRaw
+sy334BuyTrend = sy334UseBuyTrend and sy334BuyTrendRaw
+sy334SellRange = sy334UseSellRange and sy334SellRangeRaw
+sy334SellSweep = sy334UseSellSweep and sy334SellSweepRaw
+sy334SellTrend = sy334UseSellTrend and sy334SellTrendRaw
+
+sy334TypeBuy = sy334BuySweep or sy334BuyRange or sy334BuyTrend
+sy334TypeSell = sy334SellSweep or sy334SellRange or sy334SellTrend
+
+sy315WebBuy = sy327RangeBuy
+sy315WebSell = sy327RangeSell
+
+extraBuyVotes = (quadBuy ? 1.0 : 0.0) + (rsi14ShiftBuy ? 1.0 : 0.0) + (bbkcBuy ? 1.0 : 0.0)
+extraSellVotes = (quadSell ? 1.0 : 0.0) + (rsi14ShiftSell ? 1.0 : 0.0) + (bbkcSell ? 1.0 : 0.0)
+
+researchVoteBuy = minVotes == 2.0 ? (quadBuy or rsi14ShiftBuy or bbkcBuy) : (extraBuyVotes >= minVotes and close > ema20)
+researchVoteSell = minVotes == 2.0 ? (quadSell or rsi14ShiftSell or bbkcSell) : (extraSellVotes >= minVotes and close < ema20)
+
+bestNetBuy = ((baseBuy or quadBuy or rsi14ShiftBuy or bbkcBuy) or trendCorrBuy or sy315WebBuy)
+bestNetSell = ((baseSell or quadSell or rsi14ShiftSell or bbkcSell) or trendCorrSell or sy315WebSell)
+higherWRBuy = (((baseBuy or quadBuy or rsi14ShiftBuy) and rsi28 < 72 and atrRatio >= 0.18 and atrRatio <= 3.6) or trendCorrBuy or sy315WebBuy)
+higherWRSell = (((baseSell or quadSell or rsi14ShiftSell) and rsi28 > 28 and atrRatio >= 0.18 and atrRatio <= 3.6) or trendCorrSell or sy315WebSell)
+moreTradesBuy = ((baseBuy or researchVoteBuy) or trendCorrBuy or sy315WebBuy)
+moreTradesSell = ((baseSell or researchVoteSell) or trendCorrSell or sy315WebSell)
+
+rawBuy0 = useResearchGate ? (mode == "Higher WR" ? higherWRBuy : mode == "More Trades" ? moreTradesBuy : bestNetBuy) : baseBuy
+rawSell0 = useResearchGate ? (mode == "Higher WR" ? higherWRSell : mode == "More Trades" ? moreTradesSell : bestNetSell) : baseSell
+
+counterBuyZoneOK = true
+counterSellZoneOK = true
+counterBuyCandleOK = true
+counterSellCandleOK = true
+counterBuyAllowed = allowCounterReversal and realRevBuy and sweepLow and counterBuyZoneOK and counterBuyCandleOK
+counterSellAllowed = allowCounterReversal and realRevSell and sweepHigh and counterSellZoneOK and counterSellCandleOK
+wrongBuyHTF = htfScore <= -htfBlockLevel
+wrongSellHTF = htfScore >= htfBlockLevel
+htfBuyOK = true
+htfSellOK = true
+
+trix34Diff = trix34 - trix34Sig
+sy320WeakOppBuy = htfScore <= -0.5 and htfScore >= -2.0
+sy320WeakOppSell = htfScore >= 0.5 and htfScore <= 2.0
+sy320WeakHTFBlockBuy = useSY320PhaseGuard and useSY320WeakHTFBlock and sy320WeakOppBuy and not counterBuyAllowed
+sy320WeakHTFBlockSell = useSY320PhaseGuard and useSY320WeakHTFBlock and sy320WeakOppSell and not counterSellAllowed
+sy320SellTrixBlock = useSY320PhaseGuard and useSY320SellTrixBlock and trix34Diff >= sy320Trix34BlockLevel and not counterSellAllowed
+sy320BuyOK = not sy320WeakHTFBlockBuy
+sy320SellOK = not sy320WeakHTFBlockSell and not sy320SellTrixBlock
+
+sy322ShockBlock = useSY322RegimeGuard and useSY322ShockATRBlock and atrRatio >= sy322MaxAtrRatio
+sy322DeadWeakBuy = useSY322RegimeGuard and useSY322DeadATRWeakHTF and atrRatio <= sy322DeadAtrRatio and htfScore <= 0
+sy322DeadWeakSell = useSY322RegimeGuard and useSY322DeadATRWeakHTF and atrRatio <= sy322DeadAtrRatio and htfScore >= 0
+sy322BuyOK = not sy322ShockBlock and not sy322DeadWeakBuy
+sy322SellOK = not sy322ShockBlock and not sy322DeadWeakSell
+
+sy324ImpulseHigh = ta.highest(high, sy324ImpulseLookback)
+sy324ImpulseLow = ta.lowest(low, sy324ImpulseLookback)
+sy324ImpulseRange = math.max(sy324ImpulseHigh - sy324ImpulseLow, syminfo.mintick)
+sy324CompressionHigh = ta.highest(high, sy324CompressionLookback)
+sy324CompressionLow = ta.lowest(low, sy324CompressionLookback)
+sy324CompressionRange = math.max(sy324CompressionHigh - sy324CompressionLow, syminfo.mintick)
+sy324ImpulseATR = sy324ImpulseRange / math.max(atr, syminfo.mintick)
+sy324CompressionRatio = sy324CompressionRange / sy324ImpulseRange
+sy324ImpulsePos = (close - sy324ImpulseLow) / sy324ImpulseRange * 100.0
+sy324PostImpulseQuiet = useSY324QuietFix and sy324ImpulseATR >= sy324MinImpulseATR and sy324CompressionRatio <= sy324MaxCompression and sy324ImpulsePos >= sy324MiddleMin and sy324ImpulsePos <= sy324MiddleMax
+sy324QuietOK = not sy324PostImpulseQuiet
+
+sy325EmaSlope = (ema20 - ema20[sy325DriverBars]) / math.max(atr, syminfo.mintick)
+sy325DriverBuy = close > ema20 and sy325EmaSlope >= sy325DriverSlopeATR and (not sy325UseEMA50 or ema20 >= ema50)
+sy325DriverSell = close < ema20 and sy325EmaSlope <= -sy325DriverSlopeATR and (not sy325UseEMA50 or ema20 <= ema50)
+sy325BuyAgainstDriver = useSY325FastDriver and sy325DriverSell
+sy325SellAgainstDriver = useSY325FastDriver and sy325DriverBuy
+sy325BuyOK = not sy325BuyAgainstDriver
+sy325SellOK = not sy325SellAgainstDriver
+
+legacyRawBuy = rawBuy0 and htfBuyOK and sy320BuyOK and sy322BuyOK and sy324QuietOK and sy325BuyOK
+legacyRawSell = rawSell0 and htfSellOK and sy320SellOK and sy322SellOK and sy324QuietOK and sy325SellOK
+
+typeGuardBuy = not sy334ApplyOldGuardsToType or (htfBuyOK and sy320BuyOK and sy322BuyOK and sy324QuietOK and sy325BuyOK)
+typeGuardSell = not sy334ApplyOldGuardsToType or (htfSellOK and sy320SellOK and sy322SellOK and sy324QuietOK and sy325SellOK)
+typeRawBuy = sy334TypeBuy and typeGuardBuy
+typeRawSell = sy334TypeSell and typeGuardSell
+
+oldRawBuy = sy334Engine == "Legacy Only" ? legacyRawBuy : sy334Engine == "Type + Legacy" ? (typeRawBuy or legacyRawBuy) : typeRawBuy
+oldRawSell = sy334Engine == "Legacy Only" ? legacyRawSell : sy334Engine == "Type + Legacy" ? (typeRawSell or legacyRawSell) : typeRawSell
+
+sy339IsHigherWR = mode == "Higher WR"
+sy339IsMoreTrades = mode == "More Trades"
+sy339ModeLateMult = not sy337RouterModeAffects ? 1.0 : sy339IsHigherWR ? 0.72 : sy339IsMoreTrades ? 1.35 : 1.0
+sy339ModeCooldownAdd = not sy337RouterModeAffects ? 0 : sy339IsHigherWR ? 8 : sy339IsMoreTrades ? -2 : 0
+sy339EffMaxLateMovePts = math.max(10.0, sy337MaxLateMovePts * sy339ModeLateMult)
+sy339EffCooldown = math.max(0, sy337Cooldown + sy339ModeCooldownAdd)
+sy339EffLossCooldown = math.max(0, sy337LossCooldown + (not sy337RouterModeAffects ? 0 : sy339IsHigherWR ? 10 : sy339IsMoreTrades ? -5 : 0))
+
+sy337UpMovePts = (close - ta.lowest(low, sy337LateLookback)) / pointUnit
+sy337DownMovePts = (ta.highest(high, sy337LateLookback) - close) / pointUnit
+sy337BuyLate = sy337UseNotLate and sy337UpMovePts > sy339EffMaxLateMovePts and rangePos > 45
+sy337SellLate = sy337UseNotLate and sy337DownMovePts > sy339EffMaxLateMovePts and rangePos < 55
+sy337NotLateBuy = not sy337BuyLate
+sy337NotLateSell = not sy337SellLate
+
+sy337BuyCore = (sy337BuyUseSweep and sy334BuySweepRaw) or (sy337BuyUseRealRev and realRevBuy)
+sy337SellCore = (sy337SellUseSweep and sy334SellSweepRaw) or (sy337SellUseRange and sy334SellRangeRaw) or (sy337SellUseTrend and sy334SellTrendRaw) or (sy337SellUseSY336Best and sy336SellBest) or (sy337SellUseBase and baseSell)
+sy337RawBuy = tradeableBase and sy337BuyCore and sy337NotLateBuy
+sy337RawSell = tradeableBase and sy337SellCore and sy337NotLateSell
+
+sy338MSSBuy = close > ta.highest(high, sy338MSSLen)[1]
+sy338MSSSell = close < ta.lowest(low, sy338MSSLen)[1]
+sy338FastDriverBuy = close > ema20 and ema20 >= ema50 and sy325EmaSlope >= sy325DriverSlopeATR
+sy338FastDriverSell = close < ema20 and ema20 <= ema50 and sy325EmaSlope <= -sy325DriverSlopeATR
+
+sy339EffTrendScoreLevel = not sy337RouterModeAffects ? sy338TrendScoreLevel : sy339IsHigherWR ? math.max(1.0, sy338TrendScoreLevel - 0.5) : sy339IsMoreTrades ? math.min(4.5, sy338TrendScoreLevel + 0.5) : sy338TrendScoreLevel
+sy338StrongUp = useSY338TrendGuard and htfScore >= sy339EffTrendScoreLevel and tf5Dir == 1 and tf15Dir == 1 and (not sy338RequireFastDriver or sy338FastDriverBuy)
+sy338StrongDown = useSY338TrendGuard and htfScore <= -sy339EffTrendScoreLevel and tf5Dir == -1 and tf15Dir == -1 and (not sy338RequireFastDriver or sy338FastDriverSell)
+
+sy338TrueCounterBuy = rangePos <= sy338CounterBuyMaxRange and bullReject and (not sy338AllowCounterOnlyWithSweep or (sweepLow and realRevBuy)) and (not sy338RequireCounterMSS or sy338MSSBuy)
+sy338TrueCounterSell = rangePos >= sy338CounterSellMinRange and bearReject and (not sy338AllowCounterOnlyWithSweep or (sweepHigh and realRevSell)) and (not sy338RequireCounterMSS or sy338MSSSell)
+
+[sy130LocalRPDir, sy130RPLine] = f_sy130_rp_dir()
+[sy130LocalATRDir, sy130ATRUpLine, sy130ATRDnLine] = f_sy130_ualgo_dir()
+sy130HTFRPDir = request.security(syminfo.tickerid, sy130ProtectTF, f_sy130_rp_dir_only()[1], barmerge.gaps_off, barmerge.lookahead_on)
+sy130HTFATRDir = request.security(syminfo.tickerid, sy130ProtectTF, f_sy130_ualgo_dir_only()[1], barmerge.gaps_off, barmerge.lookahead_on)
+
+[hiddenFibBuyOK, hiddenFibSellOK, hiddenFibInBuyZone, hiddenFibInSellZone, hiddenFibDir] = request.security(syminfo.tickerid, hiddenFibTF, f_hidden_fib_assist(), barmerge.gaps_off, barmerge.lookahead_off)
+
+hiddenFibActive = hiddenFibMode != "Off" and hiddenFibUseRealAssist
+hiddenFibBuyTouch = hiddenFibBuyOK or hiddenFibInBuyZone
+hiddenFibSellTouch = hiddenFibSellOK or hiddenFibInSellZone
+hiddenFibBarsSinceBuy = ta.barssince(hiddenFibBuyTouch)
+hiddenFibBarsSinceSell = ta.barssince(hiddenFibSellTouch)
+hiddenFibBuyRecent = hiddenFibActive and not na(hiddenFibBarsSinceBuy) and hiddenFibBarsSinceBuy <= hiddenFibValidBars
+hiddenFibSellRecent = hiddenFibActive and not na(hiddenFibBarsSinceSell) and hiddenFibBarsSinceSell <= hiddenFibValidBars
+hiddenFibBuyAfterPts = (close - ta.lowest(low, hiddenFibValidBars)) / pointUnit
+hiddenFibSellAfterPts = (ta.highest(high, hiddenFibValidBars) - close) / pointUnit
+hiddenFibBuyNotLate = hiddenFibBuyAfterPts <= hiddenFibMaxLatePoints
+hiddenFibSellNotLate = hiddenFibSellAfterPts <= hiddenFibMaxLatePoints
+
+[hiddenLiqFastBuyRaw, hiddenLiqFastSellRaw, hiddenLiqFastPrevLow, hiddenLiqFastPrevHigh] = request.security(syminfo.tickerid, hiddenLiqFastTF, f_hidden_liq_sweep_assist(), barmerge.gaps_off, barmerge.lookahead_off)
+[hiddenLiqSlowBuyRaw, hiddenLiqSlowSellRaw, hiddenLiqSlowPrevLow, hiddenLiqSlowPrevHigh] = request.security(syminfo.tickerid, hiddenLiqSlowTF, f_hidden_liq_sweep_assist(), barmerge.gaps_off, barmerge.lookahead_off)
+
+hiddenLiqBuyTouch = hiddenLiqUseAssist and (hiddenLiqFastBuyRaw or hiddenLiqSlowBuyRaw)
+hiddenLiqSellTouch = hiddenLiqUseAssist and (hiddenLiqFastSellRaw or hiddenLiqSlowSellRaw)
+hiddenLiqBarsSinceBuy = ta.barssince(hiddenLiqBuyTouch)
+hiddenLiqBarsSinceSell = ta.barssince(hiddenLiqSellTouch)
+hiddenLiqBuyRecent = hiddenLiqUseAssist and not na(hiddenLiqBarsSinceBuy) and hiddenLiqBarsSinceBuy <= hiddenLiqValidBars
+hiddenLiqSellRecent = hiddenLiqUseAssist and not na(hiddenLiqBarsSinceSell) and hiddenLiqBarsSinceSell <= hiddenLiqValidBars
+
+hiddenLiqBuyAfterPts = (close - ta.lowest(low, hiddenLiqValidBars)) / pointUnit
+hiddenLiqSellAfterPts = (ta.highest(high, hiddenLiqValidBars) - close) / pointUnit
+hiddenLiqBuyNotLate = hiddenLiqBuyAfterPts <= hiddenLiqMaxLatePoints
+hiddenLiqSellNotLate = hiddenLiqSellAfterPts <= hiddenLiqMaxLatePoints
+
+sy130BuyVotes = (sy130UseRP and sy130LocalRPDir == 1 ? 1 : 0) + (sy130UseATRTrend and sy130LocalATRDir == 1 ? 1 : 0) + (sy130UseRP and sy130HTFRPDir == 1 ? 1 : 0) + (sy130UseATRTrend and sy130HTFATRDir == 1 ? 1 : 0)
+sy130SellVotes = (sy130UseRP and sy130LocalRPDir == -1 ? 1 : 0) + (sy130UseATRTrend and sy130LocalATRDir == -1 ? 1 : 0) + (sy130UseRP and sy130HTFRPDir == -1 ? 1 : 0) + (sy130UseATRTrend and sy130HTFATRDir == -1 ? 1 : 0)
+sy130TrendUp = useSY130TrendProtect and sy130BuyVotes >= sy130MinVotes and sy130BuyVotes > sy130SellVotes
+sy130TrendDown = useSY130TrendProtect and sy130SellVotes >= sy130MinVotes and sy130SellVotes > sy130BuyVotes
+
+sy130ProtectOff = not useSY130TrendProtect or sy130ProtectMode == "Off" or sy130ProtectMode == "Assist Only"
+sy130BuyAllowed = sy130ProtectOff or (sy130ProtectMode == "Block Countertrend" ? (not sy130TrendDown or sy338TrueCounterBuy) : (sy130TrendUp or sy338TrueCounterBuy))
+sy130SellAllowed = sy130ProtectOff or (sy130ProtectMode == "Block Countertrend" ? (not sy130TrendUp or sy338TrueCounterSell) : (sy130TrendDown or sy338TrueCounterSell))
+sy130BlockBuy = useSY130TrendProtect and not sy130BuyAllowed
+sy130BlockSell = useSY130TrendProtect and not sy130SellAllowed
+
+sy360FibCounterBuyOK = hiddenFibMode != "Off" and hiddenFibCanBypassTrendBlock and hiddenFibBuyOK
+sy360FibCounterSellOK = hiddenFibMode != "Off" and hiddenFibCanBypassTrendBlock and hiddenFibSellOK
+
+sy338BlockBuyAgainstDownTrend = sy338StrongDown and not (sy338TrueCounterBuy or sy360FibCounterBuyOK)
+sy338BlockSellAgainstUpTrend = sy338StrongUp and not (sy338TrueCounterSell or sy360FibCounterSellOK)
+
+sy360FibM1ReactionBuy = not hiddenFibNeedM1Reaction or bullReject or bullMomentum or sweepLow or realRevBuy
+sy360FibM1ReactionSell = not hiddenFibNeedM1Reaction or bearReject or bearMomentum or sweepHigh or realRevSell
+sy360FibRoomBuy = not hiddenFibNeedRoom or roomBuy
+sy360FibRoomSell = not hiddenFibNeedRoom or roomSell
+
+sy360BuyNearSY356Story = hiddenFibEntryAlone ? true : (buyStory or sy334BuySweepRaw or realRevBuy or retestBuy or bullFVG)
+sy360SellNearSY356Story = hiddenFibEntryAlone ? true : (sellStory or sy334SellSweepRaw or sy334SellRangeRaw or sy334SellTrendRaw or sy336SellBest or baseSell or realRevSell or retestSell or bearFVG)
+
+sy360FibBoostBuy = hiddenFibActive and hiddenFibBuyRecent and hiddenFibBuyNotLate and sy360BuyNearSY356Story and sy360FibM1ReactionBuy and sy360FibRoomBuy and not (powerDown and not realRevBuy and not sweepLow)
+sy360FibBoostSell = hiddenFibActive and hiddenFibSellRecent and hiddenFibSellNotLate and sy360SellNearSY356Story and sy360FibM1ReactionSell and sy360FibRoomSell and not (powerUp and not realRevSell and not sweepHigh)
+
+sy361LiqM1ReactionBuy = not hiddenLiqNeedM1Reaction or bullReject or bullMomentum or sweepLow or realRevBuy
+sy361LiqM1ReactionSell = not hiddenLiqNeedM1Reaction or bearReject or bearMomentum or sweepHigh or realRevSell
+sy361LiqRoomBuy = not hiddenLiqNeedRoom or roomBuy
+sy361LiqRoomSell = not hiddenLiqNeedRoom or roomSell
+
+sy361BuyNearSY356Story = hiddenLiqEntryAlone ? true : (buyStory or sy334BuySweepRaw or realRevBuy or retestBuy or bullFVG)
+sy361SellNearSY356Story = hiddenLiqEntryAlone ? true : (sellStory or sy334SellSweepRaw or sy334SellRangeRaw or sy334SellTrendRaw or sy336SellBest or baseSell or realRevSell or retestSell or bearFVG)
+
+sy361LiqBoostBuy = hiddenLiqBuyRecent and hiddenLiqBuyNotLate and sy361BuyNearSY356Story and sy361LiqM1ReactionBuy and sy361LiqRoomBuy and not (powerDown and not realRevBuy and not sweepLow)
+sy361LiqBoostSell = hiddenLiqSellRecent and hiddenLiqSellNotLate and sy361SellNearSY356Story and sy361LiqM1ReactionSell and sy361LiqRoomSell and not (powerUp and not realRevSell and not sweepHigh)
+
+sy967RawBuyBeforeVTZ = useSY337QuickRouter ? (sy337RawBuy or sy360FibBoostBuy or sy361LiqBoostBuy) : (oldRawBuy or sy360FibBoostBuy or sy361LiqBoostBuy)
+sy967RawSellBeforeVTZ = useSY337QuickRouter ? (sy337RawSell or sy360FibBoostSell or sy361LiqBoostSell) : (oldRawSell or sy360FibBoostSell or sy361LiqBoostSell)
+
+sy967VTZActive = useVTZ and vtzMode != "Off" and vtzMode != "Assist Only"
+
+vtzEdgeBuyException = vtzAllowEdgeReversal and (realRevBuy or sweepLow or sy338TrueCounterBuy or sy360FibBoostBuy or sy361LiqBoostBuy) and (discount or vtzLowerRetest)
+vtzEdgeSellException = vtzAllowEdgeReversal and (realRevSell or sweepHigh or sy338TrueCounterSell or sy360FibBoostSell or sy361LiqBoostSell) and (premium or vtzUpperRetest)
+
+sy967BuyContinuationOK = not vtzActive or not vtzDown or vtzRetestBuyZone or close > ema20 or bullMomentum or sy130TrendUp
+sy967SellContinuationOK = not vtzActive or not vtzUp or vtzRetestSellZone or close < ema20 or bearMomentum or sy130TrendDown
+
+sy967BlockBuyFade = sy967VTZActive and vtzDown and vtzMiddleFadeZone and not vtzEdgeBuyException
+sy967BlockSellFade = sy967VTZActive and vtzUp and vtzMiddleFadeZone and not vtzEdgeSellException
+
+sy967BlockLateBuy = sy967VTZActive and vtzLateChase and vtzUp and not vtzRetestBuyZone and not sy360FibBoostBuy and not sy361LiqBoostBuy
+sy967BlockLateSell = sy967VTZActive and vtzLateChase and vtzDown and not vtzRetestSellZone and not sy360FibBoostSell and not sy361LiqBoostSell
+
+sy967ZoneGuardBuyOK = not sy967BlockBuyFade and not sy967BlockLateBuy
+sy967ZoneGuardSellOK = not sy967BlockSellFade and not sy967BlockLateSell
+
+sy967RetestGuardBuyOK = sy967ZoneGuardBuyOK and sy967BuyContinuationOK
+sy967RetestGuardSellOK = sy967ZoneGuardSellOK and sy967SellContinuationOK
+
+sy967VTZBuyOK = not sy967VTZActive ? true : vtzMode == "Retest Guard" ? sy967RetestGuardBuyOK : sy967ZoneGuardBuyOK
+sy967VTZSellOK = not sy967VTZActive ? true : vtzMode == "Retest Guard" ? sy967RetestGuardSellOK : sy967ZoneGuardSellOK
+
+rawBuyBeforeTrendGuard = sy967RawBuyBeforeVTZ and sy967VTZBuyOK
+rawSellBeforeTrendGuard = sy967RawSellBeforeVTZ and sy967VTZSellOK
+
+// R13 FIX: Fast Trend TF was only a weak 1-point vote and the old default threshold (5.0)
+// was outside the possible HTF score range (-4.5..+4.5), so this gate practically never blocked.
+// It now participates directly. A confirmed sweep/real reversal can still bypass the trend block.
+fastMapBuyAgainst = tf5Dir == -1
+fastMapSellAgainst = tf5Dir == 1
+sy354MapBuyOK = not useRealMapDirectGate or ((not fastMapBuyAgainst) and htfScore > -directOppScoreBlock) or sy338TrueCounterBuy or sweepLow or realRevBuy
+sy354MapSellOK = not useRealMapDirectGate or ((not fastMapSellAgainst) and htfScore < directOppScoreBlock) or sy338TrueCounterSell or sweepHigh or realRevSell
+sy354RangeBuyOK = not sy354UseDirectGates or rangePos <= sy354BuyMaxRange or sweepLow or realRevBuy or retestBuy or bullFVG
+sy354RangeSellOK = not sy354UseDirectGates or rangePos >= sy354SellMinRange or sweepHigh or realRevSell or retestSell or bearFVG
+sy354PremiumDiscountBuyOK = not useZoneDirectGate or rangePos <= discountLevel or sweepLow or realRevBuy or retestBuy or bullFVG
+sy354PremiumDiscountSellOK = not useZoneDirectGate or rangePos >= premiumLevel or sweepHigh or realRevSell or retestSell or bearFVG
+sy354CandleBuyOK = not useCandleDirectGate or not sy354RequireReaction or bullReject or bullMomentum or realRevBuy or sweepLow
+sy354CandleSellOK = not useCandleDirectGate or not sy354RequireReaction or bearReject or bearMomentum or realRevSell or sweepHigh
+
+hiddenFibOffOrAssist = hiddenFibMode == "Off" or hiddenFibMode == "Assist Only"
+
+sy358MiddleLow = math.min(hiddenFibMiddleLow, hiddenFibMiddleHigh)
+sy358MiddleHigh = math.max(hiddenFibMiddleLow, hiddenFibMiddleHigh)
+sy358InMiddle = not na(rangePos) and rangePos >= sy358MiddleLow and rangePos <= sy358MiddleHigh
+
+sy358BuyAssistStory = sweepLow or realRevBuy or retestBuy or bullFVG
+sy358SellAssistStory = sweepHigh or realRevSell or retestSell or bearFVG
+
+sy358FibBuyScore = (hiddenFibBuyOK ? 2 : hiddenFibInBuyZone ? 1 : 0) + (sy358BuyAssistStory ? 1 : 0) + (htfScore >= 0 ? 1 : 0) + (rangePos <= hiddenFibBuyMaxNoFib ? 1 : 0)
+sy358FibSellScore = (hiddenFibSellOK ? 2 : hiddenFibInSellZone ? 1 : 0) + (sy358SellAssistStory ? 1 : 0) + (htfScore <= 0 ? 1 : 0) + (rangePos >= hiddenFibSellMinNoFib ? 1 : 0)
+
+sy358SmartBuyOK = not sy358InMiddle or sy358FibBuyScore >= hiddenFibMinScore
+sy358SmartSellOK = not sy358InMiddle or sy358FibSellScore >= hiddenFibMinScore
+
+sy358OldMiddleBuyOK = hiddenFibBuyOK or sy358BuyAssistStory or na(rangePos) or rangePos <= hiddenFibBuyMaxNoFib
+sy358OldMiddleSellOK = hiddenFibSellOK or sy358SellAssistStory or na(rangePos) or rangePos >= hiddenFibSellMinNoFib
+
+hiddenFibBuyFilterOK = hiddenFibOffOrAssist ? true : hiddenFibMode == "Require Fib Zone" ? hiddenFibBuyOK : hiddenFibMode == "Smart Assist Score" ? sy358SmartBuyOK : sy358OldMiddleBuyOK
+hiddenFibSellFilterOK = hiddenFibOffOrAssist ? true : hiddenFibMode == "Require Fib Zone" ? hiddenFibSellOK : hiddenFibMode == "Smart Assist Score" ? sy358SmartSellOK : sy358OldMiddleSellOK
+
+rawBuyBase389 = rawBuyBeforeTrendGuard and sy354MapBuyOK and sy354RangeBuyOK and sy354PremiumDiscountBuyOK and sy354CandleBuyOK and hiddenFibBuyFilterOK and not sy338BlockBuyAgainstDownTrend and sy130BuyAllowed
+rawSellBase389 = rawSellBeforeTrendGuard and sy354MapSellOK and sy354RangeSellOK and sy354PremiumDiscountSellOK and sy354CandleSellOK and hiddenFibSellFilterOK and not sy338BlockSellAgainstUpTrend and sy130SellAllowed
+
+sy389LocalSlope = (ta.linreg(close, sy389RegLen, 0) - ta.linreg(close, sy389RegLen, 0)[sy389SlopeLen]) / math.max(atr, syminfo.mintick)
+sy389LocalMove = math.abs(close - close[sy389RegLen])
+sy389LocalNoise = ta.sma(math.abs(ta.change(close)), sy389RegLen) * sy389RegLen
+sy389LocalER = sy389LocalNoise <= syminfo.mintick ? 0.0 : sy389LocalMove / sy389LocalNoise
+
+sy389LocalUp = sy389LocalSlope >= sy389MinSlopeATR and close > ema50 and ema20 >= ema50 and sy389LocalER >= sy389MinER
+sy389LocalDown = sy389LocalSlope <= -sy389MinSlopeATR and close < ema50 and ema20 <= ema50 and sy389LocalER >= sy389MinER
+sy389HTFUp = sy389BiasDirHTF == 1
+sy389HTFDown = sy389BiasDirHTF == -1
+
+sy389OldHTFUp = tf5Dir == 1 or tf15Dir == 1 or htfScore > 0
+sy389OldHTFDown = tf5Dir == -1 or tf15Dir == -1 or htfScore < 0
+
+sy389UpAggressive = sy389LocalUp or sy389HTFUp
+sy389DownAggressive = sy389LocalDown or sy389HTFDown
+sy389UpBalanced = (sy389LocalUp and not sy389HTFDown) or (sy389HTFUp and not sy389LocalDown)
+sy389DownBalanced = (sy389LocalDown and not sy389HTFUp) or (sy389HTFDown and not sy389LocalUp)
+sy389UpConservative = sy389LocalUp and sy389HTFUp
+sy389DownConservative = sy389LocalDown and sy389HTFDown
+
+sy389BiasUpRaw = sy389BiasMode == "Conservative" ? sy389UpConservative : sy389BiasMode == "Aggressive" ? sy389UpAggressive : sy389UpBalanced
+sy389BiasDownRaw = sy389BiasMode == "Conservative" ? sy389DownConservative : sy389BiasMode == "Aggressive" ? sy389DownAggressive : sy389DownBalanced
+
+sy389BiasUp = useSY389BiasEngine and sy389BiasUpRaw and not sy389BiasDownRaw and (not sy389UseHTFConfirm or sy389OldHTFUp)
+sy389BiasDown = useSY389BiasEngine and sy389BiasDownRaw and not sy389BiasUpRaw and (not sy389UseHTFConfirm or sy389OldHTFDown)
+sy389BiasRange = not sy389BiasUp and not sy389BiasDown
+
+sy389WrongSellInUp = sy389BiasUp and rawSellBase389 and roomBuy
+sy389WrongBuyInDown = sy389BiasDown and rawBuyBase389 and roomSell
+
+rawBuy = not useSY389BiasEngine ? rawBuyBase389 : sy389BiasUp ? (rawBuyBase389 or (sy389ConvertWrongSide and sy389WrongSellInUp)) : sy389BiasDown ? false : (sy389KeepRangeOriginal ? rawBuyBase389 : false)
+rawSell = not useSY389BiasEngine ? rawSellBase389 : sy389BiasDown ? (rawSellBase389 or (sy389ConvertWrongSide and sy389WrongBuyInDown)) : sy389BiasUp ? false : (sy389KeepRangeOriginal ? rawSellBase389 : false)
+
+baseBuySignal = allowLong and rawBuy and not rawSell
+baseSellSignal = allowShort and rawSell and not rawBuy
+
+m1AtrSafe = math.max(atr, syminfo.mintick)
+syr30BodyATR = body / m1AtrSafe
+syr30SignedVolume = (close > open ? 1.0 : close < open ? -1.0 : 0.0) * nz(volume, 0.0)
+syr30FlowFast = ta.ema(syr30SignedVolume, 5)
+syr30FlowSlow = ta.ema(syr30SignedVolume, 20)
+syr30FlowStd = ta.stdev(syr30SignedVolume, 30)
+syr30FlowZ = (syr30FlowFast - syr30FlowSlow) / math.max(nz(syr30FlowStd, 0.0), 0.000001)
+
+// ━━━ SYR30 SCHOOL 1: BALANCE RESET LAUNCH ━━━
+syr30BalanceHigh = ta.highest(high, syr30BalanceBars)[1]
+syr30BalanceLow = ta.lowest(low, syr30BalanceBars)[1]
+syr30BalanceWidthATR = (syr30BalanceHigh - syr30BalanceLow) / m1AtrSafe
+syr30ImpulseUp = close[syr30BalanceBars] - close[syr30BalanceBars + syr30ImpulseBars] > syr30ImpulseMinATR * atr[syr30BalanceBars]
+syr30ImpulseDown = close[syr30BalanceBars + syr30ImpulseBars] - close[syr30BalanceBars] > syr30ImpulseMinATR * atr[syr30BalanceBars]
+syr30RecentBalanceVolume = ta.sma(nz(volume, 0.0), syr30BalanceBars)[1]
+syr30OlderBalanceVolume = ta.sma(nz(volume, 0.0), syr30BalanceVolumeLookback)[syr30BalanceBars + 1]
+syr30BalanceVolumeOK = not syr30BalanceRequireVolumeContract or syr30RecentBalanceVolume < syr30OlderBalanceVolume
+syr30BalanceUpTrend = ema20 > ema50 and tf5Dir == 1 and tf15Dir >= 0 and pDI > mDI
+syr30BalanceDownTrend = ema20 < ema50 and tf5Dir == -1 and tf15Dir <= 0 and mDI > pDI
+syr30BalanceBuy = syr30UseBalance and syr30BalanceBuyEnabled and tradeableBase and syr30BalanceUpTrend and syr30ImpulseUp and syr30BalanceWidthATR >= syr30BalanceMinWidthATR and syr30BalanceWidthATR <= syr30BalanceMaxWidthATR and syr30BalanceVolumeOK and close > syr30BalanceHigh and close > open and closePosBuy > syr30BalanceMinClosePos and syr30BodyATR >= syr30BalanceMinBodyATR and syr30BodyATR <= syr30BalanceMaxBodyATR and adx >= syr30BalanceMinADX
+syr30BalanceSell = syr30UseBalance and syr30BalanceSellEnabled and tradeableBase and syr30BalanceDownTrend and syr30ImpulseDown and syr30BalanceWidthATR >= syr30BalanceMinWidthATR and syr30BalanceWidthATR <= syr30BalanceMaxWidthATR and syr30BalanceVolumeOK and close < syr30BalanceLow and close < open and closePosSell > syr30BalanceMinClosePos and syr30BodyATR >= syr30BalanceMinBodyATR and syr30BodyATR <= syr30BalanceMaxBodyATR and adx >= syr30BalanceMinADX
+
+// ━━━ SYR30 SCHOOL 2: ASIA ACCEPTED BREAK-RETEST ━━━
+syr30UtcMinute = int((time % 86400000) / 60000)
+syr30UtcDay = int(time / 86400000)
+syr30NewUtcDay = ta.change(syr30UtcDay) != 0
+var float syr30AsiaHigh = na
+var float syr30AsiaLow = na
+if syr30NewUtcDay
+    syr30AsiaHigh := na
+    syr30AsiaLow := na
+syr30AsiaBuilding = syr30UtcMinute >= syr30AsiaBuildStartUTC and syr30UtcMinute < syr30AsiaBuildEndUTC
+if syr30AsiaBuilding
+    syr30AsiaHigh := na(syr30AsiaHigh) ? high : math.max(syr30AsiaHigh, high)
+    syr30AsiaLow := na(syr30AsiaLow) ? low : math.min(syr30AsiaLow, low)
+syr30AsiaReady = syr30UtcMinute >= syr30AsiaBuildEndUTC and not na(syr30AsiaHigh) and not na(syr30AsiaLow)
+syr30AsiaBreakBuy = syr30AsiaReady and close > syr30AsiaHigh + syr30AsiaBreakBufferATR * atr
+syr30AsiaBreakSell = syr30AsiaReady and close < syr30AsiaLow - syr30AsiaBreakBufferATR * atr
+syr30AsiaRecentBreakBuy = ta.highest(syr30AsiaBreakBuy ? 1.0 : 0.0, syr30AsiaBreakMemory)[1] > 0
+syr30AsiaRecentBreakSell = ta.highest(syr30AsiaBreakSell ? 1.0 : 0.0, syr30AsiaBreakMemory)[1] > 0
+syr30AsiaWindow = syr30UtcMinute >= syr30AsiaTradeStartUTC and syr30UtcMinute < syr30AsiaTradeEndUTC
+syr30AsiaFastBuyOK = not syr30AsiaRequireFastTrend or tf5Dir >= 0
+syr30AsiaFastSellOK = not syr30AsiaRequireFastTrend or tf5Dir <= 0
+syr30AsiaBuy = syr30UseAsia and syr30AsiaBuyEnabled and tradeableBase and syr30AsiaWindow and syr30AsiaRecentBreakBuy and low <= syr30AsiaHigh + syr30AsiaRetestToleranceATR * atr and close > syr30AsiaHigh and close > open and closePosBuy > syr30AsiaMinClosePos and syr30FlowZ > syr30AsiaBuyMinFlowZ and syr30AsiaFastBuyOK
+syr30AsiaSell = syr30UseAsia and syr30AsiaSellEnabled and tradeableBase and syr30AsiaWindow and syr30AsiaRecentBreakSell and high >= syr30AsiaLow - syr30AsiaRetestToleranceATR * atr and close < syr30AsiaLow and close < open and closePosSell > syr30AsiaMinClosePos and syr30FlowZ < syr30AsiaSellMaxFlowZ and syr30AsiaFastSellOK
+
+// ━━━ SYR30 SCHOOL 3: DEAD AUCTION RECLAIM ━━━
+syr30AuctionHigh = ta.highest(high, syr30AuctionLookback)[1]
+syr30AuctionLow = ta.lowest(low, syr30AuctionLookback)[1]
+syr30AuctionWidth = syr30AuctionHigh - syr30AuctionLow
+syr30AuctionWidthPts = syr30AuctionWidth / pointUnit
+syr30AuctionMid = (syr30AuctionHigh + syr30AuctionLow) * 0.5
+syr30AuctionPosPrev = (close[1] - syr30AuctionLow) / math.max(syr30AuctionWidth, syminfo.mintick)
+syr30AuctionCenterNow = syr30AuctionPosPrev >= 0.30 and syr30AuctionPosPrev <= 0.70
+syr30AuctionCenterAcceptance = ta.sma(syr30AuctionCenterNow ? 1.0 : 0.0, syr30AuctionLookback)
+syr30AuctionLowTouchNow = low[1] <= syr30AuctionLow + syr30AuctionTouchBand * syr30AuctionWidth
+syr30AuctionHighTouchNow = high[1] >= syr30AuctionHigh - syr30AuctionTouchBand * syr30AuctionWidth
+syr30AuctionLowTouches = ta.sma(syr30AuctionLowTouchNow ? 1.0 : 0.0, syr30AuctionTouchLookback) * syr30AuctionTouchLookback
+syr30AuctionHighTouches = ta.sma(syr30AuctionHighTouchNow ? 1.0 : 0.0, syr30AuctionTouchLookback) * syr30AuctionTouchLookback
+syr30AuctionMidSlopeATR = math.abs(syr30AuctionMid - syr30AuctionMid[8]) / m1AtrSafe
+syr30AuctionTypical = hlc3
+syr30AuctionVolumeAvg = ta.sma(nz(volume, 0.0), syr30AuctionLookback)[1]
+syr30AuctionVWAP = ta.sma(syr30AuctionTypical * nz(volume, 0.0), syr30AuctionLookback)[1] / math.max(syr30AuctionVolumeAvg, 0.000001)
+syr30AuctionValueDistancePts = math.abs(syr30AuctionVWAP - close) / pointUnit
+syr30AuctionRegime = syr30UseDeadAuction and tradeableBase and adx <= syr30AuctionMaxADX and sy389LocalER <= syr30AuctionMaxER and syr30AuctionMidSlopeATR <= syr30AuctionMaxMidSlopeATR and syr30AuctionCenterAcceptance >= syr30AuctionMinCenterAcceptance and syr30AuctionLowTouches >= syr30AuctionMinTouches and syr30AuctionHighTouches >= syr30AuctionMinTouches and syr30AuctionWidthPts >= syr30AuctionMinWidthPts and syr30AuctionWidthPts <= syr30AuctionMaxWidthPts and syr30AuctionValueDistancePts >= syr30AuctionMinValueDistancePts
+syr30DeadAuctionBuy = syr30AuctionRegime and syr30AuctionBuyEnabled and low < syr30AuctionLow and close > syr30AuctionLow and close > open and closePosBuy >= syr30AuctionMinClosePos and syr30BodyATR >= syr30AuctionMinBodyATR and syr30BodyATR <= syr30AuctionMaxBodyATR
+syr30DeadAuctionSell = syr30AuctionRegime and syr30AuctionSellEnabled and high > syr30AuctionHigh and close < syr30AuctionHigh and close < open and closePosSell >= syr30AuctionMinClosePos and syr30BodyATR >= syr30AuctionMinBodyATR and syr30BodyATR <= syr30AuctionMaxBodyATR
+
+syr30SchoolBuyVotes = (syr30BalanceBuy ? 1 : 0) + (syr30AsiaBuy ? 1 : 0) + (syr30DeadAuctionBuy ? 1 : 0)
+syr30SchoolSellVotes = (syr30BalanceSell ? 1 : 0) + (syr30AsiaSell ? 1 : 0) + (syr30DeadAuctionSell ? 1 : 0)
+syr30ReplacementBuy = syr30UseSchoolRouter and syr30SchoolBuyVotes > syr30SchoolSellVotes
+syr30ReplacementSell = syr30UseSchoolRouter and syr30SchoolSellVotes > syr30SchoolBuyVotes
+syr30ReplacementSide = syr30ReplacementBuy ? 1 : syr30ReplacementSell ? -1 : 0
+
+// The removed M1 Compression source no longer competes with the base branch.
+m1BaseSide = baseBuySignal and not baseSellSignal ? 1 : baseSellSignal and not baseBuySignal ? -1 : 0
+int m1SelectedSide = m1BaseSide
+int m1SelectedSourceCode = 0
+
+int sy8624BaseSide = m1SelectedSide
+int sy8624BaseSourceCode = m1SelectedSourceCode
+
+pbTol = atr * pbRetestTolATR
+pbM1Bull = tradeableBase and close > open and bodyPct >= pbM1MinBodyPct and closePosBuy >= pbM1MinClosePos
+pbM1Bear = tradeableBase and close < open and bodyPct >= pbM1MinBodyPct and closePosSell >= pbM1MinClosePos
+
+var int pbLastBullObSignalId = na
+var int pbLastBearObSignalId = na
+
+pbObBuyCandidate = pbObBullActive and not na(pbObBullId) and high >= pbObBullBottom and low <= pbObBullTop and close > pbObBullTop and pbM1Bull
+pbObSellCandidate = pbObBearActive and not na(pbObBearId) and high >= pbObBearBottom and low <= pbObBearTop and close < pbObBearBottom and pbM1Bear
+
+pbObBuyNow = pbObBuyCandidate and (na(pbLastBullObSignalId) or pbLastBullObSignalId != pbObBullId)
+pbObSellNow = pbObSellCandidate and (na(pbLastBearObSignalId) or pbLastBearObSignalId != pbObBearId)
+
+if pbObBuyNow
+    pbLastBullObSignalId := pbObBullId
+if pbObSellNow
+    pbLastBearObSignalId := pbObBearId
+
+pbBreakBullNew = not na(pbBreakBullTime) and pbBreakBullTime != pbBreakBullTime[1]
+pbBreakBearNew = not na(pbBreakBearTime) and pbBreakBearTime != pbBreakBearTime[1]
+pbBreakBullBars = ta.barssince(pbBreakBullNew)
+pbBreakBearBars = ta.barssince(pbBreakBearNew)
+
+pbSlowBuyOK = not pbRequireSlowTrend or pbSlowTrend != -1
+pbSlowSellOK = not pbRequireSlowTrend or pbSlowTrend != 1
+pbBreakerBuyNow = not na(pbBreakBullBars) and pbBreakBullBars <= pbBreakValidBars and not na(pbBreakBullLevel) and low <= pbBreakBullLevel + pbTol and close > pbBreakBullLevel and pbM1Bull and pbSlowBuyOK
+pbBreakerSellNow = not na(pbBreakBearBars) and pbBreakBearBars <= pbBreakValidBars and not na(pbBreakBearLevel) and high >= pbBreakBearLevel - pbTol and close < pbBreakBearLevel and pbM1Bear and pbSlowSellOK
+
+pbObBuyBars = ta.barssince(pbObBuyNow)
+pbObSellBars = ta.barssince(pbObSellNow)
+pbBreakerBuyBars = ta.barssince(pbBreakerBuyNow)
+pbBreakerSellBars = ta.barssince(pbBreakerSellNow)
+
+pbObBuyRecent = not na(pbObBuyBars) and pbObBuyBars <= pbHarmonyWindow
+pbObSellRecent = not na(pbObSellBars) and pbObSellBars <= pbHarmonyWindow
+pbBreakerBuyRecent = not na(pbBreakerBuyBars) and pbBreakerBuyBars <= pbHarmonyWindow
+pbBreakerSellRecent = not na(pbBreakerSellBars) and pbBreakerSellBars <= pbHarmonyWindow
+
+pbEitherBuy = (pbObBuyNow and pbBreakerBuyRecent) or (pbBreakerBuyNow and pbObBuyRecent)
+pbEitherSell = (pbObSellNow and pbBreakerSellRecent) or (pbBreakerSellNow and pbObSellRecent)
+pbPocThenBreakerBuy = pbBreakerBuyNow and pbObBuyRecent
+pbPocThenBreakerSell = pbBreakerSellNow and pbObSellRecent
+pbBreakerThenPocBuy = pbObBuyNow and pbBreakerBuyRecent
+pbBreakerThenPocSell = pbObSellNow and pbBreakerSellRecent
+
+pbPairBuyRaw = pbPairMode == "POC Then Breaker" ? pbPocThenBreakerBuy : pbPairMode == "Breaker Then POC" ? pbBreakerThenPocBuy : pbEitherBuy
+pbPairSellRaw = pbPairMode == "POC Then Breaker" ? pbPocThenBreakerSell : pbPairMode == "Breaker Then POC" ? pbBreakerThenPocSell : pbEitherSell
+pbPairBuy = usePocBreakerPair and pbEnableBuy and pbPairBuyRaw
+pbPairSell = usePocBreakerPair and pbEnableSell and pbPairSellRaw
+pbPairSide = pbPairBuy and not pbPairSell ? 1 : pbPairSell and not pbPairBuy ? -1 : 0
+
+int sy8624SelectedSide = pbOriginalPriority ? (sy8624BaseSide != 0 ? sy8624BaseSide : pbPairSide) : (pbPairSide != 0 ? pbPairSide : sy8624BaseSide)
+int sy8624SelectedSourceCode = pbOriginalPriority ? (sy8624BaseSide != 0 ? sy8624BaseSourceCode : pbPairSide != 0 ? 4 : 0) : (pbPairSide != 0 ? 4 : sy8624BaseSourceCode)
+
+tvRet = close - close[1]
+tvERMove = math.abs(close - close[tvERLen])
+tvERPath = math.max(f_roll_sum(math.abs(tvRet), tvERLen), syminfo.mintick)
+tvER = tvERMove / tvERPath
+
+tvLin = ta.linreg(close, tvLinLen, 0)
+tvLinPrev = ta.linreg(close, tvLinLen, 1)
+tvSlopeATR = (tvLin - tvLinPrev) / math.max(atr, syminfo.mintick)
+
+tvRetStd10 = math.max(ta.stdev(tvRet, tvVolFastLen), syminfo.mintick)
+tvRetStd60 = math.max(ta.stdev(tvRet, tvVolSlowLen), syminfo.mintick)
+tvVolRatio = tvRetStd10 / tvRetStd60
+tvRetZ = tvRet / math.max(ta.stdev(tvRet, tvRetZLen), syminfo.mintick)
+tvAutoCorr = nz(ta.correlation(tvRet, tvRet[1], tvAutoCorrLen), 0.0)
+tvUpShare = f_roll_sum(close > close[1] ? 1.0 : 0.0, tvShareLen) / tvShareLen
+tvDownShare = 1.0 - tvUpShare
+
+tvHigh8 = ta.highest(high[1], tvBuyBreakFastLen)
+tvLow10 = ta.lowest(low[1], tvSellBreakFastLen)
+tvHigh12 = ta.highest(high[1], tvBuyBreakBalancedLen)
+tvLow15 = ta.lowest(low[1], tvSellBreakBalancedLen)
+tvHigh20 = ta.highest(high[1], tvBuyBreakStrictLen)
+tvLow24 = ta.lowest(low[1], tvSellBreakStrictLen)
+
+tvBreak8Buy = tradeableBase and close > tvHigh8 and close[1] <= tvHigh8[1]
+tvBreak12Buy = tradeableBase and close > tvHigh12 and close[1] <= tvHigh12[1]
+tvBreak20Buy = tradeableBase and close > tvHigh20 and close[1] <= tvHigh20[1]
+
+tvBreak10Sell = tradeableBase and close < tvLow10 and close[1] >= tvLow10[1]
+tvBreak15Sell = tradeableBase and close < tvLow15 and close[1] >= tvLow15[1]
+tvBreak24Sell = tradeableBase and close < tvLow24 and close[1] >= tvLow24[1]
+
+
+tvExactFastBuy = tvBreak8Buy and tvER >= tvBuyFastER and tvSlopeATR > tvBuyFastSlopeATR and tvAutoCorr >= tvBuyFastAutoCorr and tvUpShare >= tvBuyFastUpShare
+tvExactBalBuy = tvBreak12Buy and tvER >= tvBuyBalancedER and tvSlopeATR > tvBuyBalancedSlopeATR and tvAutoCorr >= tvBuyBalancedAutoCorr and tvVolRatio >= tvBuyBalancedVolRatio
+tvExactStrictBuy = tvBreak20Buy and tvER >= tvBuyStrictER and tvSlopeATR > tvBuyStrictSlopeATR and tvAutoCorr >= tvBuyStrictAutoCorr and tvVolRatio >= tvBuyStrictVolRatio
+tvExactImpulseBuy = tradeableBase and tvRetZ >= tvBuyImpulseZ and tvER >= tvBuyImpulseER and tvSlopeATR > tvBuyImpulseSlopeATR and tvUpShare >= tvBuyImpulseUpShare and bodyPct >= tvBuyImpulseBodyPct and closePosBuy >= tvBuyImpulseClosePos
+tvExactBuyVotes = (tvExactFastBuy ? 1 : 0) + (tvExactBalBuy ? 1 : 0) + (tvExactStrictBuy ? 1 : 0) + (tvExactImpulseBuy ? 1 : 0)
+
+
+tvStrictFastSell = tvBreak10Sell and tvER >= tvSellFastER and tvSlopeATR < -tvSellFastSlopeATR and tvAutoCorr >= tvSellFastAutoCorr and tvDownShare >= tvSellFastDownShare
+tvStrictBalSell = tvBreak15Sell and tvER >= tvSellBalancedER and tvSlopeATR < -tvSellBalancedSlopeATR and tvAutoCorr >= tvSellBalancedAutoCorr and tvVolRatio >= tvSellBalancedVolRatio
+tvStrictStrictSell = tvBreak24Sell and tvER >= tvSellStrictER and tvSlopeATR < -tvSellStrictSlopeATR and tvAutoCorr >= tvSellStrictAutoCorr and tvVolRatio >= tvSellStrictVolRatio
+tvStrictImpulseSell = tradeableBase and tvRetZ <= -tvSellImpulseZ and tvER >= tvSellImpulseER and tvSlopeATR < -tvSellImpulseSlopeATR and tvDownShare >= tvSellImpulseDownShare and bodyPct >= tvSellImpulseBodyPct and closePosSell >= tvSellImpulseClosePos
+tvStrictSellVotes = (tvStrictFastSell ? 1 : 0) + (tvStrictBalSell ? 1 : 0) + (tvStrictStrictSell ? 1 : 0) + (tvStrictImpulseSell ? 1 : 0)
+
+tvAddonBuy = useTrendVoteAddon and trendVoteEnableBuy and tvExactBuyVotes >= trendVoteBuyMinVotes
+tvAddonSell = useTrendVoteAddon and trendVoteEnableSell and tvStrictSellVotes >= trendVoteSellMinVotes
+int tvAddonSide = tvAddonBuy and not tvAddonSell ? 1 : tvAddonSell and not tvAddonBuy ? -1 : 0
+
+int syCleanSelectedSide = sy8624SelectedSide != 0 ? sy8624SelectedSide : tvAddonSide
+int syCleanSelectedSourceCode = sy8624SelectedSide != 0 ? sy8624SelectedSourceCode : tvAddonSide != 0 ? 5 : 0
+
+buySignal = syCleanSelectedSide == 1
+sellSignal = syCleanSelectedSide == -1
+m1SelectedSourceCode := syCleanSelectedSourceCode
+
+capBBKCExactBuy = bbkcBuy
+capRsi34S = ta.ema(rsi34, 8)
+capRsi34Sig = ta.ema(capRsi34S, 21)
+capQqeStrictBuy = tfCtxBuy and ta.crossover(capRsi34S, capRsi34Sig) and capRsi34S < 60 and close > ema20 and adx >= 18
+capQqeStrictSell = tfCtxSell and ta.crossunder(capRsi34S, capRsi34Sig) and capRsi34S > 40 and close < ema20 and adx >= 18
+cap331ExactBuy = sy331Buy
+cap331ExactSell = false
+capLiqExactBuy = sy361LiqBoostBuy
+capLiqExactSell = sy361LiqBoostSell
+capCleanMoveUltra = math.abs(close - close[20]) / math.max(ta.sma(math.abs(close - close[1]), 20) * 20, syminfo.mintick) >= 0.45
+capMomUltraBuy = tradeableBase and capCleanMoveUltra and bullMomentum and bodyPct >= 60 and closePosBuy >= 0.78 and close > ema50 and htfScore >= 2.0 and roomBuy
+capMomUltraSell = tradeableBase and capCleanMoveUltra and bearMomentum and bodyPct >= 60 and closePosSell >= 0.78 and close < ema50 and htfScore <= -2.0 and roomSell
+
+capTr21 = f_roll_sum(f_tr(high, low, close), 21)
+capViP21 = capTr21 <= syminfo.mintick ? 0.0 : f_roll_sum(math.abs(high - low[1]), 21) / capTr21
+capViM21 = capTr21 <= syminfo.mintick ? 0.0 : f_roll_sum(math.abs(low - high[1]), 21) / capTr21
+capQVUltraBuy = tradeableBase and capQqeStrictBuy and capViP21 > capViM21 and pDI > mDI and adx >= 22 and htfScore >= 1.0 and roomBuy
+capQVUltraSell = tradeableBase and capQqeStrictSell and capViM21 > capViP21 and mDI > pDI and adx >= 22 and htfScore <= -1.0 and roomSell
+
+capTen9 = (ta.highest(high, 9) + ta.lowest(low, 9)) / 2.0
+capKij26 = (ta.highest(high, 26) + ta.lowest(low, 26)) / 2.0
+capTen18 = (ta.highest(high, 18) + ta.lowest(low, 18)) / 2.0
+capKij52 = (ta.highest(high, 52) + ta.lowest(low, 52)) / 2.0
+capIchiMidSell = tradeableBase and ta.crossunder(capTen9, capKij26) and close < ema20 and tf15Dir != 1 and roomSell
+capIchiUltraBuy = tradeableBase and ta.crossover(capTen18, capKij52) and close > ema100 and tfCtxBuy and bodyPct >= 38 and roomBuy
+cap331MidSell = tradeableBase and cap331ExactSell and bodyPct >= 24 and closePosSell >= 0.58 and roomSell
+cap331UltraBuy = tradeableBase and cap331ExactBuy and bodyPct >= 42 and closePosBuy >= 0.72 and htfScore >= 1.0 and roomBuy
+f_final_school_side(_buy, _sell) =>
+    _buy and not _sell ? 1 : _sell and not _buy ? -1 : 0
+
+finalS06 = fusionUseMomentum ? f_final_school_side(capMomUltraBuy, capMomUltraSell) : 0
+finalS09 = fusionUseBBKC ? f_final_school_side(capBBKCExactBuy, false) : 0
+finalS11 = fusionUseQQEVortex ? f_final_school_side(capQVUltraBuy, capQVUltraSell) : 0
+finalS12 = syr30UseSchoolRouter ? f_final_school_side(syr30BalanceBuy, syr30BalanceSell) : 0
+finalS17 = syr30UseSchoolRouter ? f_final_school_side(syr30DeadAuctionBuy, syr30DeadAuctionSell) : 0
+finalS18 = fusionUseIchimoku ? f_final_school_side(capIchiUltraBuy, capIchiMidSell) : 0
+finalS19 = fusionUseSidePack ? f_final_school_side(cap331UltraBuy, cap331MidSell) : 0
+finalS22 = fusionUseLiquidity ? f_final_school_side(capLiqExactBuy, capLiqExactSell) : 0
+finalS23 = syr30UseSchoolRouter ? f_final_school_side(syr30AsiaBuy, syr30AsiaSell) : 0
+
+finalFusionBuyVotes = (finalS06 == 1 ? 1 : 0) + (finalS09 == 1 ? 1 : 0) + (finalS11 == 1 ? 1 : 0) + (finalS12 == 1 ? 1 : 0) + (finalS17 == 1 ? 1 : 0) + (finalS18 == 1 ? 1 : 0) + (finalS19 == 1 ? 1 : 0) + (finalS22 == 1 ? 1 : 0) + (finalS23 == 1 ? 1 : 0)
+finalFusionSellVotes = (finalS06 == -1 ? 1 : 0) + (finalS09 == -1 ? 1 : 0) + (finalS11 == -1 ? 1 : 0) + (finalS12 == -1 ? 1 : 0) + (finalS17 == -1 ? 1 : 0) + (finalS18 == -1 ? 1 : 0) + (finalS19 == -1 ? 1 : 0) + (finalS22 == -1 ? 1 : 0) + (finalS23 == -1 ? 1 : 0)
+
+finalFusionBuy = useFinalSchoolFusion and finalFusionBuyVotes >= finalFusionSellVotes + fusionMinVoteAdvantage
+finalFusionSell = useFinalSchoolFusion and finalFusionSellVotes >= finalFusionBuyVotes + fusionMinVoteAdvantage
+int finalFusionSide = finalFusionBuy ? 1 : finalFusionSell ? -1 : 0
+
+finalFusionWinningVotes = finalFusionSide == 1 ? finalFusionBuyVotes : finalFusionSide == -1 ? finalFusionSellVotes : 0
+finalFusionM1Only = finalFusionWinningVotes == 1 and ((finalFusionSide == 1 and finalS23 == 1) or (finalFusionSide == -1 and finalS23 == -1))
+int finalFusionSourceCode = finalFusionSide == 0 ? 0 : finalFusionM1Only ? 1 : 6
+
+float K3_CACHE_OPPOSE_LIMIT = k3CacheOpposeLimit
+
+int k3BaseRawSide = sy8624SelectedSide
+int k3TVRawSide = tvAddonSide
+int k3FusionRawSide = finalFusionSide
+
+bool k3BasePass = k3BaseRawSide == 1 ? not (k3CacheHTFScore <= -K3_CACHE_OPPOSE_LIMIT and k3CacheBiasDir == -1) :
+     k3BaseRawSide == -1 ? not (k3CacheHTFScore >= K3_CACHE_OPPOSE_LIMIT and k3CacheBiasDir == 1) : false
+bool k3TVPass = k3TVRawSide == 1 ? not (k3CacheHTFScore <= -K3_CACHE_OPPOSE_LIMIT and k3CacheBiasDir == -1) :
+     k3TVRawSide == -1 ? not (k3CacheHTFScore >= K3_CACHE_OPPOSE_LIMIT and k3CacheBiasDir == 1) : false
+bool k3FusionPass = k3FusionRawSide == 1 ? not (k3CacheHTFScore <= -K3_CACHE_OPPOSE_LIMIT and k3CacheBiasDir == -1) :
+     k3FusionRawSide == -1 ? not (k3CacheHTFScore >= K3_CACHE_OPPOSE_LIMIT and k3CacheBiasDir == 1) : false
+
+int k3BaseSide = (not k3UseCacheGateBase or k3BasePass) ? k3BaseRawSide : 0
+int k3TVSide = (not k3UseCacheGateTrendVote or k3TVPass) ? k3TVRawSide : 0
+int k3FusionSide = (not k3UseCacheGateFusion or k3FusionPass) ? k3FusionRawSide : 0
+
+int syFinalSelectedSide = 0
+int syFinalSelectedSourceCode = 0
+
+if k3SourcePriority == "Fusion > Trend Vote > Base"
+    syFinalSelectedSide := k3FusionSide != 0 ? k3FusionSide : k3TVSide != 0 ? k3TVSide : k3BaseSide
+    syFinalSelectedSourceCode := k3FusionSide != 0 ? finalFusionSourceCode : k3TVSide != 0 ? 5 : k3BaseSide != 0 ? sy8624SelectedSourceCode : 0
+else if k3SourcePriority == "Trend Vote > Fusion > Base"
+    syFinalSelectedSide := k3TVSide != 0 ? k3TVSide : k3FusionSide != 0 ? k3FusionSide : k3BaseSide
+    syFinalSelectedSourceCode := k3TVSide != 0 ? 5 : k3FusionSide != 0 ? finalFusionSourceCode : k3BaseSide != 0 ? sy8624SelectedSourceCode : 0
+else if k3SourcePriority == "Base > Trend Vote > Fusion"
+    syFinalSelectedSide := k3BaseSide != 0 ? k3BaseSide : k3TVSide != 0 ? k3TVSide : k3FusionSide
+    syFinalSelectedSourceCode := k3BaseSide != 0 ? sy8624SelectedSourceCode : k3TVSide != 0 ? 5 : k3FusionSide != 0 ? finalFusionSourceCode : 0
+else
+    syFinalSelectedSide := k3BaseSide != 0 ? k3BaseSide : k3FusionSide != 0 ? k3FusionSide : k3TVSide
+    syFinalSelectedSourceCode := k3BaseSide != 0 ? sy8624SelectedSourceCode : k3FusionSide != 0 ? finalFusionSourceCode : k3TVSide != 0 ? 5 : 0
+
+// R13 FIX: apply Fast Trend TF to every final source (Base / Trend Vote / Fusion),
+// not only to the legacy base path. It blocks only when Fast agrees with Mid or Bias
+// against the selected side. Real sweep/reversal setups remain allowed.
+fastFinalBuyBypass = sy338TrueCounterBuy or sweepLow or realRevBuy or sy360FibBoostBuy or sy361LiqBoostBuy or syr30DeadAuctionBuy
+fastFinalSellBypass = sy338TrueCounterSell or sweepHigh or realRevSell or sy360FibBoostSell or sy361LiqBoostSell or syr30DeadAuctionSell
+fastFinalBuyBlock = useRealMapDirectGate and tf5Dir == -1 and (tf15Dir == -1 or k3CacheBiasDir == -1) and not fastFinalBuyBypass
+fastFinalSellBlock = useRealMapDirectGate and tf5Dir == 1 and (tf15Dir == 1 or k3CacheBiasDir == 1) and not fastFinalSellBypass
+
+if syFinalSelectedSide == 1 and fastFinalBuyBlock
+    syFinalSelectedSide := 0
+    syFinalSelectedSourceCode := 0
+else if syFinalSelectedSide == -1 and fastFinalSellBlock
+    syFinalSelectedSide := 0
+    syFinalSelectedSourceCode := 0
+
+buySignal := syFinalSelectedSide == 1
+sellSignal := syFinalSelectedSide == -1
+m1SelectedSourceCode := syFinalSelectedSourceCode
+
+plotshape(showFinalFusionMarks and k3FusionSide == 1 and syFinalSelectedSide == 1, title="FINAL FUSION BUY", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), text="F", textcolor=color.black, size=size.tiny)
+plotshape(showFinalFusionMarks and k3FusionSide == -1 and syFinalSelectedSide == -1, title="FINAL FUSION SELL", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), text="F", textcolor=color.white, size=size.tiny)
+
+plotshape(trendVoteShowMarks and k3FusionSide == 0 and k3TVSide == 1 and syFinalSelectedSide == 1, title="TREND VOTE CLEAN BUY", style=shape.triangleup, location=location.belowbar, color=color.new(color.aqua, 0), text="TV", textcolor=color.black, size=size.tiny)
+plotshape(trendVoteShowMarks and k3FusionSide == 0 and k3TVSide == -1 and syFinalSelectedSide == -1, title="TREND VOTE CLEAN SELL", style=shape.triangledown, location=location.abovebar, color=color.new(color.orange, 0), text="TV", textcolor=color.black, size=size.tiny)
+
+plotshape(showPocBreakerMarks and pbObBuyNow, title="SYXAUUSD POC OB BUY", style=shape.circle, location=location.belowbar, color=color.new(color.aqua, 0), text="POC", textcolor=color.black, size=size.tiny)
+plotshape(showPocBreakerMarks and pbObSellNow, title="SYXAUUSD POC OB SELL", style=shape.circle, location=location.abovebar, color=color.new(color.fuchsia, 0), text="POC", textcolor=color.white, size=size.tiny)
+plotshape(showPocBreakerMarks and pbBreakerBuyNow, title="SYXAUUSD BREAKER BUY", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), text="BRK", textcolor=color.black, size=size.tiny)
+plotshape(showPocBreakerMarks and pbBreakerSellNow, title="SYXAUUSD BREAKER SELL", style=shape.triangledown, location=location.abovebar, color=color.new(color.orange, 0), text="BRK", textcolor=color.black, size=size.tiny)
+
+sy999BuyCounter = sy389BiasDown or htfScore <= -0.5
+sy999SellCounter = sy389BiasUp or htfScore >= 0.5
+sy999SignalCounter = buySignal ? sy999BuyCounter : sy999SellCounter
+sy999SignalAligned = buySignal ? (sy389BiasUp or htfScore > 0) : (sy389BiasDown or htfScore < 0)
+sy999SignalStrongAligned = sy999SignalAligned and math.abs(htfScore) >= 2.0 and adx >= 20
+sy999SignalRange = math.abs(htfScore) < 1.0 and adx < 20
+sy999SignalHighVol = atrRatio >= 1.55
+sy999SignalQuiet = atrRatio <= 0.72 or adx < 15
+sy999SignalRegime = (vtzActive or sy999SignalHighVol) ? 4 : sy999SignalCounter ? 3 : (sy999SignalRange or sy999SignalQuiet) ? 2 : sy999SignalStrongAligned ? 0 : 1
+
+f_sy999_progress_bin(_mfe, _target) =>
+    _x = _mfe / math.max(_target, 1.0)
+    _x < 0.15 ? 0 : _x < 0.35 ? 1 : _x < 0.60 ? 2 : _x < 0.85 ? 3 : 4
+
+f_sy999_adverse_bin(_mae, _stop) =>
+    _x = _mae / math.max(_stop, 1.0)
+    _x < 0.15 ? 0 : _x < 0.35 ? 1 : _x < 0.60 ? 2 : _x < 0.85 ? 3 : 4
+
+f_sy999_time_bin(_bars) =>
+    _bars <= 2 ? 0 : _bars <= 5 ? 1 : _bars <= 10 ? 2 : _bars <= 20 ? 3 : 4
+
+f_sy999_regime_key(_regime, _mfe, _mae, _bars, _target, _stop) =>
+    _rg = math.max(0, math.min(4, _regime))
+    _pg = f_sy999_progress_bin(_mfe, _target)
+    _ad = f_sy999_adverse_bin(_mae, _stop)
+    _tb = f_sy999_time_bin(_bars)
+    (((_rg * 5) + _pg) * 5 + _ad) * 5 + _tb
+
+f_sy999_prob(array<int> _cnt, array<int> _win, _key) =>
+    _n = _key >= 0 and _key < array.size(_cnt) ? array.get(_cnt, _key) : 0
+    _w = _key >= 0 and _key < array.size(_win) ? array.get(_win, _key) : 0
+    _p = (_w + wfPriorWinRate * wfPriorStrength) / math.max(_n + wfPriorStrength, 1.0)
+    [_p, _n]
+
+f_sy999_upper_bound(_p, _n) =>
+    _se = math.sqrt(math.max(_p * (1.0 - _p), 0.000001) / math.max(_n + wfPriorStrength, 1.0))
+    math.min(1.0, _p + wfConfidenceZ * _se)
+
+f_sy999_regime80_exit(_pnl, _mfe, _bars, _target, _stop, _pR, _nR) =>
+    _holdR = _pR * _target - (1.0 - _pR) * _stop
+    _advR = _pnl - _holdR
+    _giveback = _mfe - _pnl
+    _profitProtect = _pnl >= realCostPts + 6.0 and _giveback >= math.max(8.0, _target * 0.14)
+    _uR = f_sy999_upper_bound(_pR, _nR)
+    _bars >= 3 and _nR >= wfMinSamples and _profitProtect and _uR < 0.80 and _advR >= math.max(5.0, wfMinExitAdvantage - 2.0)
+
+f_sy999_add_unique(array<int> _a, _v) =>
+    if array.indexof(_a, _v) == -1
+        array.push(_a, _v)
+
+f_sy999_learn_update(array<int> _cnt, array<int> _win, array<int> _visited, _isWin) =>
+    if array.size(_visited) > 0
+        for i = 0 to array.size(_visited) - 1
+            _k = array.get(_visited, i)
+            if _k >= 0 and _k < array.size(_cnt)
+                array.set(_cnt, _k, array.get(_cnt, _k) + 1)
+                if _isWin
+                    array.set(_win, _k, array.get(_win, _k) + 1)
+
+f_sy999_current_plan(_side, _entry) =>
+    _buy = _side == 1
+    _atrSafe = math.max(atr, syminfo.mintick)
+    _atrPts = _atrSafe / pointUnit
+
+    _stopLo = math.max(1.0, math.min(smartMinStopPts, smartMaxStopPts))
+    _stopHi = math.max(_stopLo, math.max(smartMinStopPts, smartMaxStopPts))
+    _targetLo = math.max(1.0, math.min(smartMinTargetPts, smartMaxTargetPts))
+    _targetHi = math.max(_targetLo, math.max(smartMinTargetPts, smartMaxTargetPts))
+
+    _trend = _buy ? (powerUp or localTrendBuy or mapBuy or sy130TrendUp or htfScore >= 2.0 or (adx >= smartMomentumADX and pDI > mDI) or bullMomentum) : (powerDown or localTrendSell or mapSell or sy130TrendDown or htfScore <= -2.0 or (adx >= smartMomentumADX and mDI > pDI) or bearMomentum)
+    _sweep = _buy ? (sweepLow or realRevBuy or sy338TrueCounterBuy or sy361LiqBoostBuy) : (sweepHigh or realRevSell or sy338TrueCounterSell or sy361LiqBoostSell)
+    _highVol = atrRatio >= smartHighVolRatio or barRange / _atrSafe >= 1.35
+    _chop = rangeMarket or (adx <= smartChopADX and math.abs(htfScore) < 1.5 and atrRatio < smartHighVolRatio)
+
+    _buf = smartFixedBufferPts + _atrPts * smartATRBufferMult + ((_highVol or _sweep) ? smartMomentumStopAdd : 0.0)
+    _rawStop = _buy ? (_entry - ta.lowest(low, smartStopLookback)) / pointUnit + _buf : (ta.highest(high, smartStopLookback) - _entry) / pointUnit + _buf
+    _stop = f_clamp_float(_rawStop, _stopLo, _stopHi)
+
+    _stateMaxRaw = _chop ? math.max(_targetLo, _targetHi - smartChopTargetCut) : _trend ? _targetHi : math.max(_targetLo, _targetHi - smartChopTargetCut * 0.35)
+    _stateMax = f_clamp_float(_stateMaxRaw, _targetLo, _targetHi)
+    _minT = f_clamp_float(math.max(_targetLo, _stop * smartMinRR), _targetLo, _stateMax)
+    _maxT = f_clamp_float(math.max(_minT, _stop * smartMaxRR), _minT, _stateMax)
+    _swing = _buy ? f_nearest_buy_liq_pts(_entry, _minT, _maxT, smartTargetLookback, true, pointUnit) : f_nearest_sell_liq_pts(_entry, _minT, _maxT, smartTargetLookback, true, pointUnit)
+    _any = na(_swing) and not smartUseSwingTargetOnly ? (_buy ? f_nearest_buy_liq_pts(_entry, _minT, _maxT, smartTargetLookback, false, pointUnit) : f_nearest_sell_liq_pts(_entry, _minT, _maxT, smartTargetLookback, false, pointUnit)) : _swing
+    _fallbackRaw = _trend ? targetPoints + smartMomentumTargetAdd : _chop ? targetPoints - smartChopTargetCut : targetPoints
+    _fallback = f_clamp_float(_fallbackRaw, _minT, _maxT)
+    _target = na(_any) ? _fallback : _any
+
+    [math.round(f_clamp_float(_target, _targetLo, _targetHi)), math.round(f_clamp_float(_stop, _stopLo, _stopHi))]
+
+f_sy999_source_plan(_side, _entry, _sourceCode, _tradeKind) =>
+    [_adaptiveTarget, _adaptiveStop] = f_sy999_current_plan(_side, _entry)
+
+    float _target = useSmartExitPlanner ? _adaptiveTarget : targetPoints
+    float _stop = useSmartExitPlanner ? _adaptiveStop : stopPoints
+
+    // Primary risk precedence: Separate Side > Trade Type > Adaptive/Fixed.
+    // R11 had Separate Side before Trade Type, so Trade Type silently overwrote it.
+    if useSY333TypeRisk
+        if _tradeKind == 1
+            _target := buyRangeTarget
+            _stop := buyRangeStop
+        else if _tradeKind == 2
+            _target := buySweepTarget
+            _stop := buySweepStop
+        else if _tradeKind == 3
+            _target := buyTrendTarget
+            _stop := buyTrendStop
+        else if _tradeKind == -1
+            _target := sellRangeTarget
+            _stop := sellRangeStop
+        else if _tradeKind == -2
+            _target := sellSweepTarget
+            _stop := sellSweepStop
+        else if _tradeKind == -3
+            _target := sellTrendTarget
+            _stop := sellTrendStop
+
+    if useSeparateSideRisk
+        _target := _side == 1 ? buyTargetPoints : sellTargetPoints
+        _stop := _side == 1 ? buyStopPoints : sellStopPoints
+    _isPocSource = _sourceCode == 4
+
+    if useSourceRiskManager and usePocTargetExtension and _isPocSource
+        _target := _adaptiveTarget + pocTargetAddPoints
+        _stop := pocKeepAdaptiveStop ? _adaptiveStop : pocFixedStopPoints
+
+    [math.round(_target), math.round(_stop)]
+
+// Calculated continuously on every M1 bar so the custom platform and Pine use a complete series.
+daeProtectedLow = ta.lowest(low, daeStopLookback)
+daeProtectedHigh = ta.highest(high, daeStopLookback)
+
+f_dae_exit_plan(_side, _entry, _baseTarget, _baseStop, _tradeKind) =>
+    _buy = _side == 1
+    _sideSign = _buy ? 1.0 : -1.0
+    _atrSafe = math.max(atr, syminfo.mintick)
+    _atrPts = _atrSafe / pointUnit
+
+    _targetLo = math.max(5.0, math.min(daeMinTargetPts, daeMaxTargetPts))
+    _targetHi = math.max(_targetLo, math.max(daeMinTargetPts, daeMaxTargetPts))
+    _stopLo = math.max(5.0, math.min(daeMinStopPts, daeMaxStopPts))
+    _stopHi = math.max(_stopLo, math.max(daeMinStopPts, daeMaxStopPts))
+    _baseT = f_clamp_float((_baseTarget + daeBaseTargetPts) * 0.5, _targetLo, _targetHi)
+    _baseS = f_clamp_float(_baseStop, _stopLo, _stopHi)
+
+    _m1Raw = ema20 > ema50 and close > ema20 ? 1.0 : ema20 < ema50 and close < ema20 ? -1.0 : 0.0
+    _slopeRaw = sy325EmaSlope >= sy325DriverSlopeATR ? 1.0 : sy325EmaSlope <= -sy325DriverSlopeATR ? -1.0 : 0.0
+    _dmiRaw = pDI > mDI ? 1.0 : mDI > pDI ? -1.0 : 0.0
+    _vwapRaw = na(vwapVal) ? 0.0 : close > vwapVal ? 1.0 : close < vwapVal ? -1.0 : 0.0
+    _biasRaw = sy389BiasUp ? 1.0 : sy389BiasDown ? -1.0 : 0.0
+    _m5Raw = float(nz(daeM5Dir, 0))
+    _m15Raw = float(nz(daeM15Dir, 0))
+    _marketRaw = _m1Raw * 1.0 + _slopeRaw * 0.75 + _dmiRaw * 0.75 + _vwapRaw * 0.50 + _m5Raw * 1.50 + _m15Raw * 2.00 + _biasRaw * 1.00
+    _score = _marketRaw * _sideSign
+
+    _sameM5 = daeM5Dir == _side
+    _sameM15 = daeM15Dir == _side
+    _oppM15 = daeM15Dir == -_side
+    _reversal = _buy ? (sweepLow and (realRevBuy or sy338TrueCounterBuy or sy361LiqBoostBuy)) : (sweepHigh and (realRevSell or sy338TrueCounterSell or sy361LiqBoostSell))
+    _rangeKind = math.abs(_tradeKind) == 1
+    _sweepKind = math.abs(_tradeKind) == 2
+    _strong = _score >= daeStrongScore and _sameM5 and _sameM15
+    _aligned = _score >= 1.50 and not _oppM15
+    _rangeState = rangeMarket or _rangeKind or (math.abs(_marketRaw) < 1.50 and not _reversal)
+    _counter = (_score <= 0.0 or _oppM15) and not _reversal
+
+    _chaseATR = _buy ? math.max(0.0, (close - ema20) / _atrSafe) : math.max(0.0, (ema20 - close) / _atrSafe)
+    _recentMovePts = _buy ? sy337UpMovePts : sy337DownMovePts
+    _late = _chaseATR > daeMaxChaseATR or _recentMovePts > daeMaxTargetPts * 1.15
+
+    _strongTarget = math.min(_targetHi, math.max(_baseT, daeBaseTargetPts + math.min(20.0, _atrPts * 0.80)))
+    _alignedTarget = math.min(_targetHi, math.max(_baseT, daeBaseTargetPts + math.min(10.0, _atrPts * 0.35)))
+    _rangeTarget = math.min(math.max(_targetLo, daeRangeTargetCap), math.max(_targetLo, _baseT * 0.78))
+    _reversalTarget = math.min(math.max(_targetLo, daeCounterTargetCap), math.max(_targetLo, _baseT * (_sweepKind ? 0.82 : 0.72)))
+    _counterTarget = math.min(math.max(_targetLo, daeCounterTargetCap), math.max(_targetLo, _baseT * 0.62))
+
+    _wanted = _strong ? _strongTarget : _aligned ? _alignedTarget : _reversal ? _reversalTarget : _rangeState ? _rangeTarget : _counterTarget
+    _wanted := _counter ? math.min(_wanted, daeCounterTargetCap) : _wanted
+    _wanted := _late ? math.min(_wanted, daeLateTargetCap) : _wanted
+    _wanted := f_clamp_float(_wanted, _targetLo, _targetHi)
+
+    _liqMax = f_clamp_float(_wanted + (_strong ? 8.0 : 4.0), _targetLo, _targetHi)
+    _liqSwing = _buy ? f_nearest_buy_liq_pts(_entry, _targetLo, _liqMax, daeLiquidityLookback, true, pointUnit) : f_nearest_sell_liq_pts(_entry, _targetLo, _liqMax, daeLiquidityLookback, true, pointUnit)
+    _liqAny = na(_liqSwing) ? (_buy ? f_nearest_buy_liq_pts(_entry, _targetLo, _liqMax, daeLiquidityLookback, false, pointUnit) : f_nearest_sell_liq_pts(_entry, _targetLo, _liqMax, daeLiquidityLookback, false, pointUnit)) : _liqSwing
+    _target = na(_liqAny) ? _wanted : math.min(_wanted, math.max(_targetLo, _liqAny - 2.0))
+    _target := f_clamp_float(_target, _targetLo, _targetHi)
+
+    _stopBuffer = math.max(3.0, _atrPts * 0.22)
+    _rawStop = _buy ? (_entry - daeProtectedLow) / pointUnit + _stopBuffer : (daeProtectedHigh - _entry) / pointUnit + _stopBuffer
+    _rawStopSafe = na(_rawStop) ? _baseS : _rawStop
+    _structureStop = f_clamp_float(_rawStopSafe, _stopLo, _stopHi)
+    _stop = _strong ? math.min(_baseS, math.max(_stopLo, _structureStop)) : (_counter or _reversal ? math.max(_baseS, _structureStop) : (_baseS + _structureStop) * 0.5)
+    _stop := f_clamp_float(_stop, _stopLo, _stopHi)
+
+    _mode = _late ? 5 : _counter ? 4 : _reversal ? 3 : _rangeState ? 2 : _strong ? 0 : 1
+
+    // R16 context profiles. They are selected only from live market state at entry;
+    // there are no date/month rules. Minimum target remains locked at 30 points.
+    _contextProfile = daeUseContextProfiles and (_mode == 1 or _mode == 5)
+    _contextTarget = _mode == 5 ? (_buy ? daeBuyLateTargetPts : daeSellLateTargetPts) : (_buy ? daeBuyAlignedTargetPts : daeSellAlignedTargetPts)
+    _contextStop = _mode == 5 ? (_buy ? daeBuyLateStopPts : daeSellLateStopPts) : (_buy ? daeBuyAlignedStopPts : daeSellAlignedStopPts)
+    _adaptiveTarget = _contextProfile ? math.max(30.0, _contextTarget) : _target
+    _adaptiveStop = _contextProfile ? math.max(1.0, _contextStop) : _stop
+
+    _finalTarget = useDirectionalAdaptiveExit ? _adaptiveTarget : _baseTarget
+    _finalStop = useDirectionalAdaptiveExit ? _adaptiveStop : _baseStop
+    [math.round(_finalTarget), math.round(_finalStop), _mode, _score]
+
+plotshape(sy338ShowBlocked and rawBuyBeforeTrendGuard and sy338BlockBuyAgainstDownTrend, title="SY338 Blocked BUY", style=shape.xcross, location=location.belowbar, color=color.new(BUY_C, 0), size=size.tiny, text="B BLOCK")
+plotshape(sy338ShowBlocked and rawSellBeforeTrendGuard and sy338BlockSellAgainstUpTrend, title="SY338 Blocked SELL", style=shape.xcross, location=location.abovebar, color=color.new(SELL_C, 0), size=size.tiny, text="S BLOCK")
+plotshape(vtzShowMarks and vtzBreakUpNow, title="SYXAUUSD VTZ Break UP", style=shape.triangleup, location=location.bottom, color=color.new(BUY_C, 0), size=size.tiny, text="VTZ UP")
+plotshape(vtzShowMarks and vtzBreakDownNow, title="SYXAUUSD VTZ Break DOWN", style=shape.triangledown, location=location.top, color=color.new(SELL_C, 0), size=size.tiny, text="VTZ DN")
+plotshape(vtzShowMarks and sy967RawBuyBeforeVTZ and not sy967VTZBuyOK, title="SYXAUUSD VTZ Blocked BUY", style=shape.xcross, location=location.belowbar, color=color.new(BUY_C, 0), size=size.tiny, text="VTZ")
+plotshape(vtzShowMarks and sy967RawSellBeforeVTZ and not sy967VTZSellOK, title="SYXAUUSD VTZ Blocked SELL", style=shape.xcross, location=location.abovebar, color=color.new(SELL_C, 0), size=size.tiny, text="VTZ")
+
+var box vtzBox = na
+if vtzShowBox and (vtzBreakUpNow or vtzBreakDownNow)
+    if not na(vtzBox)
+        box.delete(vtzBox)
+    vtzBox := box.new(left=bar_index - vtzBoxLookback, top=vtzBoxHigh[1], right=bar_index + vtzFollowBars, bottom=vtzBoxLow[1], bgcolor=color.new(color.gray, 88), border_color=color.new(color.gray, 40))
+if not vtzShowBox and not na(vtzBox)
+    box.delete(vtzBox)
+    vtzBox := na
+plotshape(sy130ShowBlocked and rawBuyBeforeTrendGuard and sy130BlockBuy, title="SY354 SY130 Blocked BUY", style=shape.xcross, location=location.belowbar, color=color.new(color.aqua, 0), size=size.tiny, text="T BLOCK")
+
+plotshape(sy389ShowBiasMarks and sy389BiasUp, title="SYXAUUSD Bias UP", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 0), size=size.tiny, text="B UP")
+plotshape(sy389ShowBiasMarks and sy389BiasDown, title="SYXAUUSD Bias DOWN", style=shape.circle, location=location.top, color=color.new(SELL_C, 0), size=size.tiny, text="B DN")
+plotshape(sy389ShowBiasMarks and sy389BiasRange, title="SYXAUUSD Bias RANGE", style=shape.circle, location=location.bottom, color=color.new(WAIT_C, 0), size=size.tiny, text="RNG")
+plotshape(sy130ShowBlocked and rawSellBeforeTrendGuard and sy130BlockSell, title="SY354 SY130 Blocked SELL", style=shape.xcross, location=location.abovebar, color=color.new(color.orange, 0), size=size.tiny, text="T BLOCK")
+
+bgcolor(sy325ShowDriverBg and sy325DriverBuy ? color.new(BUY_C, 92) : sy325ShowDriverBg and sy325DriverSell ? color.new(SELL_C, 92) : na)
+
+var array<int> sy999RCnt = array.new_int(625, 0)
+var array<int> sy999RWin = array.new_int(625, 0)
+var array<int> sy999VisitedR = array.new_int()
+
+var bool sy999LearnActive = false
+var int sy999LearnSide = 0
+var float sy999LearnEntry = na
+var float sy999LearnTP = na
+var float sy999LearnSL = na
+var float sy999LearnTarget = na
+var float sy999LearnStop = na
+var float sy999LearnMFE = 0.0
+var float sy999LearnMAE = 0.0
+var int sy999LearnEntryBar = na
+var int sy999LearnLastTrade = na
+var int sy999LearnLastLongStop = na
+var int sy999LearnLastShortStop = na
+var int sy999LearnLastBuyRangeStop = na
+var int sy999LearnLastBuySweepStop = na
+var int sy999LearnLastBuyTrendStop = na
+var int sy999LearnLastSellRangeStop = na
+var int sy999LearnLastSellSweepStop = na
+var int sy999LearnLastSellTrendStop = na
+var int sy999LearnTradeKind = 0
+var int sy999LearnRegime = 1
+var int sy999LearnClosedTrades = 0
+
+var bool active = false
+var int side = 0
+var float entryPrice = na
+var float tpPrice = na
+var float slPrice = na
+var int tradeExitMode = 1
+var float tradeDirectionScore = 0.0
+var float tradeTargetPts = na
+var float tradeStopPts = na
+var int tradeKind = 0
+var int entryBar = na
+var int lastTradeBar = na
+var int lastLongStopBar = na
+var int lastShortStopBar = na
+var int lastBuyRangeStopBar = na
+var int lastBuySweepStopBar = na
+var int lastBuyTrendStopBar = na
+var int lastSellRangeStopBar = na
+var int lastSellSweepStopBar = na
+var int lastSellTrendStopBar = na
+var int wins = 0
+var int losses = 0
+var int trades = 0
+var int longTrades = 0
+var int shortTrades = 0
+var int longWins = 0
+var int shortWins = 0
+var int curLoss = 0
+var int maxLoss = 0
+var int curWin = 0
+var int maxWin = 0
+var float netPts = 0.0
+var float sumWinPts = 0.0
+var float sumLossPts = 0.0
+var float lastClosedPts = 0.0
+var string tradeRiskState = ""
+var string tradeTargetSource = ""
+var string tradeEntrySource = ""
+var int tradeEntrySourceCode = 0
+var int m1LiveOwnTrades = 0
+var int m1LiveSameTrades = 0
+var int m1LiveTakeTrades = 0
+var int m1LiveM1Wins = 0
+var int m1LiveM1Losses = 0
+var int trendVoteLiveTrades = 0
+var int trendVoteLiveWins = 0
+var int trendVoteLiveLosses = 0
+var int finalFusionLiveTrades = 0
+var int finalFusionLiveWins = 0
+var int finalFusionLiveLosses = 0
+var int realClosePendingTradeId = na
+var int realCloseLastSendBar = na
+var int realCloseAttempts = 0
+var int realCloseRequestCount = 0
+var int realCloseEntryTime = na
+var string realCloseTradeUid = ""
+var bool realCloseRequestPlot = false
+var string lastExitPlan = ""
+var int lastResetKey = manualResetKey
+var line sy348EntryLine = na
+var line sy348TPLine = na
+var line sy348SLLine = na
+var bool sy348EntryBuyPlot = false
+var bool sy348EntrySellPlot = false
+var bool sy348ExitTPPlot = false
+var bool sy348ExitSLPlot = false
+var bool sy999ExitPlot = false
+var int sy963LastWebhookAlertBar = na
+var float sy999TradeMFE = 0.0
+var float sy999TradeMAE = 0.0
+var int sy999TradeRegime = 1
+var int sy999TradeId = 0
+var int sy999EarlyExitCount = 0
+varip int sy999CloseAlertTradeId = na
+varip int sy999IntrabarExitTradeId = na
+varip float sy999IntrabarExitPrice = na
+
+sy348EntryBuyPlot := false
+sy348EntrySellPlot := false
+sy348ExitTPPlot := false
+sy348ExitSLPlot := false
+sy999ExitPlot := false
+realCloseRequestPlot := false
+
+if manualResetKey != lastResetKey   // date is display-only filter; engine runs continuously (no rebuild)
+    for i = 0 to 624
+        array.set(sy999RCnt, i, 0)
+        array.set(sy999RWin, i, 0)
+    array.clear(sy999VisitedR)
+    sy999LearnActive := false
+    sy999LearnSide := 0
+    sy999LearnEntry := na
+    sy999LearnTP := na
+    sy999LearnSL := na
+    sy999LearnTarget := na
+    sy999LearnStop := na
+    sy999LearnMFE := 0.0
+    sy999LearnMAE := 0.0
+    sy999LearnEntryBar := na
+    sy999LearnLastTrade := na
+    sy999LearnLastLongStop := na
+    sy999LearnLastShortStop := na
+    sy999LearnLastBuyRangeStop := na
+    sy999LearnLastBuySweepStop := na
+    sy999LearnLastBuyTrendStop := na
+    sy999LearnLastSellRangeStop := na
+    sy999LearnLastSellSweepStop := na
+    sy999LearnLastSellTrendStop := na
+    sy999LearnTradeKind := 0
+    sy999LearnRegime := 1
+    sy999LearnClosedTrades := 0
+
+    active := false
+    side := 0
+    entryPrice := na
+    tpPrice := na
+    slPrice := na
+    tradeTargetPts := na
+    tradeStopPts := na
+    tradeKind := 0
+    entryBar := na
+    lastTradeBar := na
+    lastLongStopBar := na
+    lastShortStopBar := na
+    lastBuyRangeStopBar := na
+    lastBuySweepStopBar := na
+    lastBuyTrendStopBar := na
+    lastSellRangeStopBar := na
+    lastSellSweepStopBar := na
+    lastSellTrendStopBar := na
+    wins := 0
+    losses := 0
+    trades := 0
+    longTrades := 0
+    shortTrades := 0
+    longWins := 0
+    shortWins := 0
+    curLoss := 0
+    maxLoss := 0
+    curWin := 0
+    maxWin := 0
+    netPts := 0.0
+    sumWinPts := 0.0
+    sumLossPts := 0.0
+    lastClosedPts := 0.0
+    tradeRiskState := ""
+    tradeTargetSource := ""
+    tradeEntrySource := ""
+    tradeEntrySourceCode := 0
+    tradeExitMode := 1
+    tradeDirectionScore := 0.0
+    m1LiveOwnTrades := 0
+    m1LiveSameTrades := 0
+    m1LiveTakeTrades := 0
+    m1LiveM1Wins := 0
+    m1LiveM1Losses := 0
+    trendVoteLiveTrades := 0
+    trendVoteLiveWins := 0
+    trendVoteLiveLosses := 0
+    finalFusionLiveTrades := 0
+    finalFusionLiveWins := 0
+    finalFusionLiveLosses := 0
+    realClosePendingTradeId := na
+    realCloseLastSendBar := na
+    realCloseAttempts := 0
+    realCloseRequestCount := 0
+    realCloseEntryTime := na
+    realCloseTradeUid := ""
+    lastExitPlan := ""
+    sy999TradeMFE := 0.0
+    sy999TradeMAE := 0.0
+    sy999TradeRegime := 1
+    sy999TradeId := 0
+    sy999EarlyExitCount := 0
+    sy999CloseAlertTradeId := na
+    sy999IntrabarExitTradeId := na
+    sy999IntrabarExitPrice := na
+    realClosePendingTradeId := na
+    realCloseLastSendBar := na
+    realCloseAttempts := 0
+    realCloseEntryTime := time
+    realCloseTradeUid := sy963BotSymbol + "-" + str.tostring(time) + "-" + (side == 1 ? "BUY" : "SELL") + "-" + str.tostring(sy999TradeId)
+    if not na(sy348EntryLine)
+        line.delete(sy348EntryLine)
+    if not na(sy348TPLine)
+        line.delete(sy348TPLine)
+    if not na(sy348SLLine)
+        line.delete(sy348SLLine)
+    sy348EntryLine := na
+    sy348TPLine := na
+    sy348SLLine := na
+    lastResetKey := manualResetKey
+
+longTypeNow = sy334BuySweep ? 2 : sy334BuyRange ? 1 : 3
+shortTypeNow = sy334SellSweep ? -2 : sy334SellRange ? -1 : -3
+
+// ── R6: SMC Order Block Filter (فلتر الأوردر بلوك — منطق LuxAlgo SMC، سعري فقط) ──
+r6Ph = ta.pivothigh(high, r6ObSize, r6ObSize)
+r6Pl = ta.pivotlow(low, r6ObSize, r6ObSize)
+var float r6SwingH = na
+var float r6SwingL = na
+var bool  r6XH = true
+var bool  r6XL = true
+var int   r6PhBar = na
+var int   r6PlBar = na
+if not na(r6Ph)
+    r6SwingH := r6Ph
+    r6XH := false
+    r6PhBar := bar_index - r6ObSize
+if not na(r6Pl)
+    r6SwingL := r6Pl
+    r6XL := false
+    r6PlBar := bar_index - r6ObSize
+var array<float> r6BearTop = array.new_float()
+var array<float> r6BearBot = array.new_float()
+var array<float> r6BullTop = array.new_float()
+var array<float> r6BullBot = array.new_float()
+r6BreakUp = not na(r6SwingH) and not r6XH and close[1] <= r6SwingH and close > r6SwingH
+r6BreakDn = not na(r6SwingL) and not r6XL and close[1] >= r6SwingL and close < r6SwingL
+if r6BreakUp
+    r6XH := true
+    int aB = nz(r6PlBar, bar_index)
+    int backB = math.min(bar_index - aB, 400)
+    float mnB = low
+    int offB = 0
+    for k = 1 to backB
+        if low[k] < mnB
+            mnB := low[k]
+            offB := k
+    array.push(r6BullTop, high[offB])
+    array.push(r6BullBot, mnB)
+    if array.size(r6BullTop) > r6ObMax
+        array.shift(r6BullTop)
+        array.shift(r6BullBot)
+if r6BreakDn
+    r6XL := true
+    int aS = nz(r6PhBar, bar_index)
+    int backS = math.min(bar_index - aS, 400)
+    float mxS = high
+    int offS = 0
+    for k = 1 to backS
+        if high[k] > mxS
+            mxS := high[k]
+            offS := k
+    array.push(r6BearTop, mxS)
+    array.push(r6BearBot, low[offS])
+    if array.size(r6BearTop) > r6ObMax
+        array.shift(r6BearTop)
+        array.shift(r6BearBot)
+// موت الـOB: الاغلاق يعبر الطرف البعيد
+if array.size(r6BullTop) > 0
+    int kB = array.size(r6BullTop) - 1
+    while kB >= 0
+        if close < array.get(r6BullBot, kB)
+            array.remove(r6BullTop, kB)
+            array.remove(r6BullBot, kB)
+        kB -= 1
+if array.size(r6BearTop) > 0
+    int kS = array.size(r6BearTop) - 1
+    while kS >= 0
+        if close > array.get(r6BearTop, kS)
+            array.remove(r6BearTop, kS)
+            array.remove(r6BearBot, kS)
+        kS -= 1
+r6InBearOB = false
+r6InBullOB = false
+if array.size(r6BearTop) > 0
+    for k = 0 to array.size(r6BearTop) - 1
+        if close >= array.get(r6BearBot, k) and close <= array.get(r6BearTop, k)
+            r6InBearOB := true
+if array.size(r6BullTop) > 0
+    for k = 0 to array.size(r6BullTop) - 1
+        if close >= array.get(r6BullBot, k) and close <= array.get(r6BullTop, k)
+            r6InBullOB := true
+
+// ── R4: Trend Alignment Filter (فلتر محاذاة الترند) ──
+taLr0 = ta.linreg(close, 20, 0)
+taLr1 = ta.linreg(close, 20, 1)
+taOppBuy = (k3CacheHTFScore <= -2 ? 1 : 0) + (tf15Dir == -1 ? 1 : 0) + (tf60Dir == -1 ? 1 : 0) + (ema20 < ema50 ? 1 : 0) + (close < ema50 ? 1 : 0) + (taLr0 <= taLr1 ? 1 : 0)
+taOppSell = (k3CacheHTFScore >= 2 ? 1 : 0) + (tf15Dir == 1 ? 1 : 0) + (tf60Dir == 1 ? 1 : 0) + (ema20 > ema50 ? 1 : 0) + (close > ema50 ? 1 : 0) + (taLr0 > taLr1 ? 1 : 0)
+taOppNow = syFinalSelectedSide == 1 ? taOppBuy : taOppSell
+taIsSweep = syFinalSelectedSide == 1 ? longTypeNow == 2 : shortTypeNow == -2
+taPass = trendAlignFilter == "Off" ? true : trendAlignFilter == "Light (max 4 oppose)" ? taOppNow <= 4 : trendAlignFilter == "Medium (max 3 oppose) — R10" ? taOppNow <= 3 : trendAlignFilter == "Balanced (max 2 + Sweep)" ? taOppNow <= 2 or taIsSweep : taOppNow <= 2
+buySignal := buySignal and taPass
+sellSignal := sellSignal and taPass
+// R6: منع البيع داخل أوردر بلوك هابط (والشراء داخل صاعد اختياري)
+sellSignal := sellSignal and (not r6UseObSellFilter or not r6InBearOB)
+buySignal := buySignal and (not r6UseObBuyFilter or not r6InBullOB)
+
+// ── R8: Extra Signal Sources (مصادر إضافية — اختياري، مطفي افتراضياً) ──
+// UT Bot Alerts (ATR trailing flip)
+r8xATR = ta.atr(3)
+r8nLoss = 1.0 * r8xATR
+var float r8xts = na
+r8xtsPrev = nz(r8xts[1], close)
+r8xts := close > r8xtsPrev and close[1] > r8xtsPrev ? math.max(r8xtsPrev, close - r8nLoss) : close < r8xtsPrev and close[1] < r8xtsPrev ? math.min(r8xtsPrev, close + r8nLoss) : close > r8xtsPrev ? close - r8nLoss : close + r8nLoss
+r8UtDir = close > r8xts ? 1 : -1
+r8UtBuy = r8UtDir == 1 and r8UtDir[1] == -1
+r8UtSell = r8UtDir == -1 and r8UtDir[1] == 1
+// WaveTrend (LazyBear) — cross من مناطق التشبع
+r8ap = hlc3
+r8esa = ta.ema(r8ap, 10)
+r8dd = ta.ema(math.abs(r8ap - r8esa), 10)
+r8ci = (r8ap - r8esa) / (0.015 * r8dd)
+r8tci = ta.ema(r8ci, 21)
+r8wt2 = ta.sma(r8tci, 4)
+r8WtBuy = ta.crossover(r8tci, r8wt2) and r8wt2 < -53
+r8WtSell = ta.crossunder(r8tci, r8wt2) and r8wt2 > 53
+// Bollinger Bounce — رجوع داخل الباند
+r8basis = ta.sma(close, 20)
+r8dev = 2.0 * ta.stdev(close, 20)
+r8upBB = r8basis + r8dev
+r8loBB = r8basis - r8dev
+r8BbBuy = close > r8loBB and close[1] <= r8loBB[1]
+r8BbSell = close < r8upBB and close[1] >= r8upBB[1]
+// Gates: ATR عالي + السوق مو مزدحم بالإشارات
+r8SigRate = math.sum((buySignal or sellSignal) ? 1.0 : 0.0, r8DensityWin) / r8DensityWin * 1440
+r8ExtraOK = r8UseExtraSources and (atr / pointUnit) >= r8ExtraAtrMin and r8SigRate < r8MaxSigDensity
+r8XBuy = r8ExtraOK and (r8UtBuy or r8WtBuy or r8BbBuy)
+r8XSell = r8ExtraOK and (r8UtSell or r8WtSell or r8BbSell)
+buySignal := buySignal or r8XBuy
+sellSignal := sellSignal or r8XSell
+// ━━━ R9 اختياري: مصدر QQE-RSI28 ━━━
+r9rsi28 = ta.rsi(close, 28)
+r9r28sm = ta.ema(r9rsi28, 5)
+r9r28sg = ta.ema(r9r28sm, 13)
+r9ema20 = ta.ema(close, 20)
+// ━━━ R11: محرك كونورز RSI(2) — شراء تحت 10 / بيع فوق 90 / كولداون 20 (بدون فلتر ترند) ━━━
+r11Rsi2 = nz(ta.rsi(close, 3), 50.0)
+r11WarmOK = bar_index > 260
+var int r11LastConnB = -100000
+var int r11LastConnS = -100000
+r11ConnB = r11UseConnors and r11WarmOK and r11Rsi2 < r11ConnorsThB and bar_index - r11LastConnB > r11ConnorsCD
+r11ConnS = r11UseConnors and r11WarmOK and r11Rsi2 > r11ConnorsThS and bar_index - r11LastConnS > r11ConnorsCD
+if r11ConnB
+    r11LastConnB := bar_index
+if r11ConnS
+    r11LastConnS := bar_index
+buySignal := buySignal or r11ConnB
+sellSignal := sellSignal or r11ConnS
+
+// ━━━ R17 FINAL QUALITY ARBITER ━━━
+// K3 becomes a candidate generator. This last gate receives every source,
+// including R8/R9/R11 sources that previously bypassed the router.
+qaRawBuy = buySignal
+qaRawSell = sellSignal
+qaBuyReversal = qaAllowStrongReversal and (realRevBuy or sy338TrueCounterBuy or syr30DeadAuctionBuy or (sweepLow and (bullReject or bullMomentum)))
+qaSellReversal = qaAllowStrongReversal and (realRevSell or sy338TrueCounterSell or syr30DeadAuctionSell or (sweepHigh and (bearReject or bearMomentum)))
+qaBuyRoomOK = not qaRequireRoom or roomBuy or qaBuyReversal
+qaSellRoomOK = not qaRequireRoom or roomSell or qaSellReversal
+qaBuyLate = sy337UpMovePts > qaMaxLatePts and not qaBuyReversal
+qaSellLate = sy337DownMovePts > qaMaxLatePts and not qaSellReversal
+
+qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0)
+qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0)
+
+qaBuyTrendScore = (htfScore >= 2.0 ? 1.10 : htfScore > 0 ? 0.45 : htfScore <= -2.0 ? -1.15 : -0.35) + (tf5Dir == 1 ? 0.40 : tf5Dir == -1 ? -0.40 : 0.0) + (tf15Dir == 1 ? 0.55 : tf15Dir == -1 ? -0.55 : 0.0) + (sy389BiasUp ? 0.55 : sy389BiasDown ? -0.55 : 0.0) + (pDI > mDI ? 0.35 : -0.20) + (sy325EmaSlope >= 0.10 ? 0.35 : sy325EmaSlope < -0.10 ? -0.35 : 0.0)
+qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 2.0 ? -1.15 : -0.35) + (tf5Dir == -1 ? 0.40 : tf5Dir == 1 ? -0.40 : 0.0) + (tf15Dir == -1 ? 0.55 : tf15Dir == 1 ? -0.55 : 0.0) + (sy389BiasDown ? 0.55 : sy389BiasUp ? -0.55 : 0.0) + (mDI > pDI ? 0.35 : -0.20) + (sy325EmaSlope <= -0.10 ? 0.35 : sy325EmaSlope > 0.10 ? -0.35 : 0.0)
+
+qaBuyLocationScore = (rangePos <= 25 ? 0.70 : rangePos <= 45 ? 0.35 : rangePos >= 82 ? -0.75 : 0.0) + (bullReject ? 0.45 : bullMomentum ? 0.30 : 0.0) + (sweepLow ? 0.55 : 0.0) + (close > ema20 ? 0.20 : -0.20)
+qaSellLocationScore = (rangePos >= 75 ? 0.70 : rangePos >= 55 ? 0.35 : rangePos <= 18 ? -0.75 : 0.0) + (bearReject ? 0.45 : bearMomentum ? 0.30 : 0.0) + (sweepHigh ? 0.55 : 0.0) + (close < ema20 ? 0.20 : -0.20)
+
+qaBuyScore = qaRawBuy ? 1.0 + qaBuySourceScore + qaBuyTrendScore + qaBuyLocationScore + (qaBuyReversal ? 0.80 : 0.0) - (qaBuyLate ? 1.20 : 0.0) - (not qaBuyRoomOK ? 2.00 : 0.0) : -100.0
+qaSellScore = qaRawSell ? 1.0 + qaSellSourceScore + qaSellTrendScore + qaSellLocationScore + (qaSellReversal ? 0.80 : 0.0) - (qaSellLate ? 1.20 : 0.0) - (not qaSellRoomOK ? 2.00 : 0.0) : -100.0
+qaBuyPass = qaRawBuy and qaBuyRoomOK and not qaBuyLate and qaBuyScore >= qaMinScore
+qaSellPass = qaRawSell and qaSellRoomOK and not qaSellLate and qaSellScore >= qaMinScore
+qaBuyWinsCollision = qaBuyPass and (not qaSellPass or qaBuyScore >= qaSellScore + qaMinEdge)
+qaSellWinsCollision = qaSellPass and (not qaBuyPass or qaSellScore >= qaBuyScore + qaMinEdge)
+
+if useFinalQualityArbiter
+    buySignal := qaBuyWinsCollision
+    sellSignal := qaSellWinsCollision
+
+// Final side filter after all schools and the final arbiter.
+buySignal := buySignal and allowLong
+sellSignal := sellSignal and allowShort
+longLastStopForType = longTypeNow == 1 ? lastBuyRangeStopBar : longTypeNow == 2 ? lastBuySweepStopBar : lastBuyTrendStopBar
+shortLastStopForType = shortTypeNow == -1 ? lastSellRangeStopBar : shortTypeNow == -2 ? lastSellSweepStopBar : lastSellTrendStopBar
+longLossCooldownForType = buyLossCooldownBars
+shortLossCooldownForType = sellLossCooldownBars
+
+baseCanCooldown = na(lastTradeBar) or bar_index - lastTradeBar >= (useSY337QuickRouter ? sy339EffCooldown : cooldownBars)
+baseCanLongAfterLoss = useSY337QuickRouter ? (na(lastLongStopBar) or bar_index - lastLongStopBar >= sy339EffLossCooldown) : (useSY333TypeRisk ? (na(longLastStopForType) or bar_index - longLastStopForType >= longLossCooldownForType) : (na(lastLongStopBar) or bar_index - lastLongStopBar >= (useSeparateSideRisk ? buyLossCooldownBars : lossCooldownBars)))
+baseCanShortAfterLoss = useSY337QuickRouter ? (na(lastShortStopBar) or bar_index - lastShortStopBar >= sy339EffLossCooldown) : (useSY333TypeRisk ? (na(shortLastStopForType) or bar_index - shortLastStopForType >= shortLossCooldownForType) : (na(lastShortStopBar) or bar_index - lastShortStopBar >= (useSeparateSideRisk ? sellLossCooldownBars : lossCooldownBars)))
+
+lastAnyStopBar = na(lastLongStopBar) ? lastShortStopBar : na(lastShortStopBar) ? lastLongStopBar : math.max(lastLongStopBar, lastShortStopBar)
+
+globalEntryOK = cooldownBars == 15 or na(lastTradeBar) or bar_index - lastTradeBar >= math.max(0, cooldownBars)
+globalLossOK = lossCooldownBars == 35 or na(lastAnyStopBar) or bar_index - lastAnyStopBar >= math.max(0, lossCooldownBars)
+
+applySideCooldown = useSeparateSideRisk or buyLossCooldownBars != 15 or sellLossCooldownBars != 30
+buySideCooldownOK = not applySideCooldown or na(lastLongStopBar) or bar_index - lastLongStopBar >= math.max(0, buyLossCooldownBars)
+sellSideCooldownOK = not applySideCooldown or na(lastShortStopBar) or bar_index - lastShortStopBar >= math.max(0, sellLossCooldownBars)
+
+applyTypeCooldown = useSY333TypeRisk
+longTypeCooldownOK = not applyTypeCooldown or na(longLastStopForType) or bar_index - longLastStopForType >= math.max(0, longLossCooldownForType)
+shortTypeCooldownOK = not applyTypeCooldown or na(shortLastStopForType) or bar_index - shortLastStopForType >= math.max(0, shortLossCooldownForType)
+
+canCooldown = baseCanCooldown and globalEntryOK
+canLongAfterLoss = baseCanLongAfterLoss and globalLossOK and buySideCooldownOK and longTypeCooldownOK
+canShortAfterLoss = baseCanShortAfterLoss and globalLossOK and sellSideCooldownOK and shortTypeCooldownOK
+
+// R11 FIX: فصل نافذة الإحصائيات عن بوابة الدخول — الجدول للعرض بس، ما لازم يمنع صفقات
+// ━━━ فلاتر ذكية مثبتة على 23,932 صفقة × 7 سنوات: حظر ساعات الخسارة + حظر التذبذب العنيف ━━━
+G_SMART = "18 ■ Smart Filters (validated 7y lab)"
+sfUseTimeFilter = input.bool(false, "Time Filter: block dead hours", group=G_SMART)
+sfTzOffset = input.int(2, "Broker server hour offset vs chart (adjust if shifted)", minval=-12, maxval=12, group=G_SMART)
+sfBlockH1 = input.int(3, "Block hour #1 (-1=off)", minval=-1, maxval=23, group=G_SMART)
+sfBlockH2 = input.int(5, "Block hour #2 (-1=off)", minval=-1, maxval=23, group=G_SMART)
+sfBlockH3 = input.int(8, "Block hour #3 (-1=off)", minval=-1, maxval=23, group=G_SMART)
+sfBlockH4 = input.int(10, "Block hour #4 (-1=off)", minval=-1, maxval=23, group=G_SMART)
+sfUseAtrFilter = input.bool(true, "ATR Filter: block extreme volatility", group=G_SMART)
+sfAtrMaxRatio = input.float(2.8, "Max ATR ratio (ATR14 / ATR avg 240)", minval=1.0, maxval=5.0, step=0.1, group=G_SMART)
+sfServerHour = (hour(time, "Etc/UTC") + sfTzOffset + 24) % 24
+sfBlockedHour = sfUseTimeFilter and (sfServerHour == sfBlockH1 or sfServerHour == sfBlockH2 or sfServerHour == sfBlockH3 or sfServerHour == sfBlockH4)
+sfAtr14 = ta.atr(14)
+sfAtrAvg = ta.sma(sfAtr14, 240)
+sfAtrRatio = sfAtrAvg > 0 ? sfAtr14 / sfAtrAvg : 1.0
+sfBlockedAtr = sfUseAtrFilter and sfAtrRatio > sfAtrMaxRatio
+sfBlock = sfBlockedHour or sfBlockedAtr
+buySignal := buySignal and not sfBlock
+sellSignal := sellSignal and not sfBlock
+
+// ━━━ أبطال المختبر 2026 — TRIPLE + SNIPER + ULSWEEP + متحقق الترند ━━━
+G_CH = "23 ■ Lab Champions (TRIPLE/SNIPER/ULS/Verifier)"
+chTriUse = input.bool(true, "TRIPLE — ON", group=G_CH)
+chTriDepth = input.float(5.0, "TRIPLE depth — CHAMPION=2.0", minval=0.5, maxval=6.0, step=0.1, group=G_CH)
+chTriTh = input.float(18.0, "TRIPLE RSI3 threshold", minval=5.0, maxval=30.0, step=1.0, group=G_CH)
+chSniUse = input.bool(false, "SNIPER — ON", group=G_CH)
+chSniDepth = input.float(7.0, "SNIPER depth", minval=2.0, maxval=8.0, step=0.1, group=G_CH)
+chUlsUse = input.bool(true, "ULSWEEP v2 — ON", group=G_CH)
+chUlsStr = input.float(1.5, "ULS stretch filter", minval=0.5, maxval=4.0, step=0.1, group=G_CH)
+chUlsRsi = input.float(30.0, "ULS RSI3 extreme", minval=10, maxval=40, step=1, group=G_CH)
+chUlsLen = input.int(85, "ULS level length", minval=20, maxval=400, group=G_CH)
+chVerUse = input.bool(false, "Trend Verifier (M15 Donchian 25 + vol) — ON", group=G_CH)
+chAtrV = ta.atr(14)
+chEma = ta.ema(close, 20)
+chStretch = chAtrV == 0 ? 0.0 : (close - chEma) / chAtrV
+chRsi3 = ta.rsi(close, 3)
+chVSma = ta.sma(nz(volume, 0.0), 20)
+chClim = nz(volume, 0.0) > 2.0 * chVSma
+chBig = (high - low) > 1.5 * chAtrV
+chDHi = request.security(syminfo.tickerid, "15", ta.highest(high, 25)[1], barmerge.gaps_off, barmerge.lookahead_off)
+chDLo = request.security(syminfo.tickerid, "15", ta.lowest(low, 25)[1], barmerge.gaps_off, barmerge.lookahead_off)
+chEma15 = request.security(syminfo.tickerid, "15", ta.ema(close, 20)[1], barmerge.gaps_off, barmerge.lookahead_off)
+var bool chTrUp = false
+var bool chTrDn = false
+if chVerUse and close > chDHi and nz(volume, 0.0) > 2.0 * chVSma
+    chTrUp := true
+    chTrDn := false
+if chVerUse and close < chDLo and nz(volume, 0.0) > 2.0 * chVSma
+    chTrDn := true
+    chTrUp := false
+if chTrUp and close < chEma15
+    chTrUp := false
+if chTrDn and close > chEma15
+    chTrDn := false
+chTriB = chTriUse and chStretch < -chTriDepth and chRsi3 < chTriTh and chBig and not chTrDn
+chTriS = chTriUse and chStretch > chTriDepth and chRsi3 > 100 - chTriTh and chBig and not chTrUp
+chSniB = chSniUse and chStretch < -chSniDepth and nz(volume, 0.0) > 1.5 * chVSma and chRsi3 < 18.0 and chBig and not chTrDn
+chSniS = chSniUse and chStretch > chSniDepth and nz(volume, 0.0) > 1.5 * chVSma and chRsi3 > 82.0 and chBig and not chTrUp
+chSprUse = input.bool(true, "SPRING Wyckoff — ON", group=G_R11)
+chSprWickK = input.float(2.3, "SPRING wick x body", minval=0.5, maxval=5.0, step=0.1, group=G_R11)
+chSprLo = ta.lowest(low, 20)
+chSprHi = ta.highest(high, 20)
+chLw = math.min(open, close) - low
+chUw = high - math.max(open, close)
+chSprB = chSprUse and low < chSprLo[1] and close > chSprLo[1] and chLw > chSprWickK * math.abs(close - open) and not chTrDn
+chSprS = chSprUse and high > chSprHi[1] and close < chSprHi[1] and chUw > chSprWickK * math.abs(close - open) and not chTrUp
+buySignal := buySignal or chSprB
+sellSignal := sellSignal or chSprS
+chUoUse = input.bool(true, "ULTIMATE OSC — ON", group=G_MOM_NEW)
+chUoAdx = input.float(25.0, "UO: max ADX", minval=10, maxval=40, step=1, group=G_MOM_NEW)
+chUoTh = input.float(30.0, "UO: extreme level", minval=10, maxval=40, step=1, group=G_MOM_NEW)
+chBp = close - math.min(low, close[1])
+chTr2 = math.max(high, close[1]) - math.min(low, close[1])
+chA7 = ta.sma(chBp, 7) * 7 / (ta.sma(chTr2, 7) * 7 + 0.00001)
+chA14 = ta.sma(chBp, 14) * 14 / (ta.sma(chTr2, 14) * 14 + 0.00001)
+chA28 = ta.sma(chBp, 28) * 28 / (ta.sma(chTr2, 28) * 28 + 0.00001)
+chUo = 100 * (4 * chA7 + 7 * chA14 + chA28) / 18
+chUoB = chUoUse and adx < chUoAdx and chUo < chUoTh and close > open
+chUoS = chUoUse and adx < chUoAdx and chUo > 100 - chUoTh and close < open
+buySignal := buySignal or chUoB
+sellSignal := sellSignal or chUoS
+chRibUse = input.bool(true, "EMA RIBBON pullback (بديل VWAP Pull) — ON", group=G_PULLBACK_NEW)
+chE100 = ta.ema(close, 100)
+chRibB = chRibUse and chEma > ta.ema(close, 50) and ta.ema(close, 50) > chE100 and low <= ta.ema(close, 50) and close > ta.ema(close, 50) and close > open
+chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 and high >= ta.ema(close, 50) and close < ta.ema(close, 50) and close < open
+buySignal := buySignal or chRibB
+sellSignal := sellSignal or chRibS
+// ━━━ المدارس المنقذة (بحث + اختراع مثبت) ━━━
+chWtUse = input.bool(true, "WAVETREND v2 (WT + chassis) — ON", group=G_CH)
+chWtTp3 = (high + low + close) / 3
+chWtEsa = ta.ema(chWtTp3, 10)
+chWtDe = ta.ema(math.abs(chWtTp3 - chWtEsa), 10)
+chWtCi = (chWtTp3 - chWtEsa) / (0.015 * chWtDe + 0.00001)
+chWt1 = ta.ema(chWtCi, 21)
+chWtB = chWtUse and chWt1 < -60 and chRsi3 < 18.0 and chBig
+chWtS = chWtUse and chWt1 > 60 and chRsi3 > 82.0 and chBig
+buySignal := buySignal or chWtB
+sellSignal := sellSignal or chWtS
+chUls2B = chUlsUse and low < ta.lowest(low, chUlsLen)[1] and close > ta.lowest(low, chUlsLen)[1] and chStretch < -chUlsStr and chRsi3 < chUlsRsi
+chUls2S = chUlsUse and high > ta.highest(high, chUlsLen)[1] and close < ta.highest(high, chUlsLen)[1] and chStretch > chUlsStr and chRsi3 > 100 - chUlsRsi
+chVzUse = input.bool(true, "VWAP Absorption Fade — ON", group=G_PULLBACK_NEW)
+chVzDev = input.float(2.0, "VZ deviation mult", minval=1.0, maxval=4.0, step=0.1, group=G_PULLBACK_NEW)
+chTp3 = (high + low + close) / 3
+chVw = ta.sma(chTp3 * nz(volume, 0.0), 20) / (ta.sma(nz(volume, 0.0), 20) + 0.00001)
+chSdv = ta.stdev(chTp3 - chVw, 50)
+chVzB = chVzUse and low < chVw - chVzDev * chSdv and chRsi3 < 18.0 and chBig
+chVzS = chVzUse and high > chVw + chVzDev * chSdv and chRsi3 > 82.0 and chBig
+chCrevUse = input.bool(true, "CLIMAX REVERSAL (بديل MACD Vol) — ON", group=G_MOM_NEW)
+chCrevB = chCrevUse and chClim[1] and close[1] < open[1] and close > open and close > close[1]
+chCrevS = chCrevUse and chClim[1] and close[1] > open[1] and close < open and close < close[1]
+chCmoUse = input.bool(true, "CMO SNAP — ON", group=G_MOM_NEW)
+chCmoLen = input.int(9, "CMO length", minval=3, maxval=30, group=G_MOM_NEW)
+chCmoLvl = input.float(60.0, "CMO extreme level", minval=30, maxval=90, step=5, group=G_MOM_NEW)
+chUp = math.max(close - close[1], 0)
+chDn = math.max(close[1] - close, 0)
+chCmo = 100 * (ta.sma(chUp, chCmoLen) * chCmoLen - ta.sma(chDn, chCmoLen) * chCmoLen) / (ta.sma(chUp, chCmoLen) * chCmoLen + ta.sma(chDn, chCmoLen) * chCmoLen + 0.00001)
+chCmoB = chCmoUse and chCmo < -chCmoLvl and chRsi3 < 18.0 and chBig
+chCmoS = chCmoUse and chCmo > chCmoLvl and chRsi3 > 82.0 and chBig
+buySignal := buySignal or chUls2B or chVzB or chCrevB or chCmoB
+sellSignal := sellSignal or chUls2S or chVzS or chCrevS or chCmoS
+// ━━━ الأربعة العنيدة — بدائل مخترعة مثبتة ━━━
+chKeltUse = input.bool(true, "KELTNER v2 — ON", group=G_PULLBACK_NEW)
+chKeltK = input.float(2.0, "Keltner mult", minval=0.5, maxval=5.0, step=0.1, group=G_PULLBACK_NEW)
+chKcU = chEma + chKeltK * chAtrV
+chKcL = chEma - chKeltK * chAtrV
+chKeltB = chKeltUse and low < chKcL and chRsi3 < 18.0 and chBig
+chKeltS = chKeltUse and high > chKcU and chRsi3 > 82.0 and chBig
+chQuadUse = input.bool(false, "QUAD v2 — ON", group=G_MOM_NEW)
+chQuadR14 = input.float(40.0, "QUAD RSI14 buy below", minval=20, maxval=50, step=1, group=G_MOM_NEW)
+chRsi14v = ta.rsi(close, 14)
+chQuadB = chQuadUse and chRsi3 < 18.0 and chRsi14v < chQuadR14 and chBig
+chQuadS = chQuadUse and chRsi3 > 82.0 and chRsi14v > 100 - chQuadR14 and chBig
+chR14Use = input.bool(true, "RSI14 TURN — ON", group=G_MOM_NEW)
+chR14Str = input.float(1.0, "R14 stretch filter", minval=0.5, maxval=4.0, step=0.1, group=G_MOM_NEW)
+chR14B = chR14Use and chRsi14v < 30 and chRsi14v > chRsi14v[1] and chStretch < -chR14Str
+chR14S = chR14Use and chRsi14v > 70 and chRsi14v < chRsi14v[1] and chStretch > chR14Str
+buySignal := buySignal or chKeltB or chQuadB or chR14B
+sellSignal := sellSignal or chKeltS or chQuadS or chR14S
+// ━━━ CLOUD (بديل Ichimoku+BBKC) + UT v2 ━━━
+chCldUse = input.bool(true, "EMA CLOUD break — ON", group=G_SCHOOLS_NEW)
+chCldLen = input.int(55, "Cloud slow EMA", minval=20, maxval=200, group=G_SCHOOLS_NEW)
+chE55 = ta.ema(close, chCldLen)
+chCloudHi = math.max(chEma, chE55)
+chCloudLo = math.min(chEma, chE55)
+chCldB = chCldUse and close[1] <= chCloudHi[1] and close > chCloudHi and close > open
+chCldS = chCldUse and close[1] >= chCloudLo[1] and close < chCloudLo and close < open
+chUtUse = input.bool(true, "UT v2 — ON", group=G_RISK_NEW)
+chUtMult = input.float(6.0, "UT supertrend mult", minval=0.5, maxval=8.0, step=0.1, group=G_RISK_NEW)
+chUtLen = input.int(7, "UT supertrend ATR len", minval=2, maxval=60, group=G_RISK_NEW)
+[chCldUT, chUtDir] = ta.supertrend(chUtMult, chUtLen)
+chUtB = chUtUse and chUtDir == -1 and chRsi3 < 18.0 and chBig
+chUtS = chUtUse and chUtDir == 1 and chRsi3 > 82.0 and chBig
+buySignal := buySignal or chCldB or chUtB
+sellSignal := sellSignal or chCldS or chUtS
+// ━━━ باقي البدائل الخضراء ━━━
+chTsiUse = input.bool(false, "TSI fade — ON", group=G_MOM_NEW)
+chTsiLvl = input.float(15.0, "TSI extreme level", minval=5, maxval=30, step=1, group=G_MOM_NEW)
+chPc = (close - close[1]) / (close[1] + 0.00001)
+chTsiN = ta.ema(ta.ema(chPc, 13), 7)
+chTsiD = ta.ema(ta.ema(math.abs(chPc), 13), 7)
+chTsi = 100 * chTsiN / (chTsiD + 0.00001)
+chTsiB = chTsiUse and chTsi < -chTsiLvl and chRsi3 < 18.0 and chBig
+chTsiS = chTsiUse and chTsi > chTsiLvl and chRsi3 > 82.0 and chBig
+chDixUse = input.bool(false, "DI spread reversion — OFF (ablation: loses points in both halves)", group=G_MOM_NEW)
+chDixLvl = input.float(20.0, "DI spread level", minval=5, maxval=30, step=1, group=G_MOM_NEW)
+chDixB = chDixUse and mDI > pDI + chDixLvl and close > open
+chDixS = chDixUse and pDI > mDI + chDixLvl and close < open
+chPsUse = input.bool(true, "PRO SCALPER — ON", group=G_PULLBACK_NEW)
+chPsRsi = input.float(25.0, "PS RSI extreme", minval=10, maxval=40, step=1, group=G_PULLBACK_NEW)
+chPsAdx = input.float(30.0, "PS max ADX", minval=10, maxval=40, step=1, group=G_PULLBACK_NEW)
+chBbM = ta.sma(close, 20)
+chBbS = ta.stdev(close, 20)
+chPsB = chPsUse and chRsi14v < chPsRsi and low <= chBbM - 2 * chBbS and (math.min(open, close) - low > math.abs(close - open) or close > high[1]) and adx < chPsAdx
+chPsS = chPsUse and chRsi14v > 100 - chPsRsi and high >= chBbM + 2 * chBbS and (high - math.max(open, close) > math.abs(close - open) or close < low[1]) and adx < chPsAdx
+buySignal := buySignal or chTsiB or chDixB or chPsB
+sellSignal := sellSignal or chTsiS or chDixS or chPsS
+
+// ━━━ CVD + REG35 (تكملة الـ38) ━━━
+chCvdUse = input.bool(true, "CVD divergence — ON", group=G_MOM_NEW)
+chCvdLen = input.int(30, "CVD window", minval=10, maxval=100, group=G_MOM_NEW)
+chCvdShift = input.int(5, "CVD compare shift", minval=1, maxval=30, group=G_MOM_NEW)
+chCvdRng = math.max(high - low, syminfo.mintick)
+chCvdFast = ta.sma((2 * close - high - low) / chCvdRng * nz(volume, 0.0), chCvdLen) * chCvdLen
+chCvdB = chCvdUse and low <= ta.lowest(low, chCvdLen) and chCvdFast > chCvdFast[chCvdShift] and close > open
+chCvdS = chCvdUse and high >= ta.highest(high, chCvdLen) and chCvdFast < chCvdFast[chCvdShift] and close < open
+buySignal := buySignal or chCvdB
+sellSignal := sellSignal or chCvdS
+buySignal := buySignal or chTriB or chSniB
+sellSignal := sellSignal or chTriS or chSniS
+
+// ━━━ R31-2: LATE-BUY CHASE GUARD ━━━
+// This is the only line in the file placed after every champion school has been
+// OR'd into buySignal, so it is the only gate the champions cannot bypass.
+// chStretch (Lab: identical to (close-ema20)/ATR14), rangePos and qaBuyReversal
+// are all existing SYR30 variables — no new calculation is introduced.
+G_SYR31 = "24 ■ SYR31 Repairs"
+r31UseLateBuyGuard = input.bool(true,  "R31-2  Block chasing BUY entries", group=G_SYR31)
+r31BuyMaxStretch   = input.float(0.25, "R31-2  Max (close-EMA20)/ATR for BUY", minval=-1.0, maxval=3.0, step=0.05, group=G_SYR31)
+r31BuyMinRangePos  = input.float(45.0, "R31-2  …only when Range Position is above", minval=0.0, maxval=100.0, step=1.0, group=G_SYR31)
+r31LateBuyChase = r31UseLateBuyGuard and chStretch > r31BuyMaxStretch and rangePos > r31BuyMinRangePos and not qaBuyReversal
+buySignal := buySignal and not r31LateBuyChase
+
+// ━━━ R31-3 (optional, OFF by default): washout-only BUY regime ━━━
+// Lab finding: this indicator's BUY edge lives in confirmed downtrends near the
+// bottom of the range. Turning this on trades ~320 fewer entries for a lower
+// drawdown (1492 -> 1068) but a lower net (15665 -> 14919). Off by default.
+r31UseBuyRegime  = input.bool(false, "R31-3  BUY only in a confirmed washout", group=G_SYR31)
+r31RegimeLen     = input.int(240,   "R31-3  Trend lookback bars", minval=60, maxval=600, group=G_SYR31)
+r31RegimeMinATR  = input.float(1.0, "R31-3  Minimum downtrend size in ATR", minval=0.0, maxval=6.0, step=0.25, group=G_SYR31)
+r31RegimeMaxPos  = input.float(40.0,"R31-3  BUY maximum range position", minval=0.0, maxval=100.0, step=1.0, group=G_SYR31)
+r31Ema21  = ta.ema(close, 21)
+r31Ema50v = ta.ema(close, 50)
+r31TrendATR = atr <= 0 ? 0.0 : (close - close[r31RegimeLen]) / atr
+r31RegHi  = ta.highest(high, r31RegimeLen)
+r31RegLo  = ta.lowest(low, r31RegimeLen)
+r31RegPos = r31RegHi <= r31RegLo ? 50.0 : (close - r31RegLo) / (r31RegHi - r31RegLo) * 100.0
+r31BuyRegimeOK = not r31UseBuyRegime or (r31TrendATR <= -r31RegimeMinATR and r31Ema21 < r31Ema50v and r31Ema50v < ema100 and r31RegPos <= r31RegimeMaxPos)
+buySignal := buySignal and r31BuyRegimeOK
+
+canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
+canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
+
+if canEnterLong or canEnterShort
+    active := true
+    side := canEnterLong ? 1 : -1
+    entryPrice := close
+    tradeKind := side == 1 ? longTypeNow : shortTypeNow
+    tradeEntrySourceCode := m1SelectedSourceCode
+    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : "BASE 999"
+
+    [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
+    [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
+    tradeTargetPts := math.max(30.0, plannedTarget)
+    tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
+    tradeExitMode := plannedExitMode
+    tradeDirectionScore := plannedDirectionScore
+
+    exitModeText = tradeExitMode == 0 ? "STRONG" : tradeExitMode == 1 ? "ALIGNED" : tradeExitMode == 2 ? "RANGE" : tradeExitMode == 3 ? "REVERSAL" : tradeExitMode == 4 ? "COUNTER" : "LATE"
+    tradeRiskState := useDirectionalAdaptiveExit ? "DIR " + exitModeText + " HARD" : "BASE HARD"
+    tradeTargetSource := useDirectionalAdaptiveExit ? "M1/M5/M15 + LIQ" : "BASE PLAN"
+    if tradeEntrySourceCode == 1
+        m1LiveOwnTrades += 1
+    else if tradeEntrySourceCode == 2
+        m1LiveSameTrades += 1
+    else if tradeEntrySourceCode == 3
+        m1LiveTakeTrades += 1
+    else if tradeEntrySourceCode == 5
+        trendVoteLiveTrades += 1
+    else if tradeEntrySourceCode == 6
+        finalFusionLiveTrades += 1
+    lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
+    tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
+    slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
+    entryBar := bar_index
+    lastTradeBar := bar_index
+    sy999TradeMFE := 0.0
+    sy999TradeMAE := 0.0
+    sy999TradeRegime := sy999SignalRegime
+    sy999TradeId += 1
+    sy999CloseAlertTradeId := na
+    sy999IntrabarExitTradeId := na
+    sy999IntrabarExitPrice := na
+    if side == 1
+        if statsActive
+            longTrades += 1
+    else
+        if statsActive
+            shortTrades += 1
+    sy348EntryBuyPlot := side == 1
+    sy348EntrySellPlot := side == -1
+    if smartShowExitState and showSignals and statsActive
+        label.new(bar_index, side == 1 ? low : high, lastExitPlan, style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(EN_C, 0), textcolor=color.black, size=size.tiny)
+    if showTradeLines
+        if not na(sy348EntryLine)
+            line.delete(sy348EntryLine)
+        if not na(sy348TPLine)
+            line.delete(sy348TPLine)
+        if not na(sy348SLLine)
+            line.delete(sy348SLLine)
+        sy348EntryLine := line.new(bar_index, entryPrice, bar_index + lineBars, entryPrice, color=EN_C, width=1)
+        sy348TPLine := line.new(bar_index, tpPrice, bar_index + lineBars, tpPrice, color=TP_C, width=1)
+        sy348SLLine := line.new(bar_index, slPrice, bar_index + lineBars, slPrice, color=SL_C, width=1)
+
+if active and bar_index > entryBar
+    favPts = side == 1 ? (high - entryPrice) / pointUnit : (entryPrice - low) / pointUnit
+    advPts = side == 1 ? (entryPrice - low) / pointUnit : (high - entryPrice) / pointUnit
+    sy999TradeMFE := math.max(sy999TradeMFE, math.max(0.0, favPts))
+    sy999TradeMAE := math.max(sy999TradeMAE, math.max(0.0, advPts))
+    currentPnl = side == 1 ? (close - entryPrice) / pointUnit : (entryPrice - close) / pointUnit
+    regimeKey = f_sy999_regime_key(sy999TradeRegime, sy999TradeMFE, sy999TradeMAE, bar_index - entryBar, tradeTargetPts, tradeStopPts)
+    [pRegime, nRegime] = f_sy999_prob(sy999RCnt, sy999RWin, regimeKey)
+
+    hitTPraw = side == 1 ? high >= tpPrice : low <= tpPrice
+    hitSLraw = side == 1 ? low <= slPrice : high >= slPrice
+    bothRaw = hitTPraw and hitSLraw
+
+    // TP and SL are fixed from the entry bar; no partial close and no trailing.
+    hitTP = hitTPraw
+    hitSL = side == 1 ? low <= slPrice : high >= slPrice
+    both = hitTP and hitSL
+    skipTrade = both and sameCandleRule == "Skip"
+    isWin = both ? (not skipTrade and sameCandleRule == "Target First") : hitTP
+    isLoss = both ? (not skipTrade and sameCandleRule == "Stop First") : hitSL
+    hardExit = isWin or isLoss or skipTrade
+
+    regimeExitNow = useRealCloseSender and sy999LearnClosedTrades >= wfWarmupTrades and not hardExit and barstate.isconfirmed and f_sy999_regime80_exit(currentPnl, sy999TradeMFE, bar_index - entryBar, tradeTargetPts, tradeStopPts, pRegime, nRegime)
+    regimeExitAllowed = regimeExitNow and (not realCloseOnlyIfProfit or currentPnl > 0)
+
+    if regimeExitAllowed and realClosePendingTradeId != sy999TradeId
+        realClosePendingTradeId := sy999TradeId
+        realCloseLastSendBar := na
+        realCloseAttempts := 0
+
+    realCloseCanRetry = realClosePendingTradeId == sy999TradeId and realCloseAttempts < realCloseMaxAttempts and (na(realCloseLastSendBar) or bar_index - realCloseLastSendBar >= realCloseRetryEveryBars)
+    realCloseFire = realCloseCanRetry and sy963UseAlertFunction and barstate.isrealtime and barstate.isconfirmed and not hardExit
+
+    if realCloseFire
+        realCloseLastSendBar := bar_index
+        realCloseAttempts += 1
+        realCloseRequestCount += 1
+        realCloseRequestPlot := true
+        closeSide = side == 1 ? "BUY" : "SELL"
+        closePtsLive = currentPnl
+        closeJson = '{"key":"' + sy963WebhookKey + '","action":"' + sy999CloseAction + '","side":"' + closeSide + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"entry":' + str.tostring(entryPrice, format.mintick) + ',"close_price":' + str.tostring(close, format.mintick) + ',"close_points":' + str.tostring(closePtsLive, "#.##") + ',"reason":"REGIME_80_REAL","trade_id":' + str.tostring(sy999TradeId) + ',"trade_uid":"' + realCloseTradeUid + '","attempt":' + str.tostring(realCloseAttempts) + ',"max_attempts":' + str.tostring(realCloseMaxAttempts) + ',"hard_tp_price":' + str.tostring(tpPrice, format.mintick) + ',"hard_sl_price":' + str.tostring(slPrice, format.mintick) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}'
+        closeSimple = sy963WebhookKey + " " + sy999CloseAction + " " + sy963BotSymbol + " " + closeSide + " REGIME_80_REAL UID " + realCloseTradeUid + " TRY " + str.tostring(realCloseAttempts)
+        alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
+
+    earlyExit = false
+    if hardExit or earlyExit
+        exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
+        exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)
+        statsCounted = statsActive and not skipTrade
+        if statsCounted
+            trades += 1
+        if statsCounted and tradeEntrySourceCode >= 1 and tradeEntrySourceCode <= 3
+            if exitPts > 0
+                m1LiveM1Wins += 1
+            else
+                m1LiveM1Losses += 1
+        if statsCounted and tradeEntrySourceCode == 5
+            if exitPts > 0
+                trendVoteLiveWins += 1
+            else
+                trendVoteLiveLosses += 1
+        if statsCounted and tradeEntrySourceCode == 6
+            if exitPts > 0
+                finalFusionLiveWins += 1
+            else
+                finalFusionLiveLosses += 1
+        if exitPts > 0
+            if statsCounted
+                wins += 1
+                netPts += exitPts
+                sumWinPts += exitPts
+                lastClosedPts := exitPts
+                curWin += 1
+                curLoss := 0
+                maxWin := math.max(maxWin, curWin)
+                if side == 1
+                    longWins += 1
+                else
+                    shortWins += 1
+            if not earlyExit and statsCounted
+                sy348ExitTPPlot := true
+        else if not skipTrade
+            if statsCounted
+                losses += 1
+                netPts += exitPts
+                sumLossPts += math.abs(exitPts)
+                lastClosedPts := exitPts
+                curLoss += 1
+                curWin := 0
+                maxLoss := math.max(maxLoss, curLoss)
+            if side == 1
+                lastLongStopBar := bar_index
+                if tradeKind == 1
+                    lastBuyRangeStopBar := bar_index
+                else if tradeKind == 2
+                    lastBuySweepStopBar := bar_index
+                else
+                    lastBuyTrendStopBar := bar_index
+            else
+                lastShortStopBar := bar_index
+                if tradeKind == -1
+                    lastSellRangeStopBar := bar_index
+                else if tradeKind == -2
+                    lastSellSweepStopBar := bar_index
+                else
+                    lastSellTrendStopBar := bar_index
+            if not earlyExit and statsCounted
+                sy348ExitSLPlot := true
+
+        if earlyExit
+            if statsActive
+                sy999EarlyExitCount += 1
+                sy999ExitPlot := true
+            if showSignals and sy999ShowExitMarks and statsActive
+                label.new(bar_index, exitPrice, "EXIT " + (exitPts > 0 ? "+" : "") + str.tostring(exitPts, "#.##"), style=side == 1 ? label.style_label_down : label.style_label_up, color=exitPts > 0 ? BUY_C : EN_C, textcolor=exitPts > 0 ? TXT_C : color.black, size=size.tiny)
+        else if showSignals and statsCounted
+            if isWin
+                label.new(bar_index, tpPrice, "TP " + str.tostring(tradeTargetPts, "#"), style=label.style_label_down, color=TP_C, textcolor=TXT_C, size=size.tiny)
+            else
+                label.new(bar_index, slPrice, "SL " + str.tostring(tradeStopPts, "#"), style=label.style_label_up, color=SL_C, textcolor=TXT_C, size=size.tiny)
+
+        if showTradeLines
+            if not na(sy348EntryLine)
+                line.delete(sy348EntryLine)
+            if not na(sy348TPLine)
+                line.delete(sy348TPLine)
+            if not na(sy348SLLine)
+                line.delete(sy348SLLine)
+            sy348EntryLine := na
+            sy348TPLine := na
+            sy348SLLine := na
+        realClosePendingTradeId := na
+        realCloseLastSendBar := na
+        realCloseAttempts := 0
+        active := false
+        side := 0
+        entryPrice := na
+        tpPrice := na
+        slPrice := na
+        tradeTargetPts := na
+        tradeStopPts := na
+        tradeKind := 0
+        entryBar := na
+        tradeRiskState := ""
+        tradeTargetSource := ""
+        tradeEntrySource := ""
+        tradeEntrySourceCode := 0
+        tradeExitMode := 1
+        tradeDirectionScore := 0.0
+        sy999TradeMFE := 0.0
+        sy999TradeMAE := 0.0
+        sy999TradeRegime := 1
+
+if statsActive
+    learnLongTypeNow = sy334BuySweep ? 2 : sy334BuyRange ? 1 : 3
+    learnShortTypeNow = sy334SellSweep ? -2 : sy334SellRange ? -1 : -3
+
+    learnLongLastTypeStop = learnLongTypeNow == 1 ? sy999LearnLastBuyRangeStop : learnLongTypeNow == 2 ? sy999LearnLastBuySweepStop : sy999LearnLastBuyTrendStop
+    learnShortLastTypeStop = learnShortTypeNow == -1 ? sy999LearnLastSellRangeStop : learnShortTypeNow == -2 ? sy999LearnLastSellSweepStop : sy999LearnLastSellTrendStop
+    learnLongTypeCooldown = buyLossCooldownBars
+    learnShortTypeCooldown = sellLossCooldownBars
+
+    learnBaseCooldownBarsNow = useSY337QuickRouter ? sy339EffCooldown : cooldownBars
+    learnBaseLongLossCooldownNow = useSY337QuickRouter ? sy339EffLossCooldown : (useSeparateSideRisk ? buyLossCooldownBars : lossCooldownBars)
+    learnBaseShortLossCooldownNow = useSY337QuickRouter ? sy339EffLossCooldown : (useSeparateSideRisk ? sellLossCooldownBars : lossCooldownBars)
+
+    learnBaseCooldownOK = na(sy999LearnLastTrade) or bar_index - sy999LearnLastTrade >= learnBaseCooldownBarsNow
+    learnBaseLongOK = na(sy999LearnLastLongStop) or bar_index - sy999LearnLastLongStop >= learnBaseLongLossCooldownNow
+    learnBaseShortOK = na(sy999LearnLastShortStop) or bar_index - sy999LearnLastShortStop >= learnBaseShortLossCooldownNow
+
+    learnLastAnyStop = na(sy999LearnLastLongStop) ? sy999LearnLastShortStop : na(sy999LearnLastShortStop) ? sy999LearnLastLongStop : math.max(sy999LearnLastLongStop, sy999LearnLastShortStop)
+
+    learnGlobalEntryOK = cooldownBars == 15 or na(sy999LearnLastTrade) or bar_index - sy999LearnLastTrade >= math.max(0, cooldownBars)
+    learnGlobalLossOK = lossCooldownBars == 35 or na(learnLastAnyStop) or bar_index - learnLastAnyStop >= math.max(0, lossCooldownBars)
+
+    learnApplySideCooldown = useSeparateSideRisk or buyLossCooldownBars != 15 or sellLossCooldownBars != 30
+    learnBuySideOK = not learnApplySideCooldown or na(sy999LearnLastLongStop) or bar_index - sy999LearnLastLongStop >= math.max(0, buyLossCooldownBars)
+    learnSellSideOK = not learnApplySideCooldown or na(sy999LearnLastShortStop) or bar_index - sy999LearnLastShortStop >= math.max(0, sellLossCooldownBars)
+
+    learnApplyTypeCooldown = useSY333TypeRisk
+    learnLongTypeOK = not learnApplyTypeCooldown or na(learnLongLastTypeStop) or bar_index - learnLongLastTypeStop >= math.max(0, learnLongTypeCooldown)
+    learnShortTypeOK = not learnApplyTypeCooldown or na(learnShortLastTypeStop) or bar_index - learnShortLastTypeStop >= math.max(0, learnShortTypeCooldown)
+
+    learnCooldown = learnBaseCooldownOK and learnGlobalEntryOK
+    learnLongOK = learnBaseLongOK and learnGlobalLossOK and learnBuySideOK and learnLongTypeOK
+    learnShortOK = learnBaseShortOK and learnGlobalLossOK and learnSellSideOK and learnShortTypeOK
+
+    learnGoLong = not sy999LearnActive and learnCooldown and learnLongOK and buySignal
+    learnGoShort = not sy999LearnActive and learnCooldown and learnShortOK and sellSignal
+    if learnGoLong or learnGoShort
+        sy999LearnSide := learnGoLong ? 1 : -1
+        sy999LearnTradeKind := sy999LearnSide == 1 ? learnLongTypeNow : learnShortTypeNow
+        sy999LearnEntry := close
+        [learnBaseTarget, learnBaseStop] = f_sy999_source_plan(sy999LearnSide, sy999LearnEntry, m1SelectedSourceCode, sy999LearnTradeKind)
+        [learnTarget, learnStop, learnExitMode, learnDirectionScore] = f_dae_exit_plan(sy999LearnSide, sy999LearnEntry, learnBaseTarget, learnBaseStop, sy999LearnTradeKind)
+        sy999LearnTarget := learnTarget
+        sy999LearnStop := learnStop
+        sy999LearnTP := sy999LearnSide == 1 ? sy999LearnEntry + sy999LearnTarget * pointUnit : sy999LearnEntry - sy999LearnTarget * pointUnit
+        sy999LearnSL := sy999LearnSide == 1 ? sy999LearnEntry - sy999LearnStop * pointUnit : sy999LearnEntry + sy999LearnStop * pointUnit
+        sy999LearnMFE := 0.0
+        sy999LearnMAE := 0.0
+        sy999LearnEntryBar := bar_index
+        sy999LearnLastTrade := bar_index
+        sy999LearnRegime := sy999SignalRegime
+        sy999LearnActive := true
+        array.clear(sy999VisitedR)
+
+    if sy999LearnActive and bar_index > sy999LearnEntryBar
+        learnFav = sy999LearnSide == 1 ? (high - sy999LearnEntry) / pointUnit : (sy999LearnEntry - low) / pointUnit
+        learnAdv = sy999LearnSide == 1 ? (sy999LearnEntry - low) / pointUnit : (high - sy999LearnEntry) / pointUnit
+        sy999LearnMFE := math.max(sy999LearnMFE, math.max(0.0, learnFav))
+        sy999LearnMAE := math.max(sy999LearnMAE, math.max(0.0, learnAdv))
+        learnKey = f_sy999_regime_key(sy999LearnRegime, sy999LearnMFE, sy999LearnMAE, bar_index - sy999LearnEntryBar, sy999LearnTarget, sy999LearnStop)
+        f_sy999_add_unique(sy999VisitedR, learnKey)
+        learnHitTP = sy999LearnSide == 1 ? high >= sy999LearnTP : low <= sy999LearnTP
+        learnHitSL = sy999LearnSide == 1 ? low <= sy999LearnSL : high >= sy999LearnSL
+        learnBoth = learnHitTP and learnHitSL
+        learnSkip = learnBoth and sameCandleRule == "Skip"
+        learnWin = learnBoth ? (not learnSkip and sameCandleRule == "Target First") : learnHitTP
+        learnLoss = learnBoth ? (not learnSkip and sameCandleRule == "Stop First") : learnHitSL
+        if learnWin or learnLoss
+            f_sy999_learn_update(sy999RCnt, sy999RWin, sy999VisitedR, learnWin)
+            sy999LearnClosedTrades += 1
+            if learnLoss
+                if sy999LearnSide == 1
+                    sy999LearnLastLongStop := bar_index
+                    if sy999LearnTradeKind == 1
+                        sy999LearnLastBuyRangeStop := bar_index
+                    else if sy999LearnTradeKind == 2
+                        sy999LearnLastBuySweepStop := bar_index
+                    else
+                        sy999LearnLastBuyTrendStop := bar_index
+                else
+                    sy999LearnLastShortStop := bar_index
+                    if sy999LearnTradeKind == -1
+                        sy999LearnLastSellRangeStop := bar_index
+                    else if sy999LearnTradeKind == -2
+                        sy999LearnLastSellSweepStop := bar_index
+                    else
+                        sy999LearnLastSellTrendStop := bar_index
+            sy999LearnActive := false
+            sy999LearnSide := 0
+            sy999LearnEntry := na
+            sy999LearnTP := na
+            sy999LearnSL := na
+            sy999LearnTarget := na
+            sy999LearnStop := na
+            sy999LearnMFE := 0.0
+            sy999LearnMAE := 0.0
+            sy999LearnEntryBar := na
+            sy999LearnTradeKind := 0
+            sy999LearnRegime := 1
+            array.clear(sy999VisitedR)
+
+sy963WebhookFire = sy963UseAlertFunction and barstate.isconfirmed and (canEnterLong or canEnterShort) and (na(sy963LastWebhookAlertBar) or sy963LastWebhookAlertBar != bar_index)
+if sy963WebhookFire
+    sy963LastWebhookAlertBar := bar_index
+    sy963SideText = side == 1 ? "BUY" : "SELL"
+
+    sy963AlertTargetPts = na(tradeTargetPts) ? sy963WebhookTargetPoints : tradeTargetPts
+    sy963AlertStopPts = na(tradeStopPts) ? sy963WebhookStopPoints : tradeStopPts
+    sy963AlertTPPrice = na(tpPrice) ? (side == 1 ? entryPrice + sy963AlertTargetPts * pointUnit : entryPrice - sy963AlertTargetPts * pointUnit) : tpPrice
+    sy963AlertSLPrice = na(slPrice) ? (side == 1 ? entryPrice - sy963AlertStopPts * pointUnit : entryPrice + sy963AlertStopPts * pointUnit) : slPrice
+    sy963JsonMsg = '{"key":"' + sy963WebhookKey + '","action":"' + sy963SideText + '","side":"' + sy963SideText + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"tp_points":' + str.tostring(sy963AlertTargetPts, "#.##") + ',"sl_points":' + str.tostring(sy963AlertStopPts, "#.##") + ',"target_points":' + str.tostring(sy963AlertTargetPts, "#.##") + ',"stop_points":' + str.tostring(sy963AlertStopPts, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice, format.mintick) + ',"tp_price":' + str.tostring(sy963AlertTPPrice, format.mintick) + ',"sl_price":' + str.tostring(sy963AlertSLPrice, format.mintick) + ',"exit_state":"' + tradeRiskState + '","target_source":"' + tradeTargetSource + '","exit_model":"ADAPTIVE_AT_ENTRY_HARD_TP_SL_WITH_REAL_CLOSE","trade_id":' + str.tostring(sy999TradeId) + ',"trade_uid":"' + realCloseTradeUid + '","indicator":"SYR30","time":"' + str.tostring(time) + '"}'
+    sy963SimpleMsg = sy963WebhookKey + " " + sy963SideText + " " + sy963BotSymbol + " MODEL ADAPTIVE_AT_ENTRY_HARD_TP_SL LOT " + str.tostring(sy963LotSize) + " TP " + str.tostring(sy963AlertTargetPts, "#.##") + " SL " + str.tostring(sy963AlertStopPts, "#.##")
+    alert(sy963AlertFormat == "JSON" ? sy963JsonMsg : sy963SimpleMsg, alert.freq_once_per_bar_close)
+
+plotshape(showSignals and statsActive and sy348EntryBuyPlot, title="SY354 Stable BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and statsActive and sy348EntrySellPlot, title="SY354 Stable SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and sy348ExitTPPlot, title="SYXAUUSD TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and sy348ExitSLPlot, title="SYXAUUSD SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny)
+plotshape(realCloseShowMarks and realCloseRequestPlot, title="SYXAUUSD REAL CLOSE REQUEST", style=shape.diamond, location=location.top, color=EN_C, text="CLOSE", textcolor=color.black, size=size.tiny)
+plotshape(showSignals and sy999ShowExitMarks and sy999ExitPlot, title="SYXAUUSD REGIME 80 EXIT", style=shape.diamond, location=location.top, color=EN_C, text="EXIT", textcolor=color.black, size=size.tiny)
+
+plotshape(showResearchMarks and quadBuy, title="Quad Buy", style=shape.circle, location=location.belowbar, color=color.new(BUY_C, 65), size=size.tiny)
+plotshape(showResearchMarks and quadSell, title="Quad Sell", style=shape.circle, location=location.abovebar, color=color.new(SELL_C, 65), size=size.tiny)
+plotshape(showResearchMarks and trendCorrBuy, title="Trend Correction Buy", style=shape.circle, location=location.belowbar, color=color.new(color.lime, 45), size=size.tiny)
+plotshape(showResearchMarks and trendCorrSell, title="Trend Correction Sell", style=shape.circle, location=location.abovebar, color=color.new(color.red, 45), size=size.tiny)
+plotshape(showResearchMarks and rsi14ShiftBuy, title="RSI14 Shift Buy", style=shape.diamond, location=location.belowbar, color=color.new(BUY_C, 40), size=size.tiny)
+plotshape(showResearchMarks and rsi14ShiftSell, title="RSI14 Shift Sell", style=shape.diamond, location=location.abovebar, color=color.new(SELL_C, 40), size=size.tiny)
+plotshape(showResearchMarks and bbkcBuy, title="BBKC Buy", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 40), size=size.tiny)
+plotshape(showResearchMarks and bbkcSell, title="BBKC Sell", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 40), size=size.tiny)
+plotshape(showResearchMarks and sy319TrendBuy, title="SY319 Trend Addon Buy", style=shape.circle, location=location.belowbar, color=color.new(color.lime, 35), size=size.tiny)
+plotshape(showResearchMarks and sy319TrendSell, title="SY319 Trend Addon Sell", style=shape.circle, location=location.abovebar, color=color.new(color.red, 35), size=size.tiny)
+plotshape(showResearchMarks and buySignal and longTypeNow == 1, title="SYXAUUSD BUY Range", style=shape.labelup, location=location.belowbar, color=color.new(BUY_C, 25), text="BR", textcolor=TXT_C, size=size.tiny)
+plotshape(showResearchMarks and buySignal and longTypeNow == 2, title="SYXAUUSD BUY Sweep", style=shape.labelup, location=location.belowbar, color=color.new(color.lime, 20), text="BS", textcolor=TXT_C, size=size.tiny)
+plotshape(showResearchMarks and sellSignal and shortTypeNow == -1, title="SYXAUUSD SELL Range", style=shape.labeldown, location=location.abovebar, color=color.new(SELL_C, 25), text="SR", textcolor=TXT_C, size=size.tiny)
+
+
+wr = trades > 0 ? wins * 100.0 / trades : 0.0
+
+color TBL_BG = color.rgb(16, 18, 26)
+color TBL_BG_HEAD = color.rgb(22, 24, 34)
+color TBL_BG_ROW = color.rgb(18, 20, 30)
+color TBL_BG_ROW2 = color.rgb(20, 22, 32)
+
+var table t = table.new(position.top_right, 2, 17, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+if showTable and barstate.islast
+    table.cell(t, 0, 0, "SYXAUUSD", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 1, 0, "FINAL K3 CACHE | F>TV>B", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+
+    table.cell(t, 0, 1, "Win", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 2, "Loss", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 3, "WR", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(wr, "#.##") + "%", text_color=wr >= 60 ? BUY_C : wr >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 4, "Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 5, "Max W", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 6, "Max L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 6, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    avgWinPts = wins > 0 ? sumWinPts / wins : 0.0
+    avgLossPts = losses > 0 ? sumLossPts / losses : 0.0
+    table.cell(t, 0, 7, "Avg TP", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 7, str.tostring(avgWinPts, "#.##"), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 8, "Avg SL", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 8, str.tostring(avgLossPts, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 9, "Last", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 9, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#.##"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 10, "From", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 10, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm 'UTC'", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 11, "Manager", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 11, useRealCloseSender ? "DIR M1/M5/M15 HARD/CLOSE" : "DIR M1/M5/M15 HARD", text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 12, "TV W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 12, str.tostring(trendVoteLiveWins) + "/" + str.tostring(trendVoteLiveLosses), text_color=trendVoteLiveWins >= trendVoteLiveLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 13, "Fusion W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 13, str.tostring(finalFusionLiveWins) + "/" + str.tostring(finalFusionLiveLosses), text_color=finalFusionLiveWins >= finalFusionLiveLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 14, "Close Req", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 14, str.tostring(realCloseRequestCount), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 15, "M1 O/S/T", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 15, str.tostring(m1LiveOwnTrades) + "/" + str.tostring(m1LiveSameTrades) + "/" + str.tostring(m1LiveTakeTrades), text_color=(m1LiveOwnTrades + m1LiveSameTrades + m1LiveTakeTrades) > 0 ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 16, "M1 W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 16, str.tostring(m1LiveM1Wins) + "/" + str.tostring(m1LiveM1Losses), text_color=m1LiveM1Wins >= m1LiveM1Losses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+else if not showTable and barstate.islast
+    table.clear(t, 0, 0, 1, 16)
+
+alertcondition(canEnterLong, "SYR30 BUY", "SYR30 BUY | FINAL K3 CACHE")
+alertcondition(canEnterShort, "SYR30 SELL", "SYR30 SELL | FINAL K3 CACHE")
+
+alertcondition(sy963UseBuyCondition and canEnterLong, "SYR30 WEBHOOK BUY", "SYR30 BUY | use Any alert() function call for key/action/lot/tp/sl")
+alertcondition(sy963UseSellCondition and canEnterShort, "SYR30 WEBHOOK SELL", "SYR30 SELL | use Any alert() function call for key/action/lot/tp/sl")
+alertcondition(useRealCloseSender, "SYXAUUSD REAL CLOSE ENABLED", "Use Any alert() function call for the dynamic CLOSE payload")
+
+var table sy389T = table.new(position.bottom_left, 2, 8, border_width=1)
+
+if sy389ShowBiasTable and barstate.islast
+    table.cell(sy389T, 0, 0, "SYXAUUSD BIAS", bgcolor=color.new(color.black, 0), text_color=color.white)
+    table.cell(sy389T, 1, 0, useSY389BiasEngine ? "ON" : "OFF", bgcolor=color.new(color.black, 0), text_color=useSY389BiasEngine ? color.lime : color.gray)
+
+    table.cell(sy389T, 0, 1, "State", text_color=color.white)
+    table.cell(sy389T, 1, 1, sy389BiasUp ? "UP" : sy389BiasDown ? "DOWN" : "RANGE", text_color=sy389BiasUp ? BUY_C : sy389BiasDown ? SELL_C : color.yellow)
+
+    table.cell(sy389T, 0, 2, "Local Slope", text_color=color.white)
+    table.cell(sy389T, 1, 2, str.tostring(sy389LocalSlope, "#.##"), text_color=sy389LocalSlope > 0 ? BUY_C : sy389LocalSlope < 0 ? SELL_C : color.white)
+
+    table.cell(sy389T, 0, 3, "Local ER", text_color=color.white)
+    table.cell(sy389T, 1, 3, str.tostring(sy389LocalER, "#.##"), text_color=sy389LocalER >= sy389MinER ? color.lime : color.gray)
+
+    table.cell(sy389T, 0, 4, "HTF Bias", text_color=color.white)
+    table.cell(sy389T, 1, 4, sy389HTFUp ? "UP" : sy389HTFDown ? "DOWN" : "RANGE", text_color=sy389HTFUp ? BUY_C : sy389HTFDown ? SELL_C : color.yellow)
+
+    table.cell(sy389T, 0, 5, "HTF Slope", text_color=color.white)
+    table.cell(sy389T, 1, 5, str.tostring(sy389SlopeHTF, "#.##"), text_color=sy389SlopeHTF > 0 ? BUY_C : sy389SlopeHTF < 0 ? SELL_C : color.white)
+
+    table.cell(sy389T, 0, 6, "Old htfScore", text_color=color.white)
+    table.cell(sy389T, 1, 6, str.tostring(htfScore, "#.##"), text_color=htfScore > 0 ? BUY_C : htfScore < 0 ? SELL_C : color.white)
+
+    table.cell(sy389T, 0, 7, "Flip B/S", text_color=color.white)
+    table.cell(sy389T, 1, 7, (sy389WrongSellInUp ? "S->B " : "") + (sy389WrongBuyInDown ? "B->S" : ""), text_color=color.white)
