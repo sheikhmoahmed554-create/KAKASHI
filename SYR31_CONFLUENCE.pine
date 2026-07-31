@@ -2725,7 +2725,12 @@ s31StUse = input.bool(false, "StochRSI كمصدر دخول — OFF", group=G_S31
 s31StLen = input.int(14, "StochRSI Length", minval=3, maxval=50, group=G_S31)
 s31StOB = input.float(80.0, "StochRSI تشبّع شرائي", minval=55, maxval=95, step=1, group=G_S31)
 s31StOS = input.float(20.0, "StochRSI تشبّع بيعي", minval=5, maxval=45, step=1, group=G_S31)
-s31StK = ta.sma(ta.stoch(s31Rsi, s31Rsi, s31Rsi, s31StLen), 3)
+// StochRSI محسوبة يدوياً (بدل ta.stoch) — نفس المعادلة بالضبط،
+// وبتشتغل على TradingView وعلى محرّك KAKASHI سوا.
+s31RsiHi = ta.highest(s31Rsi, s31StLen)
+s31RsiLo = ta.lowest(s31Rsi, s31StLen)
+s31StRaw = (s31RsiHi - s31RsiLo) > 0 ? 100.0 * (s31Rsi - s31RsiLo) / (s31RsiHi - s31RsiLo) : 50.0
+s31StK = ta.sma(s31StRaw, 3)
 s31StD = ta.sma(s31StK, 3)
 s31StB = s31StUse and ta.crossover(s31StK, s31StD) and s31StK < s31StOS
 s31StS = s31StUse and ta.crossunder(s31StK, s31StD) and s31StK > s31StOB
@@ -2735,7 +2740,13 @@ s31MfiUse = input.bool(false, "MFI كمصدر دخول — OFF", group=G_S31)
 s31MfiLen = input.int(14, "MFI Length", minval=3, maxval=50, group=G_S31)
 s31MfiOS = input.float(20.0, "MFI حد الشراء", minval=5, maxval=45, step=1, group=G_S31)
 s31MfiOB = input.float(80.0, "MFI حد البيع", minval=55, maxval=95, step=1, group=G_S31)
-s31Mfi = nz(ta.mfi(hlc3, s31MfiLen), 50.0)
+// MFI محسوبة يدوياً (بدل ta.mfi) باستخدام f_roll_sum الموجودة أصلاً بالمؤشر.
+// إذا الفوليوم مفقود بتصير 50 (محايدة) وما بتأثر على شي.
+s31Typ = hlc3
+s31RawMF = s31Typ * nz(volume, 0.0)
+s31PosMF = f_roll_sum(s31Typ > s31Typ[1] ? s31RawMF : 0.0, s31MfiLen)
+s31NegMF = f_roll_sum(s31Typ < s31Typ[1] ? s31RawMF : 0.0, s31MfiLen)
+s31Mfi = s31NegMF > 0 ? 100.0 - 100.0 / (1.0 + s31PosMF / s31NegMF) : (s31PosMF > 0 ? 100.0 : 50.0)
 s31MfiB = s31MfiUse and s31Mfi < s31MfiOS and close > open
 s31MfiS = s31MfiUse and s31Mfi > s31MfiOB and close < open
 
@@ -2748,7 +2759,9 @@ s31SqzBasis = ta.sma(close, s31SqzLen)
 s31SqzDev = s31SqzBBMult * ta.stdev(close, s31SqzLen)
 s31SqzRange = ta.sma(ta.tr(true), s31SqzLen)
 s31SqzOn = (s31SqzBasis - s31SqzDev > s31SqzBasis - s31SqzKCMult * s31SqzRange) and (s31SqzBasis + s31SqzDev < s31SqzBasis + s31SqzKCMult * s31SqzRange)
-s31SqzMom = ta.linreg(close - math.avg(math.avg(ta.highest(high, s31SqzLen), ta.lowest(low, s31SqzLen)), s31SqzBasis), s31SqzLen, 0)
+s31SqzMid = (ta.highest(high, s31SqzLen) + ta.lowest(low, s31SqzLen)) / 2.0
+s31SqzRef = (s31SqzMid + s31SqzBasis) / 2.0
+s31SqzMom = ta.linreg(close - s31SqzRef, s31SqzLen, 0)
 s31SqzFire = s31SqzOn[1] and not s31SqzOn
 s31SqzB = s31SqzUse and s31SqzFire and s31SqzMom > 0
 s31SqzS = s31SqzUse and s31SqzFire and s31SqzMom < 0
@@ -2775,11 +2788,14 @@ s31MtfBuyOK = not s31MtfGate or s31MtfUpCount >= s31MtfMinAgree
 s31MtfSellOK = not s31MtfGate or s31MtfDnCount >= s31MtfMinAgree
 
 // ── 6) جلسات التداول (Kill Zones) ─────────────────────────────────
+// الجلسات بدقائق UTC — نفس أسلوب جلسة آسيا الموجود بالمؤشر (syr30UtcMinute)
 s31SessUse = input.bool(false, "فعّل فلتر الجلسات — OFF", group=G_S31_MTF)
-s31SessLondon = input.session("0700-1000", "London Kill Zone (UTC)", group=G_S31_MTF)
-s31SessNY = input.session("1200-1500", "New York Kill Zone (UTC)", group=G_S31_MTF)
-s31InLondon = not na(time(timeframe.period, s31SessLondon, "UTC"))
-s31InNY = not na(time(timeframe.period, s31SessNY, "UTC"))
+s31LonStart = input.int(420, "London KZ Start Minute UTC", minval=0, maxval=1439, group=G_S31_MTF)
+s31LonEnd = input.int(600, "London KZ End Minute UTC", minval=1, maxval=1440, group=G_S31_MTF)
+s31NYStart = input.int(720, "New York KZ Start Minute UTC", minval=0, maxval=1439, group=G_S31_MTF)
+s31NYEnd = input.int(900, "New York KZ End Minute UTC", minval=1, maxval=1440, group=G_S31_MTF)
+s31InLondon = syr30UtcMinute >= s31LonStart and syr30UtcMinute < s31LonEnd
+s31InNY = syr30UtcMinute >= s31NYStart and syr30UtcMinute < s31NYEnd
 s31SessOK = not s31SessUse or s31InLondon or s31InNY
 
 // ── 7) Confluence Score 0–10 ──────────────────────────────────────
