@@ -1,0 +1,3 @@
+{"name":"أولوية مطلقة للتمدد على الأربعين مصدر",
+ "rewrites":[["buySignal := buySignal or chTriB or chSniB","stBuy = chStretch < -2.2 and chRsi3 < 20\nstSell = chStretch > 2.2 and chRsi3 > 80\nbuySignal := stBuy or stSell ? stBuy : (buySignal or chTriB or chSniB)"],
+             ["sellSignal := sellSignal or chTriS or chSniS","sellSignal := stBuy or stSell ? stSell : (sellSignal or chTriS or chSniS)"]]}
