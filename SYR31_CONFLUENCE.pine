@@ -534,6 +534,9 @@ syr30AuctionMinClosePos = input.float(0.62, "Reclaim Close Position", minval=0.5
 syr30AuctionMinBodyATR = input.float(0.10, "Minimum Reclaim Body ATR", minval=0.05, maxval=0.80, step=0.05, group=G_SYR30_AUCT)
 syr30AuctionMaxBodyATR = input.float(0.80, "Maximum Reclaim Body ATR", minval=0.20, maxval=1.50, step=0.05, group=G_SYR30_AUCT)
 useRoomFilter = input.bool(true, "Require Room For TP", group=G_RISK_NEW)
+// SYR31: كان هذا الرقم مثبّتاً على 20 داخل الكود، وهو يقيّد الوقف بحد أقصى = الهدف + 20.
+// هذا القيد وحده يضع سقفاً على نسبة الربح؛ صار قابلاً للتعديل والقيمة 20 تُبقي السلوك الأصلي كما هو.
+stopOverTargetMaxPts = input.float(20.0, "أقصى زيادة للوقف فوق الهدف (نقاط)", minval = 0.0, maxval = 200.0, step = 1.0, group = G_RISK_NEW)
 smartShowExitState = input.bool(false, "Show TP/SL Plan On Entry", group=G_RISK_NEW)
 smartMinStopPts = 60.0
 smartMaxStopPts = 65.0
@@ -2840,7 +2843,7 @@ if canEnterLong or canEnterShort
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
     tradeTargetPts := math.max(30.0, plannedTarget)
-    tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
+    tradeStopPts := math.min(plannedStop, tradeTargetPts + stopOverTargetMaxPts)
     tradeExitMode := plannedExitMode
     tradeDirectionScore := plannedDirectionScore
 
