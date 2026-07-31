@@ -2884,6 +2884,87 @@ ctxOK = not ctxUseGates or (not ctxDead and not ctxWeakVol)
 buySignal := buySignal and ctxOK
 sellSignal := sellSignal and ctxOK
 
+// ══════════════════════════════════════════════════════════════════
+// المدارس المتخصّصة — كل مدرسة تعمل في حالة سوق واحدة فقط،
+// وتقرأ الحالة من CTX بدل أن تقيسها بنفسها.
+//   كلها OFF افتراضياً. تُشغَّل واحدة واحدة وتُقاس على المحرّك،
+//   ولا تدخل النسخة النهائية إلا إذا رفعت الـ PF فعلياً.
+// ══════════════════════════════════════════════════════════════════
+G_SCH = "25 ■ المدارس المتخصّصة (CTX Schools)"
+
+schMinVol = input.float(1.00, "أقل فوليوم لكل المدارس الجديدة", minval = 0.0, maxval = 4.0, step = 0.05, group = G_SCH)
+schMinBodyPct = input.float(45.0, "أقل نسبة جسم للشمعة %", minval = 10.0, maxval = 90.0, step = 1.0, group = G_SCH)
+
+schRange = math.max(high - low, syminfo.mintick)
+schBody = math.abs(close - open)
+schBodyPct = schBody / schRange * 100.0
+schClosePos = (close - low) / schRange
+schBull = close > open
+schBear = close < open
+schVolOK = ctxVolRatio >= schMinVol
+schBodyOK = schBodyPct >= schMinBodyPct
+schBase = schVolOK and schBodyOK and not ctxDead
+
+// ── 1) كسر بفوليوم — حالة PEAK_VOL ──
+sch1Use = input.bool(false, "1 · كسر بفوليوم (PEAK_VOL)", group = G_SCH)
+sch1Len = input.int(20, "1 · نافذة الكسر", minval = 5, maxval = 100, group = G_SCH)
+sch1Hi = ta.highest(high, sch1Len)[1]
+sch1Lo = ta.lowest(low, sch1Len)[1]
+sch1B = sch1Use and schBase and ctxPeakVol and schBull and close > sch1Hi and schClosePos >= 0.65
+sch1S = sch1Use and schBase and ctxPeakVol and schBear and close < sch1Lo and schClosePos <= 0.35
+
+// ── 2) متابعة ترند — حالة TREND_QUIET ──
+sch2Use = input.bool(false, "2 · متابعة ترند بسحب (TREND_QUIET)", group = G_SCH)
+sch2TouchATR = input.float(0.35, "2 · قرب السحب من EMA20 (×ATR)", minval = 0.05, maxval = 2.0, step = 0.05, group = G_SCH)
+sch2Near = math.abs(close - ema20) <= atr * sch2TouchATR
+sch2Up = ema20 > ema50 and close > ema20
+sch2Dn = ema20 < ema50 and close < ema20
+sch2B = sch2Use and schBase and ctxTrending and not ctxVolatile and sch2Up and sch2Near[1] and schBull
+sch2S = sch2Use and schBase and ctxTrending and not ctxVolatile and sch2Dn and sch2Near[1] and schBear
+
+// ── 3) اندفاع — حالة TREND_VOLATILE ──
+sch3Use = input.bool(false, "3 · اندفاع بعد شمعة قوية (TREND_VOLATILE)", group = G_SCH)
+sch3ImpATR = input.float(1.10, "3 · حجم شمعة الاندفاع (×ATR)", minval = 0.4, maxval = 4.0, step = 0.05, group = G_SCH)
+sch3BigUp = close[1] > open[1] and (close[1] - open[1]) >= atr * sch3ImpATR
+sch3BigDn = close[1] < open[1] and (open[1] - close[1]) >= atr * sch3ImpATR
+sch3B = sch3Use and schBase and ctxTrending and ctxVolatile and sch3BigUp and schBull and close > close[1]
+sch3S = sch3Use and schBase and ctxTrending and ctxVolatile and sch3BigDn and schBear and close < close[1]
+
+// ── 4) ارتداد حواف — حالة RANGE_QUIET ──
+sch4Use = input.bool(false, "4 · ارتداد من حافة النطاق (RANGE_QUIET)", group = G_SCH)
+sch4Len = input.int(40, "4 · طول النطاق", minval = 10, maxval = 150, group = G_SCH)
+sch4Edge = input.float(18.0, "4 · حدّ الحافة %", minval = 5.0, maxval = 45.0, step = 1.0, group = G_SCH)
+sch4Hi = ta.highest(high, sch4Len)
+sch4Lo = ta.lowest(low, sch4Len)
+sch4Pos = (sch4Hi - sch4Lo) > 0 ? (close - sch4Lo) / (sch4Hi - sch4Lo) * 100.0 : 50.0
+sch4B = sch4Use and schBase and not ctxTrending and not ctxVolatile and sch4Pos <= sch4Edge and schBull and schClosePos >= 0.6
+sch4S = sch4Use and schBase and not ctxTrending and not ctxVolatile and sch4Pos >= (100.0 - sch4Edge) and schBear and schClosePos <= 0.4
+
+// ── 5) سحب سيولة — حالة RANGE_VOLATILE ──
+sch5Use = input.bool(false, "5 · سحب سيولة واسترجاع (RANGE_VOLATILE)", group = G_SCH)
+sch5Len = input.int(15, "5 · نافذة السيولة", minval = 3, maxval = 60, group = G_SCH)
+sch5PrevLo = ta.lowest(low, sch5Len)[1]
+sch5PrevHi = ta.highest(high, sch5Len)[1]
+sch5B = sch5Use and schBase and not ctxTrending and ctxVolatile and low < sch5PrevLo and close > sch5PrevLo and schBull
+sch5S = sch5Use and schBase and not ctxTrending and ctxVolatile and high > sch5PrevHi and close < sch5PrevHi and schBear
+
+// ── 6) استنزاف — ذروة فوليوم + زخم منهار ──
+sch6Use = input.bool(false, "6 · انعكاس استنزاف (PEAK_VOL + زخم منهار)", group = G_SCH)
+sch6WickPct = input.float(55.0, "6 · أقل ذيل رفض %", minval = 30.0, maxval = 90.0, step = 1.0, group = G_SCH)
+sch6UpWick = (high - math.max(open, close)) / schRange * 100.0
+sch6DnWick = (math.min(open, close) - low) / schRange * 100.0
+sch6B = sch6Use and schVolOK and ctxPeakVol and sch6DnWick >= sch6WickPct and close > open and low <= ta.lowest(low, 10)
+sch6S = sch6Use and schVolOK and ctxPeakVol and sch6UpWick >= sch6WickPct and close < open and high >= ta.highest(high, 10)
+
+schBuy = sch1B or sch2B or sch3B or sch4B or sch5B or sch6B
+schSell = sch1S or sch2S or sch3S or sch4S or sch5S or sch6S
+buySignal := buySignal or (schBuy and allowLong)
+sellSignal := sellSignal or (schSell and allowShort)
+
+schShowMarks = input.bool(false, "أظهر علامات المدارس الجديدة", group = G_SCH)
+plotshape(schShowMarks and schBuy, title="CTX School BUY", style=shape.circle, location=location.belowbar, color=color.new(color.aqua, 0), size=size.tiny)
+plotshape(schShowMarks and schSell, title="CTX School SELL", style=shape.circle, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny)
+
 canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
 canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
 
