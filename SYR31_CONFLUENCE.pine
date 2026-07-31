@@ -2829,6 +2829,53 @@ sellSignal := sellSignal and s31SellGateOK
 plotshape(s31ShowDiv and nz(s31BullDivBar, -1) == bar_index, title="SYR31 Bull Divergence", style=shape.triangleup, location=location.belowbar, color=color.new(color.aqua, 0), size=size.tiny)
 plotshape(s31ShowDiv and nz(s31BearDivBar, -1) == bar_index, title="SYR31 Bear Divergence", style=shape.triangledown, location=location.abovebar, color=color.new(color.fuchsia, 0), size=size.tiny)
 
+// ══════════════════════════════════════════════════════════════════
+// CTX ENGINE — قراءة السوق المركزية (فوليوم / زخم / تذبذب / حالة)
+//   جهة واحدة تقرأ السوق وتوزّع النتيجة على كل المدارس، بدل ما كل
+//   مدرسة تقرأ لحالها. العتبات الافتراضية مقيسة على 6469 صفقة حقيقية:
+//     • ADX < 15        → Expectancy −0.60  (سوق ميت، 884 صفقة)
+//     • VOL < 0.7×متوسط → Expectancy −0.91  (فوليوم ضعيف، 324 صفقة)
+//     • VOL > 2×متوسط   → Expectancy +10.02 (ذروة فوليوم، 102 صفقة)
+//   منع الاثنين معاً رفع الربح من 9336 إلى 10447 نقطة والـ PF من 1.068 إلى 1.093.
+//   لإرجاع سلوك SYR30 حرفياً: اجعل «فعّل بوابات قراءة السوق» = OFF.
+// ══════════════════════════════════════════════════════════════════
+G_CTX = "24 ■ CTX — قراءة السوق"
+
+ctxUseGates = input.bool(true, "فعّل بوابات قراءة السوق", group = G_CTX)
+ctxVolLen = input.int(50, "طول متوسط الفوليوم", minval = 5, maxval = 300, group = G_CTX)
+ctxMinVolRatio = input.float(0.70, "أقل نسبة فوليوم مسموحة", minval = 0.0, maxval = 3.0, step = 0.05, group = G_CTX)
+ctxMinAdx = input.float(15.0, "أقل ADX مسموح (منع السوق الميت)", minval = 0.0, maxval = 40.0, step = 0.5, group = G_CTX)
+ctxPeakVolRatio = input.float(2.00, "عتبة ذروة الفوليوم", minval = 1.0, maxval = 6.0, step = 0.1, group = G_CTX)
+ctxVolatileAtr = input.float(1.20, "عتبة التذبذب (ATR/متوسطه)", minval = 0.5, maxval = 4.0, step = 0.05, group = G_CTX)
+ctxTrendAdx = input.float(20.0, "عتبة الترند (ADX)", minval = 5.0, maxval = 50.0, step = 0.5, group = G_CTX)
+ctxShowTable = input.bool(true, "أظهر حالة السوق في الجدول", group = G_CTX)
+
+// ── القياسات ──
+ctxVolAvg = ta.sma(nz(volume, 0.0), ctxVolLen)
+ctxVolRatio = ctxVolAvg > 0.0 ? nz(volume, 0.0) / ctxVolAvg : 1.0
+ctxAtrRatio = atrRatio
+ctxAdx = adx
+ctxER = sy389LocalER
+ctxBodyPct = (high - low) > 0 ? math.abs(close - open) / (high - low) * 100.0 : 0.0
+
+// ── التصنيف ──
+ctxDead = ctxAdx < ctxMinAdx
+ctxWeakVol = ctxVolRatio < ctxMinVolRatio
+ctxPeakVol = ctxVolRatio >= ctxPeakVolRatio
+ctxVolatile = ctxAtrRatio >= ctxVolatileAtr
+ctxTrending = ctxAdx >= ctxTrendAdx
+ctxState = ctxDead ? "DEAD" : ctxPeakVol ? "PEAK_VOL" : (ctxTrending ? "TREND" : "RANGE") + (ctxVolatile ? "_VOLATILE" : "_QUIET")
+
+// ── درجات 0–10 تُسلَّم للمدارس ──
+ctxVolScore = math.min(10.0, ctxVolRatio * 5.0)
+ctxMomScore = math.min(10.0, ctxAdx / 4.0 + ctxBodyPct / 25.0)
+ctxQuality = (ctxVolScore + ctxMomScore) * 0.5
+
+// ── البوابة النهائية ──
+ctxOK = not ctxUseGates or (not ctxDead and not ctxWeakVol)
+buySignal := buySignal and ctxOK
+sellSignal := sellSignal and ctxOK
+
 canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
 canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
 
@@ -3199,7 +3246,7 @@ color TBL_BG_HEAD = color.rgb(22, 24, 34)
 color TBL_BG_ROW = color.rgb(18, 20, 30)
 color TBL_BG_ROW2 = color.rgb(20, 22, 32)
 
-var table t = table.new(position.top_right, 2, 22, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+var table t = table.new(position.top_right, 2, 24, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 if showTable and barstate.islast
     table.cell(t, 0, 0, "SYXAUUSD", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 1, 0, "FINAL K3 CACHE | F>TV>B", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
@@ -3267,10 +3314,16 @@ if showTable and barstate.islast
     table.cell(t, 0, 20, "Score B/S", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
     table.cell(t, 1, 20, str.tostring(s31ScoreBuy) + " / " + str.tostring(s31ScoreSell), text_color=s31ScoreBuy > s31ScoreSell ? BUY_C : s31ScoreSell > s31ScoreBuy ? SELL_C : EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
+    if ctxShowTable
+        table.cell(t, 0, 22, "CTX", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+        table.cell(t, 1, 22, ctxState, text_color=ctxDead ? SELL_C : ctxPeakVol ? BUY_C : EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+        table.cell(t, 0, 23, "Vol / Qual", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+        table.cell(t, 1, 23, str.tostring(ctxVolRatio, "#.##") + "x / " + str.tostring(ctxQuality, "#.#"), text_color=ctxWeakVol ? SELL_C : ctxPeakVol ? BUY_C : color.white, bgcolor=TBL_BG_ROW, text_size=size.small)
+
     table.cell(t, 0, 21, "MTF / Div", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
     table.cell(t, 1, 21, str.tostring(s31MtfUpCount) + "↑" + str.tostring(s31MtfDnCount) + "↓ | " + (s31BullDiv ? "BULL" : s31BearDiv ? "BEAR" : "—"), text_color=s31BullDiv ? BUY_C : s31BearDiv ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 else if not showTable and barstate.islast
-    table.clear(t, 0, 0, 1, 21)
+    table.clear(t, 0, 0, 1, 23)
 
 alertcondition(canEnterLong, "SYR30 BUY", "SYR30 BUY | FINAL K3 CACHE")
 alertcondition(canEnterShort, "SYR30 SELL", "SYR30 SELL | FINAL K3 CACHE")
