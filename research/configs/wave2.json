@@ -1,0 +1,12 @@
+{
+ "بلا إضافات": {},
+ "مسار الشمعة": { "kkUsePath": true },
+ "إذن RSI": { "kkUseRsiSide": true },
+ "مسار + إذن RSI": { "kkUsePath": true, "kkUseRsiSide": true },
+ "مسار + RSI 55/45": { "kkUsePath": true, "kkUseRsiSide": true, "kkRsiHi": 55, "kkRsiLo": 45 },
+ "مسار + ستوب فارق 10": { "kkUsePath": true, "kkUseStopGap": true, "kkMinGapPts": 10 },
+ "مسار + ستوب فارق 20": { "kkUsePath": true, "kkUseStopGap": true, "kkMinGapPts": 20, "kkMaxGapPts": 20 },
+ "مسار + RSI + ستوب 20": { "kkUsePath": true, "kkUseRsiSide": true, "kkUseStopGap": true, "kkMinGapPts": 20, "kkMaxGapPts": 20 },
+ "مسار + سحب 60 عمق 1": { "kkUsePath": true, "kkUseLongSweep": true, "kkSweepLen": 60, "kkSweepMinATR": 1.0 },
+ "مسار + RSI + سحب 20": { "kkUsePath": true, "kkUseRsiSide": true, "kkUseLongSweep": true }
+}

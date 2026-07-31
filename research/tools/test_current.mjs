@@ -18,7 +18,7 @@ const MONTHS = {
   '2026': ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'],
 };
 
-const CONFIGS = [
+const DEFAULT_CONFIGS = [
   ['بلا إضافات', {}],
   ['مسار الشمعة', { kkUsePath: true }],
   ['موضع الإغلاق ≤40٪', { kkUseClosePos: true, kkCloseMaxPct: 40 }],
@@ -42,7 +42,11 @@ globalThis.self = { onmessage: null, postMessage: m => messages.push(m) };
 (0, eval)(core);
 (0, eval)(workerBody);
 
-const [period, a, b, out] = process.argv.slice(2);
+// الموجة الثانية تُمرَّر كملف، فلا يُنسخ المشغّل مرة لكل موجة
+const [period, a, b, out, cfgFile] = process.argv.slice(2);
+const CONFIGS = cfgFile
+  ? Object.entries(JSON.parse(fs.readFileSync(cfgFile, 'utf8')))
+  : DEFAULT_CONFIGS;
 const months = MONTHS[period];
 const vaultText = zlib.gunzipSync(fs.readFileSync('research/data/vault_utc.csv.gz')).toString('utf8');
 
