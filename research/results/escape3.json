@@ -1,0 +1,2294 @@
+{
+ "30/50": {
+  "breakeven": 62.5,
+  "passed": 322,
+  "rows": [
+   {
+    "combo": "ساعة 20-23 + RSI<36",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 223,
+     "wins": 156,
+     "losses": 67,
+     "win_rate": 69.96,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 449,
+     "wins": 309,
+     "losses": 140,
+     "win_rate": 68.82,
+     "per_day": 2.7
+    },
+    "worst": 68.82
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪ + ATR 12-27",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 217,
+     "wins": 144,
+     "losses": 73,
+     "win_rate": 66.36,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 335,
+     "wins": 229,
+     "losses": 106,
+     "win_rate": 68.36,
+     "per_day": 2.0
+    },
+    "worst": 66.36
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + ATR 12-27",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 201,
+     "wins": 133,
+     "losses": 68,
+     "win_rate": 66.17,
+     "per_day": 1.3
+    },
+    "2026": {
+     "trades": 323,
+     "wins": 217,
+     "losses": 106,
+     "win_rate": 67.18,
+     "per_day": 1.9
+    },
+    "worst": 66.17
+   },
+   {
+    "combo": "RSI<36 + ATR 12-27 + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 489,
+     "wins": 332,
+     "losses": 157,
+     "win_rate": 67.89,
+     "per_day": 3.1
+    },
+    "2026": {
+     "trades": 673,
+     "wins": 445,
+     "losses": 228,
+     "win_rate": 66.12,
+     "per_day": 4.0
+    },
+    "worst": 66.12
+   },
+   {
+    "combo": "قاع الساعة<12٪ + سحب تحت≥1 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 668,
+     "wins": 447,
+     "losses": 221,
+     "win_rate": 66.92,
+     "per_day": 4.2
+    },
+    "2026": {
+     "trades": 946,
+     "wins": 621,
+     "losses": 325,
+     "win_rate": 65.64,
+     "per_day": 5.6
+    },
+    "worst": 65.64
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 256,
+     "wins": 168,
+     "losses": 88,
+     "win_rate": 65.62,
+     "per_day": 1.6
+    },
+    "2026": {
+     "trades": 390,
+     "wins": 261,
+     "losses": 129,
+     "win_rate": 66.92,
+     "per_day": 2.3
+    },
+    "worst": 65.62
+   },
+   {
+    "combo": "RSI<36 + سحب تحت≥1 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 672,
+     "wins": 449,
+     "losses": 223,
+     "win_rate": 66.82,
+     "per_day": 4.3
+    },
+    "2026": {
+     "trades": 954,
+     "wins": 626,
+     "losses": 328,
+     "win_rate": 65.62,
+     "per_day": 5.6
+    },
+    "worst": 65.62
+   },
+   {
+    "combo": "سحب تحت≥1 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 673,
+     "wins": 450,
+     "losses": 223,
+     "win_rate": 66.86,
+     "per_day": 4.3
+    },
+    "2026": {
+     "trades": 956,
+     "wins": 627,
+     "losses": 329,
+     "win_rate": 65.59,
+     "per_day": 5.7
+    },
+    "worst": 65.59
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 375,
+     "wins": 249,
+     "losses": 126,
+     "win_rate": 66.4,
+     "per_day": 2.4
+    },
+    "2026": {
+     "trades": 641,
+     "wins": 420,
+     "losses": 221,
+     "win_rate": 65.52,
+     "per_day": 3.8
+    },
+    "worst": 65.52
+   },
+   {
+    "combo": "سحب تحت≥1 + إغلاق قرب القاع + شمعة واسعة",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 588,
+     "wins": 385,
+     "losses": 203,
+     "win_rate": 65.48,
+     "per_day": 3.7
+    },
+    "2026": {
+     "trades": 861,
+     "wins": 565,
+     "losses": 296,
+     "win_rate": 65.62,
+     "per_day": 5.1
+    },
+    "worst": 65.48
+   },
+   {
+    "combo": "قمة الساعة>88٪ + انكماش<0.75 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 507,
+     "wins": 333,
+     "losses": 174,
+     "win_rate": 65.68,
+     "per_day": 3.2
+    },
+    "2026": {
+     "trades": 750,
+     "wins": 491,
+     "losses": 259,
+     "win_rate": 65.47,
+     "per_day": 4.4
+    },
+    "worst": 65.47
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + حجم<0.53",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 1496,
+     "wins": 979,
+     "losses": 517,
+     "win_rate": 65.44,
+     "per_day": 9.5
+    },
+    "2026": {
+     "trades": 164,
+     "wins": 109,
+     "losses": 55,
+     "win_rate": 66.46,
+     "per_day": 1.0
+    },
+    "worst": 65.44
+   },
+   {
+    "combo": "ساعة 20-23 + قاع الساعة<12٪ + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 178,
+     "wins": 122,
+     "losses": 56,
+     "win_rate": 68.54,
+     "per_day": 1.1
+    },
+    "2026": {
+     "trades": 306,
+     "wins": 200,
+     "losses": 106,
+     "win_rate": 65.36,
+     "per_day": 1.8
+    },
+    "worst": 65.36
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪ + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 237,
+     "wins": 163,
+     "losses": 74,
+     "win_rate": 68.78,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 340,
+     "wins": 222,
+     "losses": 118,
+     "win_rate": 65.29,
+     "per_day": 2.0
+    },
+    "worst": 65.29
+   },
+   {
+    "combo": "ساعة 20-23 + RSI<36 + قاع الساعة<12٪",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 169,
+     "wins": 121,
+     "losses": 48,
+     "win_rate": 71.6,
+     "per_day": 1.1
+    },
+    "2026": {
+     "trades": 290,
+     "wins": 189,
+     "losses": 101,
+     "win_rate": 65.17,
+     "per_day": 1.7
+    },
+    "worst": 65.17
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + ميل عرضي",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 189,
+     "wins": 123,
+     "losses": 66,
+     "win_rate": 65.08,
+     "per_day": 1.2
+    },
+    "2026": {
+     "trades": 332,
+     "wins": 221,
+     "losses": 111,
+     "win_rate": 66.57,
+     "per_day": 2.0
+    },
+    "worst": 65.08
+   },
+   {
+    "combo": "RSI 42-50 + توسع>1.21 + ميل صاعد",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 386,
+     "wins": 251,
+     "losses": 135,
+     "win_rate": 65.03,
+     "per_day": 2.4
+    },
+    "2026": {
+     "trades": 587,
+     "wins": 384,
+     "losses": 203,
+     "win_rate": 65.42,
+     "per_day": 3.5
+    },
+    "worst": 65.03
+   },
+   {
+    "combo": "توسع>1.21 + ATR 12-27 + ميل صاعد",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 809,
+     "wins": 545,
+     "losses": 264,
+     "win_rate": 67.37,
+     "per_day": 5.1
+    },
+    "2026": {
+     "trades": 506,
+     "wins": 329,
+     "losses": 177,
+     "win_rate": 65.02,
+     "per_day": 3.0
+    },
+    "worst": 65.02
+   },
+   {
+    "combo": "ATR 12-27 + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 516,
+     "wins": 350,
+     "losses": 166,
+     "win_rate": 67.83,
+     "per_day": 3.3
+    },
+    "2026": {
+     "trades": 708,
+     "wins": 460,
+     "losses": 248,
+     "win_rate": 64.97,
+     "per_day": 4.2
+    },
+    "worst": 64.97
+   },
+   {
+    "combo": "RSI<36 + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 1048,
+     "wins": 694,
+     "losses": 354,
+     "win_rate": 66.22,
+     "per_day": 6.6
+    },
+    "2026": {
+     "trades": 1522,
+     "wins": 988,
+     "losses": 534,
+     "win_rate": 64.91,
+     "per_day": 9.0
+    },
+    "worst": 64.91
+   },
+   {
+    "combo": "ساعة 5-11 + ميل صاعد + شمعة ضيقة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 424,
+     "wins": 275,
+     "losses": 149,
+     "win_rate": 64.86,
+     "per_day": 2.7
+    },
+    "2026": {
+     "trades": 669,
+     "wins": 438,
+     "losses": 231,
+     "win_rate": 65.47,
+     "per_day": 4.0
+    },
+    "worst": 64.86
+   },
+   {
+    "combo": "ساعة 5-11 + انكماش<0.75 + ATR 12-27",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 212,
+     "wins": 150,
+     "losses": 62,
+     "win_rate": 70.75,
+     "per_day": 1.3
+    },
+    "2026": {
+     "trades": 583,
+     "wins": 378,
+     "losses": 205,
+     "win_rate": 64.84,
+     "per_day": 3.4
+    },
+    "worst": 64.84
+   },
+   {
+    "combo": "ساعة 17-20 + RSI 50-58 + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 491,
+     "wins": 332,
+     "losses": 159,
+     "win_rate": 67.62,
+     "per_day": 3.1
+    },
+    "2026": {
+     "trades": 790,
+     "wins": 512,
+     "losses": 278,
+     "win_rate": 64.81,
+     "per_day": 4.7
+    },
+    "worst": 64.81
+   },
+   {
+    "combo": "RSI<36 + قاع الساعة<12٪ + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 893,
+     "wins": 600,
+     "losses": 293,
+     "win_rate": 67.19,
+     "per_day": 5.7
+    },
+    "2026": {
+     "trades": 1261,
+     "wins": 817,
+     "losses": 444,
+     "win_rate": 64.79,
+     "per_day": 7.5
+    },
+    "worst": 64.79
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + ATR 12-27",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 914,
+     "wins": 597,
+     "losses": 317,
+     "win_rate": 65.32,
+     "per_day": 5.8
+    },
+    "2026": {
+     "trades": 1866,
+     "wins": 1208,
+     "losses": 658,
+     "win_rate": 64.74,
+     "per_day": 11.0
+    },
+    "worst": 64.74
+   },
+   {
+    "combo": "RSI<36 + انكماش<0.75 + ميل عرضي",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 380,
+     "wins": 246,
+     "losses": 134,
+     "win_rate": 64.74,
+     "per_day": 2.4
+    },
+    "2026": {
+     "trades": 613,
+     "wins": 397,
+     "losses": 216,
+     "win_rate": 64.76,
+     "per_day": 3.6
+    },
+    "worst": 64.74
+   },
+   {
+    "combo": "ساعة 23-5 + RSI>64 + انكماش<0.75",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 241,
+     "wins": 156,
+     "losses": 85,
+     "win_rate": 64.73,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 365,
+     "wins": 238,
+     "losses": 127,
+     "win_rate": 65.21,
+     "per_day": 2.2
+    },
+    "worst": 64.73
+   },
+   {
+    "combo": "ساعة 5-11 + انكماش<0.75 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 196,
+     "wins": 141,
+     "losses": 55,
+     "win_rate": 71.94,
+     "per_day": 1.2
+    },
+    "2026": {
+     "trades": 328,
+     "wins": 212,
+     "losses": 116,
+     "win_rate": 64.63,
+     "per_day": 1.9
+    },
+    "worst": 64.63
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 590,
+     "wins": 381,
+     "losses": 209,
+     "win_rate": 64.58,
+     "per_day": 3.7
+    },
+    "2026": {
+     "trades": 1287,
+     "wins": 835,
+     "losses": 452,
+     "win_rate": 64.88,
+     "per_day": 7.6
+    },
+    "worst": 64.58
+   },
+   {
+    "combo": "قمة الساعة>88٪ + انكماش<0.75 + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 770,
+     "wins": 497,
+     "losses": 273,
+     "win_rate": 64.55,
+     "per_day": 4.9
+    },
+    "2026": {
+     "trades": 1186,
+     "wins": 775,
+     "losses": 411,
+     "win_rate": 65.35,
+     "per_day": 7.0
+    },
+    "worst": 64.55
+   },
+   {
+    "combo": "قاع الساعة<12٪ + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 900,
+     "wins": 607,
+     "losses": 293,
+     "win_rate": 67.44,
+     "per_day": 5.7
+    },
+    "2026": {
+     "trades": 1269,
+     "wins": 819,
+     "losses": 450,
+     "win_rate": 64.54,
+     "per_day": 7.5
+    },
+    "worst": 64.54
+   },
+   {
+    "combo": "ساعة 17-20 + ATR 12-27 + شمعة ضيقة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 344,
+     "wins": 222,
+     "losses": 122,
+     "win_rate": 64.53,
+     "per_day": 2.2
+    },
+    "2026": {
+     "trades": 680,
+     "wins": 443,
+     "losses": 237,
+     "win_rate": 65.15,
+     "per_day": 4.0
+    },
+    "worst": 64.53
+   },
+   {
+    "combo": "سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 1095,
+     "wins": 728,
+     "losses": 367,
+     "win_rate": 66.48,
+     "per_day": 6.9
+    },
+    "2026": {
+     "trades": 1575,
+     "wins": 1016,
+     "losses": 559,
+     "win_rate": 64.51,
+     "per_day": 9.3
+    },
+    "worst": 64.51
+   },
+   {
+    "combo": "وسط النطاق + انكماش<0.75 + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 792,
+     "wins": 510,
+     "losses": 282,
+     "win_rate": 64.39,
+     "per_day": 5.0
+    },
+    "2026": {
+     "trades": 1200,
+     "wins": 773,
+     "losses": 427,
+     "win_rate": 64.42,
+     "per_day": 7.1
+    },
+    "worst": 64.39
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 339,
+     "wins": 229,
+     "losses": 110,
+     "win_rate": 67.55,
+     "per_day": 2.1
+    },
+    "2026": {
+     "trades": 617,
+     "wins": 397,
+     "losses": 220,
+     "win_rate": 64.34,
+     "per_day": 3.7
+    },
+    "worst": 64.34
+   },
+   {
+    "combo": "ساعة 20-23 + ميل هابط + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 207,
+     "wins": 138,
+     "losses": 69,
+     "win_rate": 66.67,
+     "per_day": 1.3
+    },
+    "2026": {
+     "trades": 482,
+     "wins": 310,
+     "losses": 172,
+     "win_rate": 64.32,
+     "per_day": 2.9
+    },
+    "worst": 64.32
+   },
+   {
+    "combo": "قمة الساعة>88٪ + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 874,
+     "wins": 562,
+     "losses": 312,
+     "win_rate": 64.3,
+     "per_day": 5.5
+    },
+    "2026": {
+     "trades": 1406,
+     "wins": 907,
+     "losses": 499,
+     "win_rate": 64.51,
+     "per_day": 8.3
+    },
+    "worst": 64.3
+   },
+   {
+    "combo": "ساعة 17-20 + RSI 50-58 + ATR 12-27",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 420,
+     "wins": 270,
+     "losses": 150,
+     "win_rate": 64.29,
+     "per_day": 2.7
+    },
+    "2026": {
+     "trades": 696,
+     "wins": 460,
+     "losses": 236,
+     "win_rate": 66.09,
+     "per_day": 4.1
+    },
+    "worst": 64.29
+   },
+   {
+    "combo": "ساعة 5-11 + توسع>1.21 + ميل عرضي",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 602,
+     "wins": 387,
+     "losses": 215,
+     "win_rate": 64.29,
+     "per_day": 3.8
+    },
+    "2026": {
+     "trades": 973,
+     "wins": 632,
+     "losses": 341,
+     "win_rate": 64.95,
+     "per_day": 5.8
+    },
+    "worst": 64.29
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + قمة الساعة>88٪",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 305,
+     "wins": 196,
+     "losses": 109,
+     "win_rate": 64.26,
+     "per_day": 1.9
+    },
+    "2026": {
+     "trades": 492,
+     "wins": 316,
+     "losses": 176,
+     "win_rate": 64.23,
+     "per_day": 2.9
+    },
+    "worst": 64.23
+   },
+   {
+    "combo": "انكماش<0.75 + ميل صاعد + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 743,
+     "wins": 489,
+     "losses": 254,
+     "win_rate": 65.81,
+     "per_day": 4.7
+    },
+    "2026": {
+     "trades": 1310,
+     "wins": 841,
+     "losses": 469,
+     "win_rate": 64.2,
+     "per_day": 7.8
+    },
+    "worst": 64.2
+   },
+   {
+    "combo": "انكماش<0.75 + ميل صاعد + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 463,
+     "wins": 301,
+     "losses": 162,
+     "win_rate": 65.01,
+     "per_day": 2.9
+    },
+    "2026": {
+     "trades": 662,
+     "wins": 425,
+     "losses": 237,
+     "win_rate": 64.2,
+     "per_day": 3.9
+    },
+    "worst": 64.2
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 226,
+     "wins": 149,
+     "losses": 77,
+     "win_rate": 65.93,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 310,
+     "wins": 199,
+     "losses": 111,
+     "win_rate": 64.19,
+     "per_day": 1.8
+    },
+    "worst": 64.19
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 587,
+     "wins": 379,
+     "losses": 208,
+     "win_rate": 64.57,
+     "per_day": 3.7
+    },
+    "2026": {
+     "trades": 1304,
+     "wins": 837,
+     "losses": 467,
+     "win_rate": 64.19,
+     "per_day": 7.7
+    },
+    "worst": 64.19
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 1250,
+     "wins": 826,
+     "losses": 424,
+     "win_rate": 66.08,
+     "per_day": 7.9
+    },
+    "2026": {
+     "trades": 2161,
+     "wins": 1387,
+     "losses": 774,
+     "win_rate": 64.18,
+     "per_day": 12.8
+    },
+    "worst": 64.18
+   },
+   {
+    "combo": "ساعة 5-11 + وسط النطاق + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 1546,
+     "wins": 994,
+     "losses": 552,
+     "win_rate": 64.29,
+     "per_day": 9.8
+    },
+    "2026": {
+     "trades": 3060,
+     "wins": 1964,
+     "losses": 1096,
+     "win_rate": 64.18,
+     "per_day": 18.1
+    },
+    "worst": 64.18
+   },
+   {
+    "combo": "RSI<36 + سحب تحت≥1 + شمعة واسعة",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 907,
+     "wins": 602,
+     "losses": 305,
+     "win_rate": 66.37,
+     "per_day": 5.7
+    },
+    "2026": {
+     "trades": 1354,
+     "wins": 869,
+     "losses": 485,
+     "win_rate": 64.18,
+     "per_day": 8.0
+    },
+    "worst": 64.18
+   },
+   {
+    "combo": "ساعة 5-11 + ATR 12-27 + ميل عرضي",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 1103,
+     "wins": 711,
+     "losses": 392,
+     "win_rate": 64.46,
+     "per_day": 7.0
+    },
+    "2026": {
+     "trades": 2434,
+     "wins": 1562,
+     "losses": 872,
+     "win_rate": 64.17,
+     "per_day": 14.4
+    },
+    "worst": 64.17
+   },
+   {
+    "combo": "انكماش<0.75 + ATR 12-27 + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 583,
+     "wins": 374,
+     "losses": 209,
+     "win_rate": 64.15,
+     "per_day": 3.7
+    },
+    "2026": {
+     "trades": 1419,
+     "wins": 927,
+     "losses": 492,
+     "win_rate": 65.33,
+     "per_day": 8.4
+    },
+    "worst": 64.15
+   },
+   {
+    "combo": "انكماش<0.75 + إغلاق قرب القمة + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 739,
+     "wins": 474,
+     "losses": 265,
+     "win_rate": 64.14,
+     "per_day": 4.7
+    },
+    "2026": {
+     "trades": 1105,
+     "wins": 718,
+     "losses": 387,
+     "win_rate": 64.98,
+     "per_day": 6.5
+    },
+    "worst": 64.14
+   },
+   {
+    "combo": "RSI<36 + ميل عرضي + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 666,
+     "wins": 428,
+     "losses": 238,
+     "win_rate": 64.26,
+     "per_day": 4.2
+    },
+    "2026": {
+     "trades": 803,
+     "wins": 515,
+     "losses": 288,
+     "win_rate": 64.13,
+     "per_day": 4.8
+    },
+    "worst": 64.13
+   },
+   {
+    "combo": "انكماش<0.75 + ميل هابط + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 323,
+     "wins": 207,
+     "losses": 116,
+     "win_rate": 64.09,
+     "per_day": 2.0
+    },
+    "2026": {
+     "trades": 589,
+     "wins": 381,
+     "losses": 208,
+     "win_rate": 64.69,
+     "per_day": 3.5
+    },
+    "worst": 64.09
+   },
+   {
+    "combo": "ساعة 17-20 + وسط النطاق + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 700,
+     "wins": 449,
+     "losses": 251,
+     "win_rate": 64.14,
+     "per_day": 4.4
+    },
+    "2026": {
+     "trades": 1428,
+     "wins": 915,
+     "losses": 513,
+     "win_rate": 64.08,
+     "per_day": 8.4
+    },
+    "worst": 64.08
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪ + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 265,
+     "wins": 175,
+     "losses": 90,
+     "win_rate": 66.04,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 434,
+     "wins": 278,
+     "losses": 156,
+     "win_rate": 64.06,
+     "per_day": 2.6
+    },
+    "worst": 64.06
+   },
+   {
+    "combo": "ساعة 5-11 + قمة الساعة>88٪ + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 367,
+     "wins": 235,
+     "losses": 132,
+     "win_rate": 64.03,
+     "per_day": 2.3
+    },
+    "2026": {
+     "trades": 495,
+     "wins": 319,
+     "losses": 176,
+     "win_rate": 64.44,
+     "per_day": 2.9
+    },
+    "worst": 64.03
+   },
+   {
+    "combo": "ساعة 5-11 + وسط النطاق + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 582,
+     "wins": 384,
+     "losses": 198,
+     "win_rate": 65.98,
+     "per_day": 3.7
+    },
+    "2026": {
+     "trades": 1044,
+     "wins": 668,
+     "losses": 376,
+     "win_rate": 63.98,
+     "per_day": 6.2
+    },
+    "worst": 63.98
+   },
+   {
+    "combo": "ساعة 5-11 + ميل صاعد + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 755,
+     "wins": 483,
+     "losses": 272,
+     "win_rate": 63.97,
+     "per_day": 4.8
+    },
+    "2026": {
+     "trades": 1339,
+     "wins": 877,
+     "losses": 462,
+     "win_rate": 65.5,
+     "per_day": 7.9
+    },
+    "worst": 63.97
+   },
+   {
+    "combo": "ساعة 17-20 + وسط النطاق + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 530,
+     "wins": 339,
+     "losses": 191,
+     "win_rate": 63.96,
+     "per_day": 3.4
+    },
+    "2026": {
+     "trades": 1204,
+     "wins": 779,
+     "losses": 425,
+     "win_rate": 64.7,
+     "per_day": 7.1
+    },
+    "worst": 63.96
+   },
+   {
+    "combo": "RSI<36 + توسع>1.21 + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 512,
+     "wins": 340,
+     "losses": 172,
+     "win_rate": 66.41,
+     "per_day": 3.2
+    },
+    "2026": {
+     "trades": 713,
+     "wins": 456,
+     "losses": 257,
+     "win_rate": 63.96,
+     "per_day": 4.2
+    },
+    "worst": 63.96
+   },
+   {
+    "combo": "انكماش<0.75 + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 1201,
+     "wins": 768,
+     "losses": 433,
+     "win_rate": 63.95,
+     "per_day": 7.6
+    },
+    "2026": {
+     "trades": 2121,
+     "wins": 1356,
+     "losses": 765,
+     "win_rate": 63.93,
+     "per_day": 12.6
+    },
+    "worst": 63.93
+   }
+  ]
+ },
+ "60/80": {
+  "breakeven": 57.14,
+  "passed": 439,
+  "rows": [
+   {
+    "combo": "ساعة 17-20 + RSI>64 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 162,
+     "wins": 108,
+     "losses": 54,
+     "win_rate": 66.67,
+     "per_day": 1.0
+    },
+    "2026": {
+     "trades": 213,
+     "wins": 136,
+     "losses": 77,
+     "win_rate": 63.85,
+     "per_day": 1.3
+    },
+    "worst": 63.85
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 189,
+     "wins": 120,
+     "losses": 69,
+     "win_rate": 63.49,
+     "per_day": 1.2
+    },
+    "2026": {
+     "trades": 330,
+     "wins": 210,
+     "losses": 120,
+     "win_rate": 63.64,
+     "per_day": 2.0
+    },
+    "worst": 63.49
+   },
+   {
+    "combo": "ساعة 5-11 + انكماش<0.75 + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 253,
+     "wins": 160,
+     "losses": 93,
+     "win_rate": 63.24,
+     "per_day": 1.6
+    },
+    "2026": {
+     "trades": 399,
+     "wins": 253,
+     "losses": 146,
+     "win_rate": 63.41,
+     "per_day": 2.4
+    },
+    "worst": 63.24
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 261,
+     "wins": 165,
+     "losses": 96,
+     "win_rate": 63.22,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 425,
+     "wins": 271,
+     "losses": 154,
+     "win_rate": 63.76,
+     "per_day": 2.5
+    },
+    "worst": 63.22
+   },
+   {
+    "combo": "ساعة 20-23 + RSI<36",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 168,
+     "wins": 116,
+     "losses": 52,
+     "win_rate": 69.05,
+     "per_day": 1.1
+    },
+    "2026": {
+     "trades": 316,
+     "wins": 198,
+     "losses": 118,
+     "win_rate": 62.66,
+     "per_day": 1.9
+    },
+    "worst": 62.66
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 190,
+     "wins": 119,
+     "losses": 71,
+     "win_rate": 62.63,
+     "per_day": 1.2
+    },
+    "2026": {
+     "trades": 264,
+     "wins": 171,
+     "losses": 93,
+     "win_rate": 64.77,
+     "per_day": 1.6
+    },
+    "worst": 62.63
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪ + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 187,
+     "wins": 118,
+     "losses": 69,
+     "win_rate": 63.1,
+     "per_day": 1.2
+    },
+    "2026": {
+     "trades": 281,
+     "wins": 176,
+     "losses": 105,
+     "win_rate": 62.63,
+     "per_day": 1.7
+    },
+    "worst": 62.63
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 42-50 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 205,
+     "wins": 136,
+     "losses": 69,
+     "win_rate": 66.34,
+     "per_day": 1.3
+    },
+    "2026": {
+     "trades": 313,
+     "wins": 196,
+     "losses": 117,
+     "win_rate": 62.62,
+     "per_day": 1.9
+    },
+    "worst": 62.62
+   },
+   {
+    "combo": "ساعة 20-23 + RSI 42-50 + انكماش<0.75",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 152,
+     "wins": 95,
+     "losses": 57,
+     "win_rate": 62.5,
+     "per_day": 1.0
+    },
+    "2026": {
+     "trades": 222,
+     "wins": 141,
+     "losses": 81,
+     "win_rate": 63.51,
+     "per_day": 1.3
+    },
+    "worst": 62.5
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + قمة الساعة>88٪",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 224,
+     "wins": 140,
+     "losses": 84,
+     "win_rate": 62.5,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 336,
+     "wins": 215,
+     "losses": 121,
+     "win_rate": 63.99,
+     "per_day": 2.0
+    },
+    "worst": 62.5
+   },
+   {
+    "combo": "ساعة 20-23 + RSI 42-50 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 232,
+     "wins": 145,
+     "losses": 87,
+     "win_rate": 62.5,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 390,
+     "wins": 243,
+     "losses": 147,
+     "win_rate": 62.31,
+     "per_day": 2.3
+    },
+    "worst": 62.31
+   },
+   {
+    "combo": "ساعة 17-20 + ميل صاعد + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 211,
+     "wins": 132,
+     "losses": 79,
+     "win_rate": 62.56,
+     "per_day": 1.3
+    },
+    "2026": {
+     "trades": 374,
+     "wins": 233,
+     "losses": 141,
+     "win_rate": 62.3,
+     "per_day": 2.2
+    },
+    "worst": 62.3
+   },
+   {
+    "combo": "ساعة 17-20 + RSI>64 + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 247,
+     "wins": 159,
+     "losses": 88,
+     "win_rate": 64.37,
+     "per_day": 1.6
+    },
+    "2026": {
+     "trades": 368,
+     "wins": 229,
+     "losses": 139,
+     "win_rate": 62.23,
+     "per_day": 2.2
+    },
+    "worst": 62.23
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪ + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 162,
+     "wins": 105,
+     "losses": 57,
+     "win_rate": 64.81,
+     "per_day": 1.0
+    },
+    "2026": {
+     "trades": 217,
+     "wins": 135,
+     "losses": 82,
+     "win_rate": 62.21,
+     "per_day": 1.3
+    },
+    "worst": 62.21
+   },
+   {
+    "combo": "ساعة 17-20 + RSI 50-58 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 261,
+     "wins": 162,
+     "losses": 99,
+     "win_rate": 62.07,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 508,
+     "wins": 318,
+     "losses": 190,
+     "win_rate": 62.6,
+     "per_day": 3.0
+    },
+    "worst": 62.07
+   },
+   {
+    "combo": "ساعة 17-20 + RSI 42-50 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 233,
+     "wins": 146,
+     "losses": 87,
+     "win_rate": 62.66,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 540,
+     "wins": 334,
+     "losses": 206,
+     "win_rate": 61.85,
+     "per_day": 3.2
+    },
+    "worst": 61.85
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 209,
+     "wins": 136,
+     "losses": 73,
+     "win_rate": 65.07,
+     "per_day": 1.3
+    },
+    "2026": {
+     "trades": 325,
+     "wins": 201,
+     "losses": 124,
+     "win_rate": 61.85,
+     "per_day": 1.9
+    },
+    "worst": 61.85
+   },
+   {
+    "combo": "RSI>64 + قمة الساعة>88٪ + ميل هابط",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 190,
+     "wins": 119,
+     "losses": 71,
+     "win_rate": 62.63,
+     "per_day": 1.2
+    },
+    "2026": {
+     "trades": 241,
+     "wins": 149,
+     "losses": 92,
+     "win_rate": 61.83,
+     "per_day": 1.4
+    },
+    "worst": 61.83
+   },
+   {
+    "combo": "ساعة 20-23 + ميل هابط",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 154,
+     "wins": 103,
+     "losses": 51,
+     "win_rate": 66.88,
+     "per_day": 1.0
+    },
+    "2026": {
+     "trades": 382,
+     "wins": 236,
+     "losses": 146,
+     "win_rate": 61.78,
+     "per_day": 2.3
+    },
+    "worst": 61.78
+   },
+   {
+    "combo": "ساعة 17-20 + وسط النطاق + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 272,
+     "wins": 168,
+     "losses": 104,
+     "win_rate": 61.76,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 637,
+     "wins": 394,
+     "losses": 243,
+     "win_rate": 61.85,
+     "per_day": 3.8
+    },
+    "worst": 61.76
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 302,
+     "wins": 192,
+     "losses": 110,
+     "win_rate": 63.58,
+     "per_day": 1.9
+    },
+    "2026": {
+     "trades": 704,
+     "wins": 434,
+     "losses": 270,
+     "win_rate": 61.65,
+     "per_day": 4.2
+    },
+    "worst": 61.65
+   },
+   {
+    "combo": "ساعة 5-11 + وسط النطاق + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 233,
+     "wins": 152,
+     "losses": 81,
+     "win_rate": 65.24,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 395,
+     "wins": 243,
+     "losses": 152,
+     "win_rate": 61.52,
+     "per_day": 2.3
+    },
+    "worst": 61.52
+   },
+   {
+    "combo": "ساعة 5-11 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 302,
+     "wins": 195,
+     "losses": 107,
+     "win_rate": 64.57,
+     "per_day": 1.9
+    },
+    "2026": {
+     "trades": 548,
+     "wins": 337,
+     "losses": 211,
+     "win_rate": 61.5,
+     "per_day": 3.2
+    },
+    "worst": 61.5
+   },
+   {
+    "combo": "RSI 50-58 + انكماش<0.75 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 429,
+     "wins": 262,
+     "losses": 167,
+     "win_rate": 61.07,
+     "per_day": 2.7
+    },
+    "2026": {
+     "trades": 709,
+     "wins": 439,
+     "losses": 270,
+     "win_rate": 61.92,
+     "per_day": 4.2
+    },
+    "worst": 61.07
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + شمعة ضيقة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 249,
+     "wins": 152,
+     "losses": 97,
+     "win_rate": 61.04,
+     "per_day": 1.6
+    },
+    "2026": {
+     "trades": 506,
+     "wins": 319,
+     "losses": 187,
+     "win_rate": 63.04,
+     "per_day": 3.0
+    },
+    "worst": 61.04
+   },
+   {
+    "combo": "ساعة 23-5 + RSI>64 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 339,
+     "wins": 217,
+     "losses": 122,
+     "win_rate": 64.01,
+     "per_day": 2.1
+    },
+    "2026": {
+     "trades": 487,
+     "wins": 297,
+     "losses": 190,
+     "win_rate": 60.99,
+     "per_day": 2.9
+    },
+    "worst": 60.99
+   },
+   {
+    "combo": "قمة الساعة>88٪ + ميل هابط",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 265,
+     "wins": 165,
+     "losses": 100,
+     "win_rate": 62.26,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 410,
+     "wins": 250,
+     "losses": 160,
+     "win_rate": 60.98,
+     "per_day": 2.4
+    },
+    "worst": 60.98
+   },
+   {
+    "combo": "ساعة 20-23 + حجم<0.53 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 330,
+     "wins": 201,
+     "losses": 129,
+     "win_rate": 60.91,
+     "per_day": 2.1
+    },
+    "2026": {
+     "trades": 227,
+     "wins": 142,
+     "losses": 85,
+     "win_rate": 62.56,
+     "per_day": 1.3
+    },
+    "worst": 60.91
+   },
+   {
+    "combo": "ساعة 17-20 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 235,
+     "wins": 143,
+     "losses": 92,
+     "win_rate": 60.85,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 474,
+     "wins": 288,
+     "losses": 186,
+     "win_rate": 60.76,
+     "per_day": 2.8
+    },
+    "worst": 60.76
+   },
+   {
+    "combo": "قمة الساعة>88٪ + ميل هابط + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 227,
+     "wins": 145,
+     "losses": 82,
+     "win_rate": 63.88,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 349,
+     "wins": 212,
+     "losses": 137,
+     "win_rate": 60.74,
+     "per_day": 2.1
+    },
+    "worst": 60.74
+   },
+   {
+    "combo": "ساعة 5-11 + انكماش<0.75 + ميل عرضي",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 216,
+     "wins": 132,
+     "losses": 84,
+     "win_rate": 61.11,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 379,
+     "wins": 230,
+     "losses": 149,
+     "win_rate": 60.69,
+     "per_day": 2.2
+    },
+    "worst": 60.69
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 279,
+     "wins": 170,
+     "losses": 109,
+     "win_rate": 60.93,
+     "per_day": 1.8
+    },
+    "2026": {
+     "trades": 501,
+     "wins": 304,
+     "losses": 197,
+     "win_rate": 60.68,
+     "per_day": 3.0
+    },
+    "worst": 60.68
+   },
+   {
+    "combo": "ساعة 20-23 + RSI 42-50 + حجم<0.53",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 267,
+     "wins": 162,
+     "losses": 105,
+     "win_rate": 60.67,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 185,
+     "wins": 123,
+     "losses": 62,
+     "win_rate": 66.49,
+     "per_day": 1.1
+    },
+    "worst": 60.67
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + شمعة واسعة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 379,
+     "wins": 230,
+     "losses": 149,
+     "win_rate": 60.69,
+     "per_day": 2.4
+    },
+    "2026": {
+     "trades": 633,
+     "wins": 384,
+     "losses": 249,
+     "win_rate": 60.66,
+     "per_day": 3.7
+    },
+    "worst": 60.66
+   },
+   {
+    "combo": "سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 860,
+     "wins": 525,
+     "losses": 335,
+     "win_rate": 61.05,
+     "per_day": 5.4
+    },
+    "2026": {
+     "trades": 1378,
+     "wins": 834,
+     "losses": 544,
+     "win_rate": 60.52,
+     "per_day": 8.2
+    },
+    "worst": 60.52
+   },
+   {
+    "combo": "ساعة 20-23 + حجم<0.53 + ميل عرضي",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 281,
+     "wins": 170,
+     "losses": 111,
+     "win_rate": 60.5,
+     "per_day": 1.8
+    },
+    "2026": {
+     "trades": 166,
+     "wins": 106,
+     "losses": 60,
+     "win_rate": 63.86,
+     "per_day": 1.0
+    },
+    "worst": 60.5
+   },
+   {
+    "combo": "ميل هابط + سحب تحت≥1 + شمعة واسعة",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 478,
+     "wins": 290,
+     "losses": 188,
+     "win_rate": 60.67,
+     "per_day": 3.0
+    },
+    "2026": {
+     "trades": 821,
+     "wins": 496,
+     "losses": 325,
+     "win_rate": 60.41,
+     "per_day": 4.9
+    },
+    "worst": 60.41
+   },
+   {
+    "combo": "ساعة 20-23 + انكماش<0.75 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 159,
+     "wins": 96,
+     "losses": 63,
+     "win_rate": 60.38,
+     "per_day": 1.0
+    },
+    "2026": {
+     "trades": 266,
+     "wins": 163,
+     "losses": 103,
+     "win_rate": 61.28,
+     "per_day": 1.6
+    },
+    "worst": 60.38
+   },
+   {
+    "combo": "ساعة 17-20 + ميل عرضي + شمعة ضيقة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 227,
+     "wins": 137,
+     "losses": 90,
+     "win_rate": 60.35,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 443,
+     "wins": 268,
+     "losses": 175,
+     "win_rate": 60.5,
+     "per_day": 2.6
+    },
+    "worst": 60.35
+   },
+   {
+    "combo": "RSI<36 + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 831,
+     "wins": 508,
+     "losses": 323,
+     "win_rate": 61.13,
+     "per_day": 5.3
+    },
+    "2026": {
+     "trades": 1339,
+     "wins": 808,
+     "losses": 531,
+     "win_rate": 60.34,
+     "per_day": 7.9
+    },
+    "worst": 60.34
+   },
+   {
+    "combo": "ميل هابط + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 530,
+     "wins": 320,
+     "losses": 210,
+     "win_rate": 60.38,
+     "per_day": 3.4
+    },
+    "2026": {
+     "trades": 899,
+     "wins": 542,
+     "losses": 357,
+     "win_rate": 60.29,
+     "per_day": 5.3
+    },
+    "worst": 60.29
+   },
+   {
+    "combo": "ساعة 17-20 + RSI 50-58 + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 168,
+     "wins": 111,
+     "losses": 57,
+     "win_rate": 66.07,
+     "per_day": 1.1
+    },
+    "2026": {
+     "trades": 259,
+     "wins": 156,
+     "losses": 103,
+     "win_rate": 60.23,
+     "per_day": 1.5
+    },
+    "worst": 60.23
+   },
+   {
+    "combo": "انكماش<0.75 + ميل صاعد + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 465,
+     "wins": 280,
+     "losses": 185,
+     "win_rate": 60.22,
+     "per_day": 2.9
+    },
+    "2026": {
+     "trades": 825,
+     "wins": 503,
+     "losses": 322,
+     "win_rate": 60.97,
+     "per_day": 4.9
+    },
+    "worst": 60.22
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 250,
+     "wins": 156,
+     "losses": 94,
+     "win_rate": 62.4,
+     "per_day": 1.6
+    },
+    "2026": {
+     "trades": 427,
+     "wins": 257,
+     "losses": 170,
+     "win_rate": 60.19,
+     "per_day": 2.5
+    },
+    "worst": 60.19
+   },
+   {
+    "combo": "سحب تحت≥1 + شمعة واسعة",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 772,
+     "wins": 479,
+     "losses": 293,
+     "win_rate": 62.05,
+     "per_day": 4.9
+    },
+    "2026": {
+     "trades": 1243,
+     "wins": 748,
+     "losses": 495,
+     "win_rate": 60.18,
+     "per_day": 7.4
+    },
+    "worst": 60.18
+   },
+   {
+    "combo": "ساعة 11-17 + قمة الساعة>88٪ + ATR>27",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 227,
+     "wins": 140,
+     "losses": 87,
+     "win_rate": 61.67,
+     "per_day": 1.4
+    },
+    "2026": {
+     "trades": 904,
+     "wins": 544,
+     "losses": 360,
+     "win_rate": 60.18,
+     "per_day": 5.3
+    },
+    "worst": 60.18
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 344,
+     "wins": 207,
+     "losses": 137,
+     "win_rate": 60.17,
+     "per_day": 2.2
+    },
+    "2026": {
+     "trades": 884,
+     "wins": 535,
+     "losses": 349,
+     "win_rate": 60.52,
+     "per_day": 5.2
+    },
+    "worst": 60.17
+   },
+   {
+    "combo": "RSI<36 + ميل هابط + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 519,
+     "wins": 312,
+     "losses": 207,
+     "win_rate": 60.12,
+     "per_day": 3.3
+    },
+    "2026": {
+     "trades": 892,
+     "wins": 540,
+     "losses": 352,
+     "win_rate": 60.54,
+     "per_day": 5.3
+    },
+    "worst": 60.12
+   },
+   {
+    "combo": "حجم<0.53 + ATR<12 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 852,
+     "wins": 512,
+     "losses": 340,
+     "win_rate": 60.09,
+     "per_day": 5.4
+    },
+    "2026": {
+     "trades": 156,
+     "wins": 97,
+     "losses": 59,
+     "win_rate": 62.18,
+     "per_day": 0.9
+    },
+    "worst": 60.09
+   },
+   {
+    "combo": "RSI<36 + سحب تحت≥1 + شمعة واسعة",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 742,
+     "wins": 459,
+     "losses": 283,
+     "win_rate": 61.86,
+     "per_day": 4.7
+    },
+    "2026": {
+     "trades": 1205,
+     "wins": 724,
+     "losses": 481,
+     "win_rate": 60.08,
+     "per_day": 7.1
+    },
+    "worst": 60.08
+   },
+   {
+    "combo": "RSI<36 + ATR 12-27 + سحب تحت≥1",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 415,
+     "wins": 260,
+     "losses": 155,
+     "win_rate": 62.65,
+     "per_day": 2.6
+    },
+    "2026": {
+     "trades": 586,
+     "wins": 352,
+     "losses": 234,
+     "win_rate": 60.07,
+     "per_day": 3.5
+    },
+    "worst": 60.07
+   },
+   {
+    "combo": "ساعة 20-23 + RSI 42-50",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 267,
+     "wins": 162,
+     "losses": 105,
+     "win_rate": 60.67,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 508,
+     "wins": 305,
+     "losses": 203,
+     "win_rate": 60.04,
+     "per_day": 3.0
+    },
+    "worst": 60.04
+   },
+   {
+    "combo": "ساعة 17-20 + RSI 50-58 + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 330,
+     "wins": 198,
+     "losses": 132,
+     "win_rate": 60.0,
+     "per_day": 2.1
+    },
+    "2026": {
+     "trades": 646,
+     "wins": 393,
+     "losses": 253,
+     "win_rate": 60.84,
+     "per_day": 3.8
+    },
+    "worst": 60.0
+   },
+   {
+    "combo": "ساعة 17-20 + وسط النطاق + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 370,
+     "wins": 222,
+     "losses": 148,
+     "win_rate": 60.0,
+     "per_day": 2.3
+    },
+    "2026": {
+     "trades": 787,
+     "wins": 473,
+     "losses": 314,
+     "win_rate": 60.1,
+     "per_day": 4.7
+    },
+    "worst": 60.0
+   },
+   {
+    "combo": "ساعة 5-11 + ميل صاعد + شمعة ضيقة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 264,
+     "wins": 163,
+     "losses": 101,
+     "win_rate": 61.74,
+     "per_day": 1.7
+    },
+    "2026": {
+     "trades": 450,
+     "wins": 270,
+     "losses": 180,
+     "win_rate": 60.0,
+     "per_day": 2.7
+    },
+    "worst": 60.0
+   },
+   {
+    "combo": "ساعة 17-20 + قمة الساعة>88٪ + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 241,
+     "wins": 153,
+     "losses": 88,
+     "win_rate": 63.49,
+     "per_day": 1.5
+    },
+    "2026": {
+     "trades": 367,
+     "wins": 220,
+     "losses": 147,
+     "win_rate": 59.95,
+     "per_day": 2.2
+    },
+    "worst": 59.95
+   },
+   {
+    "combo": "ساعة 17-20 + انكماش<0.75 + إغلاق قرب القمة",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 307,
+     "wins": 184,
+     "losses": 123,
+     "win_rate": 59.93,
+     "per_day": 1.9
+    },
+    "2026": {
+     "trades": 691,
+     "wins": 428,
+     "losses": 263,
+     "win_rate": 61.94,
+     "per_day": 4.1
+    },
+    "worst": 59.93
+   },
+   {
+    "combo": "ساعة 17-20 + وسط النطاق + ميل صاعد",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 177,
+     "wins": 107,
+     "losses": 70,
+     "win_rate": 60.45,
+     "per_day": 1.1
+    },
+    "2026": {
+     "trades": 324,
+     "wins": 194,
+     "losses": 130,
+     "win_rate": 59.88,
+     "per_day": 1.9
+    },
+    "worst": 59.88
+   },
+   {
+    "combo": "ساعة 5-11 + RSI 50-58 + إغلاق قرب القاع",
+    "side": "بيع",
+    "h2_2025": {
+     "trades": 563,
+     "wins": 337,
+     "losses": 226,
+     "win_rate": 59.86,
+     "per_day": 3.6
+    },
+    "2026": {
+     "trades": 1140,
+     "wins": 687,
+     "losses": 453,
+     "win_rate": 60.26,
+     "per_day": 6.7
+    },
+    "worst": 59.86
+   },
+   {
+    "combo": "ساعة 20-23 + إغلاق قرب القاع",
+    "side": "شراء",
+    "h2_2025": {
+     "trades": 330,
+     "wins": 201,
+     "losses": 129,
+     "win_rate": 60.91,
+     "per_day": 2.1
+    },
+    "2026": {
+     "trades": 777,
+     "wins": 465,
+     "losses": 312,
+     "win_rate": 59.85,
+     "per_day": 4.6
+    },
+    "worst": 59.85
+   }
+  ]
+ }
+}
