@@ -2703,8 +2703,25 @@ kkEngRule1 = input.bool(true, "امنع الشراء مع الاتجاه الص�
 kkEngRule2 = input.bool(true, "امنع البيع في السوق العنيف غير الصاعد", group=G_ENG)
 kkEngRule3 = input.bool(true, "امنع البيع في السوق البطيء الصاعد", group=G_ENG)
 
-kkEngBlockBuy  = kkUseEngine and kkEngRule1 and kkEngTrend == 1 and kkEngSpeed <= 3
-kkEngBlockSell = kkUseEngine and ((kkEngRule2 and kkEngSpeed == 4 and kkEngTrend <= 0) or (kkEngRule3 and kkEngSpeed == 1 and kkEngTrend == 1))
+// ── الجيل الثاني: قواعد أُعيد بناؤها على دفتر ١٣ شهراً بضبط على نصف واختبار
+// على الآخر، ولم تُقبل إلا إن وفّرت نقاطاً في النصفين معاً. الجيل الأول
+// (القواعد ١–٣) بُني على ٢٠٢٦ وحدها وقُيّم عليها، وسقط على ١٣ شهراً.
+kkEngR4 = input.bool(false, "امنع الشراء عند الموضع ٦٥–٨٥٪", group=G_ENG)
+kkEngR5 = input.bool(false, "امنع الشراء في الانكماش ٠.٧–٠.٩", group=G_ENG)
+kkEngR6 = input.bool(false, "امنع البيع عند هبوط حاد", group=G_ENG)
+kkEngR7 = input.bool(false, "امنع الشراء عند شمعة ضيقة", group=G_ENG)
+kkEngR8 = input.bool(false, "امنع الشراء عند زخم ٥٥–٦٥", group=G_ENG)
+kkEngR6Slope = input.float(-8.0, "عتبة الهبوط الحاد × ATR", maxval=0, step=0.5, group=G_ENG)
+kkEngR7Rng   = input.float(0.6, "حد الشمعة الضيقة × ATR", minval=0.1, step=0.05, group=G_ENG)
+
+kkEngB4 = kkEngR4 and kkPosPct >= 65.0 and kkPosPct < 85.0
+kkEngB5 = kkEngR5 and kkRegime >= 0.7 and kkRegime < 0.9
+kkEngB7 = kkEngR7 and kkBarRange < kkEngR7Rng * atr
+kkEngB8 = kkEngR8 and kkRsiVal >= 55.0 and kkRsiVal < 65.0
+kkEngS6 = kkEngR6 and kkEngSlope < kkEngR6Slope
+
+kkEngBlockBuy  = kkUseEngine and ((kkEngRule1 and kkEngTrend == 1 and kkEngSpeed <= 3) or kkEngB4 or kkEngB5 or kkEngB7 or kkEngB8)
+kkEngBlockSell = kkUseEngine and ((kkEngRule2 and kkEngSpeed == 4 and kkEngTrend <= 0) or (kkEngRule3 and kkEngSpeed == 1 and kkEngTrend == 1) or kkEngS6)
 
 kkEngBuyOK  = not kkEngBlockBuy
 kkEngSellOK = not kkEngBlockSell

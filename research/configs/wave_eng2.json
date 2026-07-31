@@ -1,0 +1,12 @@
+{
+ "بلا شيء": {},
+ "قاعدة 4: الموضع 65-85": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true },
+ "قاعدة 5: الانكماش": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR5": true },
+ "قاعدة 6: هبوط حاد": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR6": true },
+ "قاعدة 7: شمعة ضيقة": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR7": true },
+ "قاعدة 8: زخم 55-65": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR8": true },
+ "الجيل الثاني 4+5": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkEngR5": true },
+ "الجيل الثاني 4+5+6+7": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkEngR5": true, "kkEngR6": true, "kkEngR7": true },
+ "الجيل الثاني كامل": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkEngR5": true, "kkEngR6": true, "kkEngR7": true, "kkEngR8": true },
+ "الجيل الثاني + مسار": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkEngR5": true, "kkEngR6": true, "kkEngR7": true, "kkUsePath": true }
+}
