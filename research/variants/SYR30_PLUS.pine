@@ -2714,6 +2714,54 @@ kkEngState = kkEngSpeedTxt + " • " + kkEngRegTxt + " • " + kkEngTrendTxt + "
 kkEngWhyBuy  = kkEngBlockBuy  ? "ممنوع: شراء مع اتجاه صاعد" : kkEngState
 kkEngWhySell = kkEngBlockSell ? (kkEngSpeed == 4 ? "ممنوع: بيع في سوق عنيف" : "ممنوع: بيع في سوق بطيء صاعد") : kkEngState
 
+// ══════════════════════════════════════════════════════════════════════════
+// ٢٥ ■ خروج المحرك — نخرج لأن السبب مات، لا لأن السعر رجع
+// ══════════════════════════════════════════════════════════════════════════
+// الستوب المتحرك يسأل «كم رجع السعر؟» وهو مقبض يوزّع الحافة بين نسبة الفوز
+// وحجم الربح ولا يخلقها. أما هذا فيسأل «هل ما زال السبب الذي أدخلني قائماً؟».
+// من دخل على سحب سيولة وانكسر الهيكل ضده فسببه انتهى، والخروج منطق لا خوف.
+//
+// وكل خروج هنا يقع **عند إغلاق الشمعة فقط**. هذا ليس تفضيلاً: الخروج داخل
+// الشمعة يرسل إغلاقاً للبوت ثم تتراجع حالة المؤشر مع التِك التالي، فيخرج
+// البوت ويبقى المؤشر داخل الصفقة — وهو العطب الذي أسقط محرّكاً سابقاً.
+G_EEX = "23 ■ خروج المحرك"
+
+kkUseEngineExit = input.bool(false, "شغّل الخروج بالسبب", group=G_EEX)
+kkEexMinBars    = input.int(3, "أقل شموع قبل السماح بالخروج", minval=1, group=G_EEX)
+kkEexOnlyProfit = input.bool(false, "لا تخرج إلا في الربح", group=G_EEX)
+
+kkEexUseExh   = input.bool(true,  "إنهاك ضدنا", group=G_EEX)
+kkEexUseFail  = input.bool(true,  "كسر كاذب ضدنا", group=G_EEX)
+kkEexUseBreak = input.bool(true,  "انكسار هيكل ضدنا", group=G_EEX)
+kkEexUseRsi   = input.bool(false, "زخم معاكس", group=G_EEX)
+kkEexUseTrend = input.bool(false, "انقلاب الاتجاه", group=G_EEX)
+kkEexBreakLen = input.int(3, "نافذة انكسار الهيكل", minval=2, group=G_EEX)
+kkEexRsiHi    = input.float(70.0, "زخم معاكس للشراء فوق", minval=50, step=1, group=G_EEX)
+kkEexRsiLo    = input.float(30.0, "زخم معاكس للبيع تحت", minval=0, maxval=50, step=1, group=G_EEX)
+
+// إنهاك ضدنا: تشبّع في الطرف الذي نتّجه إليه مع ذيل رفض
+kkEexExhLong  = kkEexUseExh and kkEngExh and kkPosPct >= 85.0
+kkEexExhShort = kkEexUseExh and kkEngExh and kkPosPct <= 15.0
+// كسر كاذب ضدنا: كسر الطرف ثم إغلاق راجع داخله
+kkEexFailLong  = kkEexUseFail and kkFailUp
+kkEexFailShort = kkEexUseFail and kkFailDn
+// انكسار هيكل: إغلاق تحت أدنى النافذة (للشراء) أو فوق أعلاها (للبيع)
+kkEexLowN  = ta.lowest(low, kkEexBreakLen)[1]
+kkEexHighN = ta.highest(high, kkEexBreakLen)[1]
+kkEexBrkLong  = kkEexUseBreak and not na(kkEexLowN)  and close < kkEexLowN
+kkEexBrkShort = kkEexUseBreak and not na(kkEexHighN) and close > kkEexHighN
+// زخم معاكس وانقلاب اتجاه
+kkEexRsiLong  = kkEexUseRsi and kkRsiVal >= kkEexRsiHi
+kkEexRsiShort = kkEexUseRsi and kkRsiVal <= kkEexRsiLo
+kkEexTrdLong  = kkEexUseTrend and kkEngTrend == -1
+kkEexTrdShort = kkEexUseTrend and kkEngTrend == 1
+
+kkEexDeadLong  = kkEexExhLong  or kkEexFailLong  or kkEexBrkLong  or kkEexRsiLong  or kkEexTrdLong
+kkEexDeadShort = kkEexExhShort or kkEexFailShort or kkEexBrkShort or kkEexRsiShort or kkEexTrdShort
+
+kkEexWhyLong  = kkEexExhLong ? "إنهاك" : kkEexFailLong ? "كسر كاذب" : kkEexBrkLong ? "انكسار هيكل" : kkEexRsiLong ? "زخم معاكس" : "انقلاب اتجاه"
+kkEexWhyShort = kkEexExhShort ? "إنهاك" : kkEexFailShort ? "كسر كاذب" : kkEexBrkShort ? "انكسار هيكل" : kkEexRsiShort ? "زخم معاكس" : "انقلاب اتجاه"
+
 // ── أرقام المحرك: الهدف والستوب من السرعة لا من رقم ثابت
 kkUseEngineNums = input.bool(false, "المحرك يحدّد الهدف والستوب", group=G_ENG)
 kkEngTgtATR = input.float(1.6, "الهدف × ATR", minval=0.3, step=0.1, group=G_ENG)
@@ -2842,7 +2890,16 @@ if active and bar_index > entryBar
         closeSimple = sy963WebhookKey + " " + sy999CloseAction + " " + sy963BotSymbol + " " + closeSide + " REGIME_80_REAL UID " + realCloseTradeUid + " TRY " + str.tostring(realCloseAttempts)
         alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
 
-    earlyExit = false
+    // خروج المحرك: عند إغلاق الشمعة فقط، وبعد أن تكون الصفقة عاشت ما يكفي،
+    // ولا يُسمح به إذا كانت الشمعة نفسها ضربت الهدف أو الستوب — الأصل أولاً.
+    kkEexHeldOK = bar_index - entryBar >= kkEexMinBars
+    kkEexPnlOK = not kkEexOnlyProfit or currentPnl > 0
+    kkEexDead = side == 1 ? kkEexDeadLong : kkEexDeadShort
+    kkEexFire = kkUseEngine and kkUseEngineExit and barstate.isconfirmed and not hardExit and kkEexHeldOK and kkEexPnlOK and kkEexDead
+    if kkEexFire
+        sy999IntrabarExitPrice := close
+        tradeEngineWhy := "خروج: " + (side == 1 ? kkEexWhyLong : kkEexWhyShort)
+    earlyExit = kkEexFire
     if hardExit or earlyExit
         exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
         exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)

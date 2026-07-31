@@ -1,0 +1,12 @@
+{
+ "بلا شيء": {},
+ "محرك دخول": { "kkUseEngine": true },
+ "خروج: هيكل فقط": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false },
+ "خروج: هيكل نافذة 5": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkEexBreakLen": 5 },
+ "خروج: هيكل نافذة 10": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkEexBreakLen": 10 },
+ "خروج: كل الأسباب": { "kkUseEngine": true, "kkUseEngineExit": true },
+ "خروج: إنهاك فقط": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseFail": false, "kkEexUseBreak": false },
+ "خروج هيكل بلا محرك دخول": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false },
+ "خروج هيكل + مسار": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkUsePath": true },
+ "خروج هيكل + صبر 10 شموع": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkEexMinBars": 10 }
+}
