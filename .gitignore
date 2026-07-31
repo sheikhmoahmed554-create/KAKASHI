@@ -3,3 +3,6 @@
 research/tools/vault_a.csv
 research/tools/vault_b.csv
 research/tools/vault_c*.csv
+
+research/tools/own_c*.json
+research/tools/own_ext_*.json
