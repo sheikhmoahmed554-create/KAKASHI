@@ -47,13 +47,27 @@
 //          removing them changes no current behaviour, only makes the inputs
 //          mean what they say.
 //
-//   R31-5  Win cooldown default 21 -> 10, for scalping trade frequency. The
-//          cooldown counts from the last ENTRY, so at 21 a 5-bar trade still
-//          idles ~16 bars and the day caps out at ~50 entries with 49% of days
-//          below 50. At 10 the median is 67/day with 6% of days below 50.
-//          Measured cost of the extra frequency, over a 27-config ensemble and
-//          charging 1 point of spread per trade: 8383 -> 6394 net. Set it back
-//          to 21 for the highest net per trade, or 6 for ~74 trades/day.
+//   R31-5  Win cooldown stays at 21. It was briefly lowered to 10 to push the
+//          entry rate from ~50/day to ~67/day, and that was a mistake: the
+//          extra frequency costs a large part of the edge, and it costs most
+//          in the recent window, which is where it is judged.
+//
+//            win cooldown       21          10
+//            entries/day       49.6        67.3
+//            last 10 days     +1027        +268
+//            July             +2161       +1625
+//            last 6 weeks     +5292       +2137
+//            held-out half    +6945       +5086
+//            whole period    +15665      +15488
+//
+//          Seven other routes to 50+/day were measured (shorter loss
+//          cooldowns, no loss cooldown, win 16/17/18/19). Every one of them
+//          landed between +2194 and +7942 on the whole period, against
+//          +15665 at 21. The edge lives in a limited number of good setups
+//          per day; forcing more entries buys the weak ones too.
+//
+//          Note that stock SYR30 also runs at 49.9 entries/day, so 21 is not
+//          a reduction in frequency - it is this indicator's natural rate.
 // ══════════════════════════════════════════════════════════════════
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
@@ -636,7 +650,7 @@ realCloseMaxAttempts = input.int(3, "Total CLOSE Attempts", minval=1, maxval=6, 
 realCloseRetryEveryBars = input.int(1, "Retry Every Closed M1 Bars", minval=1, maxval=10, group=G_EXEC_NEW)
 realCloseOnlyIfProfit = input.bool(false, "Send CLOSE Only When Profitable", group=G_EXEC_NEW)
 realCloseShowMarks = input.bool(false, "Show CLOSE Request Marks", group=G_EXEC_NEW)
-cooldownBars = input.int(10, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)   // R31-5: was 21; 21 caps the day near 50 entries
+cooldownBars = input.int(21, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)   // R31-5: keep 21. Lower it for more entries per day, but measure first - see the header.
 lossCooldownBars = input.int(12, "② Cooldown بعد الخسارة — LOSS", minval=0, maxval=1000, group=G_MAIN_NEW)
 buyLossCooldownBars = input.int(24, "② Cooldown شراء — BUY", minval=0, maxval=1000, group=G_MAIN_NEW)
 sellLossCooldownBars = input.int(13, "② Cooldown بيع — SELL", minval=0, maxval=1000, group=G_MAIN_NEW)
