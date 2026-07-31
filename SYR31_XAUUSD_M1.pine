@@ -38,6 +38,22 @@
 //     losing months      1           0     (June -805 -> +3131)
 //     BUY net          -708       +7010
 //     SELL net        +7273       +8655
+//
+//   R31-4  Three cooldown inputs contained literal self-disabling comparisons:
+//          "cooldownBars == 15", "lossCooldownBars == 35", and a side-cooldown
+//          test that switched off at buy 15 + sell 30. Setting the win cooldown
+//          to exactly 15 removed it completely (13 -> 62 trades/day, 14 -> 61,
+//          15 -> 74, 16 -> 58). All three are inert at the shipped defaults, so
+//          removing them changes no current behaviour, only makes the inputs
+//          mean what they say.
+//
+//   R31-5  Win cooldown default 21 -> 10, for scalping trade frequency. The
+//          cooldown counts from the last ENTRY, so at 21 a 5-bar trade still
+//          idles ~16 bars and the day caps out at ~50 entries with 49% of days
+//          below 50. At 10 the median is 67/day with 6% of days below 50.
+//          Measured cost of the extra frequency, over a 27-config ensemble and
+//          charging 1 point of spread per trade: 8383 -> 6394 net. Set it back
+//          to 21 for the highest net per trade, or 6 for ~74 trades/day.
 // ══════════════════════════════════════════════════════════════════
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
@@ -620,7 +636,7 @@ realCloseMaxAttempts = input.int(3, "Total CLOSE Attempts", minval=1, maxval=6, 
 realCloseRetryEveryBars = input.int(1, "Retry Every Closed M1 Bars", minval=1, maxval=10, group=G_EXEC_NEW)
 realCloseOnlyIfProfit = input.bool(false, "Send CLOSE Only When Profitable", group=G_EXEC_NEW)
 realCloseShowMarks = input.bool(false, "Show CLOSE Request Marks", group=G_EXEC_NEW)
-cooldownBars = input.int(21, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)
+cooldownBars = input.int(10, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)   // R31-5: was 21; 21 caps the day near 50 entries
 lossCooldownBars = input.int(12, "② Cooldown بعد الخسارة — LOSS", minval=0, maxval=1000, group=G_MAIN_NEW)
 buyLossCooldownBars = input.int(24, "② Cooldown شراء — BUY", minval=0, maxval=1000, group=G_MAIN_NEW)
 sellLossCooldownBars = input.int(13, "② Cooldown بيع — SELL", minval=0, maxval=1000, group=G_MAIN_NEW)
@@ -2475,10 +2491,10 @@ baseCanShortAfterLoss = useSY337QuickRouter ? (na(lastShortStopBar) or bar_index
 
 lastAnyStopBar = na(lastLongStopBar) ? lastShortStopBar : na(lastShortStopBar) ? lastLongStopBar : math.max(lastLongStopBar, lastShortStopBar)
 
-globalEntryOK = cooldownBars == 15 or na(lastTradeBar) or bar_index - lastTradeBar >= math.max(0, cooldownBars)
-globalLossOK = lossCooldownBars == 35 or na(lastAnyStopBar) or bar_index - lastAnyStopBar >= math.max(0, lossCooldownBars)
+globalEntryOK = na(lastTradeBar) or bar_index - lastTradeBar >= math.max(0, cooldownBars)   // R31-4: dropped the "== 15" self-disable
+globalLossOK = na(lastAnyStopBar) or bar_index - lastAnyStopBar >= math.max(0, lossCooldownBars)   // R31-4: dropped the "== 35" self-disable
 
-applySideCooldown = useSeparateSideRisk or buyLossCooldownBars != 15 or sellLossCooldownBars != 30
+applySideCooldown = true   // R31-4: was silently off at buy=15 and sell=30
 buySideCooldownOK = not applySideCooldown or na(lastLongStopBar) or bar_index - lastLongStopBar >= math.max(0, buyLossCooldownBars)
 sellSideCooldownOK = not applySideCooldown or na(lastShortStopBar) or bar_index - lastShortStopBar >= math.max(0, sellLossCooldownBars)
 
