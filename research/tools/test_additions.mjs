@@ -44,14 +44,20 @@ globalThis.self = { onmessage: null, postMessage: m => messages.push(m) };
 (0, eval)(core);
 (0, eval)(workerBody);
 
+// نحمّل المقطع وإحماءه فقط، لا السنة كاملة — تحميل السنوات يستنفد الذاكرة
 const vault = zlib.gunzipSync(fs.readFileSync('research/data/vault_utc.csv.gz')).toString('utf8').split('\n');
 const cache = {};
 for (const s of SLICES) {
-  const y = s.from.slice(0, 4);
+  const from = new Date(Date.parse(s.from + 'Z') - 12 * 86400000).toISOString().slice(0, 10);
+  const to = s.to.slice(0, 10);
   const kept = [vault[0]];
-  for (let i = 1; i < vault.length; i++) if (vault[i].startsWith(y)) kept.push(vault[i]);
+  for (let i = 1; i < vault.length; i++) {
+    const d = vault[i].slice(0, 10);
+    if (d >= from && d <= to) kept.push(vault[i]);
+  }
   cache[s.name] = PineLabJS.parseCSV(kept.join('\n'));
 }
+console.error('الشموع المحمّلة: ' + SLICES.map(s => `${s.name}:${cache[s.name].length}`).join(' '));
 
 const run = (inputs, slice) => {
   messages.length = 0;
