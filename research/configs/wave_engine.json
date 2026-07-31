@@ -1,0 +1,12 @@
+{
+ "بلا شيء": {},
+ "المحرك كامل": { "kkUseEngine": true },
+ "قاعدة 1 فقط: لا شراء بصاعد": { "kkUseEngine": true, "kkEngRule2": false, "kkEngRule3": false },
+ "قاعدة 2 فقط: لا بيع بعنيف": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule3": false },
+ "قاعدة 3 فقط: لا بيع ببطيء صاعد": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false },
+ "المحرك بعتبة اتجاه 1.5": { "kkUseEngine": true, "kkEngTrendATR": 1.5 },
+ "المحرك بعتبة اتجاه 5": { "kkUseEngine": true, "kkEngTrendATR": 5 },
+ "المحرك بنافذة اتجاه 60": { "kkUseEngine": true, "kkEngTrendLen": 60 },
+ "المحرك + مسار": { "kkUseEngine": true, "kkUsePath": true },
+ "المحرك + مسار + إغلاق40 + ستوب": { "kkUseEngine": true, "kkUsePath": true, "kkUseClosePos": true, "kkCloseMaxPct": 40, "kkUseStopGap": true }
+}

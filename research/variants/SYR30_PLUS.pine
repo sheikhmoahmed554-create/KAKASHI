@@ -2766,7 +2766,9 @@ kkEexWhyShort = kkEexExhShort ? "إنهاك" : kkEexFailShort ? "كسر كاذب
 kkUseEngineNums = input.bool(false, "المحرك يحدّد الهدف والستوب", group=G_ENG)
 kkEngTgtATR = input.float(1.6, "الهدف × ATR", minval=0.3, step=0.1, group=G_ENG)
 kkEngGapPts = input.float(20.0, "فارق الستوب فوق الهدف", minval=0, step=1, group=G_ENG)
-kkEngTargetPts = math.min(math.max(kkAtrPts * kkEngTgtATR, 30.0), 60.0)
+// الحارس ضروري لا تجميلي: هدف NA يجعل الصفقة لا تُغلق أبداً، فيبقى المؤشر
+// «داخل صفقة» إلى الأبد ولا يفتح واحدة أخرى — قيمة مفقودة واحدة تقتل التشغيل كله.
+kkEngTargetPts = math.min(math.max(nz(kkAtrPts, 20.0) * kkEngTgtATR, 30.0), 60.0)
 
 // ── تجميع المرشّحات
 kkBuyOK  = kkSpeedOK and kkCloseBuyOK  and kkRunBuyOK  and kkPathBuyOK  and kkPoolBuyOK  and kkSweepBuyOK  and kkEROK and kkRsiBuyOK  and kkBandOK and kkRegBuyOK  and kkVolBuyOK  and kkPosBuyOK  and kkPDBuyOK  and kkFailBuyOK  and kkFvgBuyOK  and kkRoundOK and kkPdBuyOK  and kkDoBuyOK  and kkORBuyOK  and kkVwapBuyOK  and kkEffortOK and kkDivBuyOK  and kkEngBuyOK
