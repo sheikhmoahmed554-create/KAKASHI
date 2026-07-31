@@ -46,7 +46,7 @@ def outcomes(D):
         tp = D['tgt'][side]; sl = D['stp'][side]
         tpp = c + (tp * PU if side == 1 else -tp * PU)
         slp = c - (sl * PU if side == 1 else -sl * PU)
-        win = np.full(N, -1, np.int8)
+        win = np.full(N, -1, np.int8)      # ١ فوز • ٠ خسارة • ٢ مشطوبة (الاثنان بنفس الشمعة)
         exb = np.full(N, -1, np.int32)
         ar = np.arange(N)
         for k in range(1, MAXHOLD + 1):
@@ -55,8 +55,10 @@ def outcomes(D):
             if not alive.any(): break
             hs = (l[j] <= slp) if side == 1 else (h[j] >= slp)
             ht = (h[j] >= tpp) if side == 1 else (l[j] <= tpp)
-            s = alive & hs
+            k = alive & hs & ht                 # sameCandleRule = "Skip" — لا تُحتسب
+            s = alive & hs & ~ht
             t = alive & ht & ~hs
+            win[k] = 2; exb[k] = j[k]
             win[s] = 0; exb[s] = j[s]
             win[t] = 1; exb[t] = j[t]
         pts = np.where(win == 1, D['tgt'][side], np.where(win == 0, -D['stp'][side], 0.0))
@@ -90,11 +92,13 @@ def simulate(D, O, cool=(21, 12, 24, 13), sides='BOTH', gate=None):
         if side == -1 and i - lss < cs: continue
         w, p, j = O[side][0][i], O[side][1][i], O[side][2][i]
         if w < 0 or j < 0: continue
-        busy = j; lt = j
-        if w == 0:
+        busy = j
+        lt = i                                   # المؤشر: lastTradeBar := bar_index عند الدخول
+        if w == 0:                               # الخسارة تُسجَّل بشمعة الخروج
             las = j
             if side == 1: lls = j
             else: lss = j
+        if w == 2: continue                      # مشطوبة: أغلقت المركز ولم تدخل الإحصاء
         rows.append((i, side, int(w), float(p), int(j)))
     return np.array(rows, dtype=float) if rows else np.zeros((0, 5))
 

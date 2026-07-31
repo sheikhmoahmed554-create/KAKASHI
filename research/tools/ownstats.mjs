@@ -85,7 +85,7 @@ const res = await page.evaluate(async ({ csvText, source, extra }) => {
            errors: r.diagnostics.length ? r.diagnostics[0].error : null,
            final: { trades: last('trades'), wins: last('wins'), losses: last('losses'),
                     netPts: last('netPts'), sumWin: last('sumWinPts'), sumLoss: last('sumLossPts') },
-           extra: (cfg.extract || []).reduce((o, k) => { o[k] = Array.from(S[k] || [], v =>
+           extra: (extra || []).reduce((o, k) => { o[k] = Array.from(S[k] || [], v =>
              v === true ? 1 : v === false ? 0 : (v == null || Number.isNaN(Number(v)) ? 0 : Number(v))); return o; }, {}),
            log };
 }, { csvText: text, source: src, extra: cfg.extract });
