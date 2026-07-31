@@ -1,0 +1,3 @@
+{"name":"تمدد 2.6 / RSI3 18",
+ "rewrites":[["buySignal := buySignal or chTriB or chSniB","buySignal := chStretch < -2.6 and chRsi3 < 18"],
+             ["sellSignal := sellSignal or chTriS or chSniS","sellSignal := chStretch > 2.6 and chRsi3 > 82"]]}
