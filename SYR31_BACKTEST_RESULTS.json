@@ -1,0 +1,178 @@
+[
+  {
+    "name": "1_SYR30_BASELINE",
+    "overrides": {},
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 6469,
+      "wins": 3941,
+      "losses": 2528,
+      "win_rate": 60.92,
+      "net_points": 9336,
+      "profit_factor": 1.068,
+      "expectancy": 1.443,
+      "sharpe": 0.032,
+      "max_loss_streak": 8,
+      "max_win_streak": 15,
+      "tested_bars": 176068
+    },
+    "seconds": 681
+  },
+  {
+    "name": "2_SYR31_ALL_OFF",
+    "overrides": {},
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 6469,
+      "wins": 3941,
+      "losses": 2528,
+      "win_rate": 60.92,
+      "net_points": 9336,
+      "profit_factor": 1.068,
+      "expectancy": 1.443,
+      "sharpe": 0.032,
+      "max_loss_streak": 8,
+      "max_win_streak": 15,
+      "tested_bars": 176068
+    },
+    "seconds": 710
+  },
+  {
+    "name": "3_SYR31_SCORE_4",
+    "overrides": {
+      "s31UseScoreGate": "true",
+      "s31MinScore": "4"
+    },
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 5382,
+      "wins": 3124,
+      "losses": 2258,
+      "win_rate": 58.05,
+      "net_points": -254,
+      "profit_factor": 0.998,
+      "expectancy": -0.047,
+      "sharpe": -0.001,
+      "max_loss_streak": 10,
+      "max_win_streak": 13,
+      "tested_bars": 176068
+    },
+    "seconds": 710
+  },
+  {
+    "name": "4_SYR31_SCORE_5",
+    "overrides": {
+      "s31UseScoreGate": "true",
+      "s31MinScore": "5"
+    },
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 4752,
+      "wins": 2730,
+      "losses": 2022,
+      "win_rate": 57.45,
+      "net_points": -1068,
+      "profit_factor": 0.991,
+      "expectancy": -0.225,
+      "sharpe": -0.005,
+      "max_loss_streak": 11,
+      "max_win_streak": 13,
+      "tested_bars": 176068
+    },
+    "seconds": 704
+  },
+  {
+    "name": "5_SYR31_SCORE_6",
+    "overrides": {
+      "s31UseScoreGate": "true",
+      "s31MinScore": "6"
+    },
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 3346,
+      "wins": 1913,
+      "losses": 1433,
+      "win_rate": 57.17,
+      "net_points": 248,
+      "profit_factor": 1.003,
+      "expectancy": 0.074,
+      "sharpe": 0.001,
+      "max_loss_streak": 10,
+      "max_win_streak": 12,
+      "tested_bars": 176068
+    },
+    "seconds": 690
+  },
+  {
+    "name": "6_SYR31_MTF_GATE",
+    "overrides": {
+      "s31MtfGate": "true",
+      "s31MtfMinAgree": "2"
+    },
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 5336,
+      "wins": 3152,
+      "losses": 2184,
+      "win_rate": 59.07,
+      "net_points": 3039,
+      "profit_factor": 1.025,
+      "expectancy": 0.57,
+      "sharpe": 0.012,
+      "max_loss_streak": 8,
+      "max_win_streak": 12,
+      "tested_bars": 176068
+    },
+    "seconds": 704
+  },
+  {
+    "name": "7_SYR31_SESSION",
+    "overrides": {
+      "s31SessUse": "true"
+    },
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 1927,
+      "wins": 1187,
+      "losses": 740,
+      "win_rate": 61.6,
+      "net_points": 3162,
+      "profit_factor": 1.079,
+      "expectancy": 1.641,
+      "sharpe": 0.036,
+      "max_loss_streak": 7,
+      "max_win_streak": 15,
+      "tested_bars": 176068
+    },
+    "seconds": 690
+  },
+  {
+    "name": "8_SYR31_DIV_ENTRY",
+    "overrides": {
+      "s31DivGate": "true"
+    },
+    "error": null,
+    "pageerrors": [],
+    "stats": {
+      "trades": 6569,
+      "wins": 3957,
+      "losses": 2612,
+      "win_rate": 60.24,
+      "net_points": 4884,
+      "profit_factor": 1.034,
+      "expectancy": 0.743,
+      "sharpe": 0.016,
+      "max_loss_streak": 9,
+      "max_win_streak": 16,
+      "tested_bars": 176068
+    },
+    "seconds": 715
+  }
+]
