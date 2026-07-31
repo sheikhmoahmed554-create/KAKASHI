@@ -1,0 +1,434 @@
+{
+ "30/50|شراء|0": {
+  "trades": 371062,
+  "target": 227596,
+  "breakeven": 0,
+  "stopped": 143466,
+  "win_rate": 61.34,
+  "per_trade": -0.931,
+  "delta": 0.0
+ },
+ "30/50|شراء|5": {
+  "trades": 371085,
+  "target": 41419,
+  "breakeven": 284399,
+  "stopped": 45267,
+  "win_rate": 11.16,
+  "per_trade": -2.751,
+  "delta": -1.82
+ },
+ "30/50|شراء|10": {
+  "trades": 371085,
+  "target": 71992,
+  "breakeven": 228519,
+  "stopped": 70574,
+  "win_rate": 19.4,
+  "per_trade": -3.689,
+  "delta": -2.758
+ },
+ "30/50|شراء|15": {
+  "trades": 371083,
+  "target": 113080,
+  "breakeven": 165427,
+  "stopped": 92576,
+  "win_rate": 30.47,
+  "per_trade": -3.332,
+  "delta": -2.401
+ },
+ "30/50|شراء|20": {
+  "trades": 371079,
+  "target": 154706,
+  "breakeven": 104568,
+  "stopped": 111805,
+  "win_rate": 41.69,
+  "per_trade": -2.558,
+  "delta": -1.627
+ },
+ "30/50|شراء|25": {
+  "trades": 371070,
+  "target": 193056,
+  "breakeven": 49275,
+  "stopped": 128739,
+  "win_rate": 52.03,
+  "per_trade": -1.739,
+  "delta": -0.808
+ },
+ "30/50|شراء|30": {
+  "trades": 371062,
+  "target": 227596,
+  "breakeven": 0,
+  "stopped": 143466,
+  "win_rate": 61.34,
+  "per_trade": -0.931,
+  "delta": 0.0
+ },
+ "30/50|شراء|40": {
+  "trades": 371062,
+  "target": 227596,
+  "breakeven": 0,
+  "stopped": 143466,
+  "win_rate": 61.34,
+  "per_trade": -0.931,
+  "delta": 0.0
+ },
+ "30/50|بيع|0": {
+  "trades": 371072,
+  "target": 232116,
+  "breakeven": 0,
+  "stopped": 138956,
+  "win_rate": 62.55,
+  "per_trade": 0.042,
+  "delta": 0.0
+ },
+ "30/50|بيع|5": {
+  "trades": 371083,
+  "target": 42530,
+  "breakeven": 284321,
+  "stopped": 44232,
+  "win_rate": 11.46,
+  "per_trade": -2.522,
+  "delta": -2.564
+ },
+ "30/50|بيع|10": {
+  "trades": 371079,
+  "target": 72052,
+  "breakeven": 230171,
+  "stopped": 68856,
+  "win_rate": 19.42,
+  "per_trade": -3.453,
+  "delta": -3.495
+ },
+ "30/50|بيع|15": {
+  "trades": 371077,
+  "target": 113027,
+  "breakeven": 167651,
+  "stopped": 90399,
+  "win_rate": 30.46,
+  "per_trade": -3.043,
+  "delta": -3.085
+ },
+ "30/50|بيع|20": {
+  "trades": 371076,
+  "target": 156085,
+  "breakeven": 106217,
+  "stopped": 108774,
+  "win_rate": 42.06,
+  "per_trade": -2.038,
+  "delta": -2.08
+ },
+ "30/50|بيع|25": {
+  "trades": 371075,
+  "target": 196228,
+  "breakeven": 49916,
+  "stopped": 124931,
+  "win_rate": 52.88,
+  "per_trade": -0.969,
+  "delta": -1.012
+ },
+ "30/50|بيع|30": {
+  "trades": 371072,
+  "target": 232116,
+  "breakeven": 0,
+  "stopped": 138956,
+  "win_rate": 62.55,
+  "per_trade": 0.042,
+  "delta": 0.0
+ },
+ "30/50|بيع|40": {
+  "trades": 371072,
+  "target": 232116,
+  "breakeven": 0,
+  "stopped": 138956,
+  "win_rate": 62.55,
+  "per_trade": 0.042,
+  "delta": 0.0
+ },
+ "40/60|شراء|0": {
+  "trades": 370810,
+  "target": 219535,
+  "breakeven": 0,
+  "stopped": 151275,
+  "win_rate": 59.2,
+  "per_trade": -0.796,
+  "delta": 0.0
+ },
+ "40/60|شراء|5": {
+  "trades": 371085,
+  "target": 26245,
+  "breakeven": 307065,
+  "stopped": 37775,
+  "win_rate": 7.07,
+  "per_trade": -3.279,
+  "delta": -2.483
+ },
+ "40/60|شراء|10": {
+  "trades": 371085,
+  "target": 49138,
+  "breakeven": 261604,
+  "stopped": 60343,
+  "win_rate": 13.24,
+  "per_trade": -4.46,
+  "delta": -3.664
+ },
+ "40/60|شراء|15": {
+  "trades": 371054,
+  "target": 80776,
+  "breakeven": 210154,
+  "stopped": 80124,
+  "win_rate": 21.77,
+  "per_trade": -4.248,
+  "delta": -3.453
+ },
+ "40/60|شراء|20": {
+  "trades": 371031,
+  "target": 113512,
+  "breakeven": 159581,
+  "stopped": 97938,
+  "win_rate": 30.59,
+  "per_trade": -3.6,
+  "delta": -2.804
+ },
+ "40/60|شراء|25": {
+  "trades": 371008,
+  "target": 144299,
+  "breakeven": 112988,
+  "stopped": 113721,
+  "win_rate": 38.89,
+  "per_trade": -2.834,
+  "delta": -2.038
+ },
+ "40/60|شراء|30": {
+  "trades": 370963,
+  "target": 172817,
+  "breakeven": 70588,
+  "stopped": 127558,
+  "win_rate": 46.59,
+  "per_trade": -1.997,
+  "delta": -1.201
+ },
+ "40/60|شراء|40": {
+  "trades": 370810,
+  "target": 219535,
+  "breakeven": 0,
+  "stopped": 151275,
+  "win_rate": 59.2,
+  "per_trade": -0.796,
+  "delta": 0.0
+ },
+ "40/60|بيع|0": {
+  "trades": 370877,
+  "target": 223946,
+  "breakeven": 0,
+  "stopped": 146931,
+  "win_rate": 60.38,
+  "per_trade": 0.383,
+  "delta": 0.0
+ },
+ "40/60|بيع|5": {
+  "trades": 371083,
+  "target": 26912,
+  "breakeven": 307215,
+  "stopped": 36956,
+  "win_rate": 7.25,
+  "per_trade": -3.074,
+  "delta": -3.457
+ },
+ "40/60|بيع|10": {
+  "trades": 371079,
+  "target": 48400,
+  "breakeven": 263835,
+  "stopped": 58844,
+  "win_rate": 13.04,
+  "per_trade": -4.297,
+  "delta": -4.68
+ },
+ "40/60|بيع|15": {
+  "trades": 371076,
+  "target": 79513,
+  "breakeven": 213306,
+  "stopped": 78257,
+  "win_rate": 21.43,
+  "per_trade": -4.082,
+  "delta": -4.465
+ },
+ "40/60|بيع|20": {
+  "trades": 371073,
+  "target": 113193,
+  "breakeven": 162832,
+  "stopped": 95048,
+  "win_rate": 30.5,
+  "per_trade": -3.167,
+  "delta": -3.55
+ },
+ "40/60|بيع|25": {
+  "trades": 371054,
+  "target": 145359,
+  "breakeven": 115611,
+  "stopped": 110084,
+  "win_rate": 39.17,
+  "per_trade": -2.131,
+  "delta": -2.514
+ },
+ "40/60|بيع|30": {
+  "trades": 371020,
+  "target": 174770,
+  "breakeven": 72855,
+  "stopped": 123395,
+  "win_rate": 47.11,
+  "per_trade": -1.113,
+  "delta": -1.496
+ },
+ "40/60|بيع|40": {
+  "trades": 370877,
+  "target": 223946,
+  "breakeven": 0,
+  "stopped": 146931,
+  "win_rate": 60.38,
+  "per_trade": 0.383,
+  "delta": 0.0
+ },
+ "60/80|شراء|0": {
+  "trades": 367388,
+  "target": 208546,
+  "breakeven": 0,
+  "stopped": 158842,
+  "win_rate": 56.76,
+  "per_trade": -0.53,
+  "delta": 0.0
+ },
+ "60/80|شراء|5": {
+  "trades": 371057,
+  "target": 13833,
+  "breakeven": 329269,
+  "stopped": 27955,
+  "win_rate": 3.73,
+  "per_trade": -3.79,
+  "delta": -3.261
+ },
+ "60/80|شراء|10": {
+  "trades": 371008,
+  "target": 29849,
+  "breakeven": 294910,
+  "stopped": 46249,
+  "win_rate": 8.05,
+  "per_trade": -5.145,
+  "delta": -4.616
+ },
+ "60/80|شراء|15": {
+  "trades": 370866,
+  "target": 52282,
+  "breakeven": 255955,
+  "stopped": 62629,
+  "win_rate": 14.1,
+  "per_trade": -5.051,
+  "delta": -4.522
+ },
+ "60/80|شراء|20": {
+  "trades": 370671,
+  "target": 75889,
+  "breakeven": 217084,
+  "stopped": 77698,
+  "win_rate": 20.47,
+  "per_trade": -4.485,
+  "delta": -3.955
+ },
+ "60/80|شراء|25": {
+  "trades": 370453,
+  "target": 98604,
+  "breakeven": 180576,
+  "stopped": 91273,
+  "win_rate": 26.62,
+  "per_trade": -3.74,
+  "delta": -3.211
+ },
+ "60/80|شراء|30": {
+  "trades": 370220,
+  "target": 119881,
+  "breakeven": 146923,
+  "stopped": 103416,
+  "win_rate": 32.38,
+  "per_trade": -2.918,
+  "delta": -2.389
+ },
+ "60/80|شراء|40": {
+  "trades": 369600,
+  "target": 156168,
+  "breakeven": 88554,
+  "stopped": 124878,
+  "win_rate": 42.25,
+  "per_trade": -1.678,
+  "delta": -1.148
+ },
+ "60/80|بيع|0": {
+  "trades": 367652,
+  "target": 212134,
+  "breakeven": 0,
+  "stopped": 155518,
+  "win_rate": 57.7,
+  "per_trade": 0.78,
+  "delta": 0.0
+ },
+ "60/80|بيع|5": {
+  "trades": 371075,
+  "target": 14067,
+  "breakeven": 329432,
+  "stopped": 27576,
+  "win_rate": 3.79,
+  "per_trade": -3.671,
+  "delta": -4.45
+ },
+ "60/80|بيع|10": {
+  "trades": 371056,
+  "target": 28350,
+  "breakeven": 297311,
+  "stopped": 45395,
+  "win_rate": 7.64,
+  "per_trade": -5.203,
+  "delta": -5.983
+ },
+ "60/80|بيع|15": {
+  "trades": 371012,
+  "target": 49463,
+  "breakeven": 260002,
+  "stopped": 61547,
+  "win_rate": 13.33,
+  "per_trade": -5.272,
+  "delta": -6.052
+ },
+ "60/80|بيع|20": {
+  "trades": 370910,
+  "target": 72867,
+  "breakeven": 222088,
+  "stopped": 75955,
+  "win_rate": 19.65,
+  "per_trade": -4.595,
+  "delta": -5.375
+ },
+ "60/80|بيع|25": {
+  "trades": 370741,
+  "target": 95844,
+  "breakeven": 185920,
+  "stopped": 88977,
+  "win_rate": 25.85,
+  "per_trade": -3.689,
+  "delta": -4.468
+ },
+ "60/80|بيع|30": {
+  "trades": 370529,
+  "target": 117315,
+  "breakeven": 152388,
+  "stopped": 100826,
+  "win_rate": 31.66,
+  "per_trade": -2.772,
+  "delta": -3.552
+ },
+ "60/80|بيع|40": {
+  "trades": 369925,
+  "target": 154707,
+  "breakeven": 93072,
+  "stopped": 122146,
+  "win_rate": 41.82,
+  "per_trade": -1.323,
+  "delta": -2.102
+ }
+}
