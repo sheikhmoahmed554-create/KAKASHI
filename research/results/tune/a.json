@@ -1,0 +1,146 @@
+{
+ "الأساس — بلا تغيير": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "net_points": 1329,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "هدف أساسي 30": {
+  "2025-04": {
+   "trades": 823,
+   "win_rate": 61.97,
+   "per_trade": 1.547,
+   "net_points": 1273,
+   "per_day": 39.2
+  },
+  "2026-06": {
+   "trades": 970,
+   "win_rate": 61.24,
+   "per_trade": 0.744,
+   "net_points": 722,
+   "per_day": 44.1
+  }
+ },
+ "هدف أساسي 40": {
+  "2025-04": {
+   "trades": 828,
+   "win_rate": 62.56,
+   "per_trade": 2.233,
+   "net_points": 1849,
+   "per_day": 39.4
+  },
+  "2026-06": {
+   "trades": 967,
+   "win_rate": 61.12,
+   "per_trade": 0.697,
+   "net_points": 674,
+   "per_day": 44
+  }
+ },
+ "هدف أساسي 60": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.626,
+   "net_points": 1332,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "أقصى هدف 40": {
+  "2025-04": {
+   "trades": 825,
+   "win_rate": 62.18,
+   "per_trade": 1.966,
+   "net_points": 1622,
+   "per_day": 39.3
+  },
+  "2026-06": {
+   "trades": 971,
+   "win_rate": 60.97,
+   "per_trade": 1.011,
+   "net_points": 982,
+   "per_day": 44.1
+  }
+ },
+ "أقصى هدف 70": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 62.15,
+   "per_trade": 2.021,
+   "net_points": 1655,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 968,
+   "win_rate": 60.85,
+   "per_trade": 0.449,
+   "net_points": 435,
+   "per_day": 44
+  }
+ },
+ "أقل هدف 40": {
+  "2025-04": {
+   "trades": 745,
+   "win_rate": 60.67,
+   "per_trade": 2.915,
+   "net_points": 2172,
+   "per_day": 35.5
+  },
+  "2026-06": {
+   "trades": 932,
+   "win_rate": 58.69,
+   "per_trade": 0.553,
+   "net_points": 515,
+   "per_day": 42.4
+  }
+ },
+ "ستوب 45–50": {
+  "2025-04": {
+   "trades": 827,
+   "win_rate": 60.82,
+   "per_trade": 1.337,
+   "net_points": 1106,
+   "per_day": 39.4
+  },
+  "2026-06": {
+   "trades": 969,
+   "win_rate": 60.99,
+   "per_trade": 1.188,
+   "net_points": 1151,
+   "per_day": 44
+  }
+ },
+ "ستوب 65–70": {
+  "2025-04": {
+   "trades": 814,
+   "win_rate": 62.29,
+   "per_trade": 1.963,
+   "net_points": 1598,
+   "per_day": 38.8
+  },
+  "2026-06": {
+   "trades": 963,
+   "win_rate": 61.37,
+   "per_trade": 0.818,
+   "net_points": 788,
+   "per_day": 43.8
+  }
+ }
+}

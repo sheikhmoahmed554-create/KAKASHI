@@ -1,0 +1,162 @@
+{
+ "إقفال إيتشيموكو": {
+  "2025-04": {
+   "trades": 821,
+   "win_rate": 61.51,
+   "per_trade": 1.429,
+   "net_points": 1173,
+   "per_day": 39.1
+  },
+  "2026-06": {
+   "trades": 967,
+   "win_rate": 61.22,
+   "per_trade": 0.802,
+   "net_points": 776,
+   "per_day": 44
+  }
+ },
+ "إقفال طبقة المدارس": {
+  "2025-04": {
+   "trades": 821,
+   "win_rate": 61.51,
+   "per_trade": 1.429,
+   "net_points": 1173,
+   "per_day": 39.1
+  },
+  "2026-06": {
+   "trades": 967,
+   "win_rate": 61.22,
+   "per_trade": 0.802,
+   "net_points": 776,
+   "per_day": 44
+  }
+ },
+ "فتح المدارس المطفية": {
+  "2025-04": {
+   "trades": 817,
+   "win_rate": 61.69,
+   "per_trade": 1.596,
+   "net_points": 1304,
+   "per_day": 38.9
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "أصوات البحث 1": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "net_points": 1329,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "أصوات البحث 3": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "net_points": 1329,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "فريمات 1/3/15": {
+  "2025-04": {
+   "trades": 813,
+   "win_rate": 61.62,
+   "per_trade": 1.678,
+   "net_points": 1364,
+   "per_day": 38.7
+  },
+  "2026-06": {
+   "trades": 972,
+   "win_rate": 61.01,
+   "per_trade": 0.488,
+   "net_points": 474,
+   "per_day": 44.2
+  }
+ },
+ "فريمات 1/1/1": {
+  "2025-04": {
+   "trades": 801,
+   "win_rate": 59.3,
+   "per_trade": -0.286,
+   "net_points": -229,
+   "per_day": 38.1
+  },
+  "2026-06": {
+   "trades": 971,
+   "win_rate": 60.45,
+   "per_trade": 0.191,
+   "net_points": 185,
+   "per_day": 44.1
+  }
+ },
+ "فريمات 1/5/15": {
+  "2025-04": {
+   "trades": 816,
+   "win_rate": 61.52,
+   "per_trade": 1.565,
+   "net_points": 1277,
+   "per_day": 38.9
+  },
+  "2026-06": {
+   "trades": 977,
+   "win_rate": 61,
+   "per_trade": 0.469,
+   "net_points": 458,
+   "per_day": 44.4
+  }
+ },
+ "فيبوناتشي على الدقيقة": {
+  "2025-04": {
+   "trades": 814,
+   "win_rate": 61.3,
+   "per_trade": 1.107,
+   "net_points": 901,
+   "per_day": 38.8
+  },
+  "2026-06": {
+   "trades": 976,
+   "win_rate": 61.89,
+   "per_trade": 1.54,
+   "net_points": 1503,
+   "per_day": 44.4
+  }
+ },
+ "خروج على الدقيقة": {
+  "2025-04": {
+   "trades": 827,
+   "win_rate": 63,
+   "per_trade": 2.624,
+   "net_points": 2170,
+   "per_day": 39.4
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 60.56,
+   "per_trade": 0.321,
+   "net_points": 310,
+   "per_day": 43.9
+  }
+ }
+}
