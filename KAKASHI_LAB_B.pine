@@ -399,8 +399,12 @@ if active
     else if posBars >= maxHoldBars
         active := false
 
-canEnterLong  = not active and sideSel ==  1
-canEnterShort = not active and sideSel == -1
+// فلتر الجلسة — مطابق للقياس: تُستبعد الساعتان 22 و23 UTC وشموع الفجوات
+barGapMin = (time - time[1]) / 60000
+sessOK    = hUTC < 22 and barGapMin <= 5
+
+canEnterLong  = not active and sessOK and sideSel ==  1
+canEnterShort = not active and sessOK and sideSel == -1
 
 if canEnterLong or canEnterShort
     active   := true
