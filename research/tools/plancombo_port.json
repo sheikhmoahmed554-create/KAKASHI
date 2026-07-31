@@ -1,0 +1,32 @@
+{
+ "plan": [
+  55.0,
+  75.0
+ ],
+ "buy": [
+  "momentumBuy",
+  "qaRawBuy",
+  "r8WtBuy",
+  "sy334TypeBuy"
+ ],
+ "sell": [
+  "r11ConnS",
+  "realRevSell",
+  "sy320WeakOppSell",
+  "taOppSell"
+ ],
+ "portfolio": {
+  "trades": 4059,
+  "hit": 2239,
+  "miss": 1428,
+  "tw": 153,
+  "tl": 239,
+  "net": 12766,
+  "wr": 58.93,
+  "per": 3.15,
+  "perday": 92.2,
+  "netday": 290.1,
+  "mins": 9.0,
+  "edge": 1.24
+ }
+}
