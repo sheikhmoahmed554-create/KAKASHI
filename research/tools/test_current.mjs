@@ -78,10 +78,22 @@ const monthRows = m => {
   return { rows: PineLabJS.parseCSV(kept.join('\n')), start: m + '-01T00:00', end: to + 'T00:00' };
 };
 
-const res = {};
+// الحاوية تُعاد فتُقتل العمليات، فنستأنف من الشهر الذي وقفنا عنده بدل البدء من الصفر
+let res = {};
+try {
+  res = JSON.parse(fs.readFileSync(out, 'utf8'));
+  const done = Object.values(res).reduce((n, e) => n + Object.keys(e.months || {}).length, 0);
+  if (done) console.error(`استئناف: ${done} شهراً محسوباً من قبل`);
+} catch { res = {}; }
+
 for (const m of months) {
-  const { rows, start, end } = monthRows(m);
+  const need = [];
   for (let i = Number(a); i < Math.min(Number(b), CONFIGS.length); i++) {
+    if (!res[CONFIGS[i][0]]?.months?.[m]) need.push(i);
+  }
+  if (!need.length) { console.error(`${m} محسوب سلفاً`); continue; }
+  const { rows, start, end } = monthRows(m);
+  for (const i of need) {
     const [name, inputs] = CONFIGS[i];
     messages.length = 0;
     self.onmessage({ data: {
@@ -100,15 +112,17 @@ for (const m of months) {
         t.map(x => JSON.stringify([x.entry_time, x.side, x.outcome, x.points,
                                    x.target, x.stop, x.source])).join('\n') + '\n');
     }
-    const e = res[name] || (res[name] = { trades: 0, wins: 0, losses: 0, net: 0, days: [], months: {} });
+    const e = res[name] || (res[name] = { months: {} });
     let w = 0, net = 0;
+    const days = new Set();
     for (const x of t) {
       if (x.outcome === 'WIN') w++;
       net += Number(x.points) || 0;
-      e.days.push(x.entry_time.slice(0, 10));
+      days.add(x.entry_time.slice(0, 10));
     }
-    e.trades += t.length; e.wins += w; e.losses += t.length - w; e.net += net;
-    e.months[m] = { trades: t.length, wins: w, losses: t.length - w, net: Math.round(net) };
+    // المجاميع تُشتقّ من الشهور لا من عدّادات جارية، فالاستئناف لا يضاعف ولا ينقص
+    e.months[m] = { trades: t.length, wins: w, losses: t.length - w,
+                    net: Math.round(net), days: days.size };
     console.error(`${m} ${name.padEnd(24)} ${t.length} صفقة  ${w}ر/${t.length - w}خ  `
       + `${t.length ? (100 * w / t.length).toFixed(2) : '0'}%  ${Math.round(net)} نقطة`);
   }
@@ -116,14 +130,17 @@ for (const m of months) {
 }
 
 for (const [name, e] of Object.entries(res)) {
-  const nd = new Set(e.days).size;
+  const ms = Object.values(e.months);
+  e.trades = ms.reduce((n, x) => n + x.trades, 0);
+  e.wins = ms.reduce((n, x) => n + x.wins, 0);
+  e.losses = ms.reduce((n, x) => n + x.losses, 0);
+  e.net_points = ms.reduce((n, x) => n + x.net, 0);
+  const nd = ms.reduce((n, x) => n + (x.days || 0), 0);
   e.win_rate = +(100 * e.wins / Math.max(e.trades, 1)).toFixed(2);
-  e.net_points = Math.round(e.net);
   e.per_day = +(e.trades / Math.max(nd, 1)).toFixed(1);
-  e.months_won = Object.values(e.months).filter(x => x.net > 0).length;
-  e.months_total = Object.keys(e.months).length;
-  delete e.days; delete e.net;
+  e.months_won = ms.filter(x => x.net > 0).length;
+  e.months_total = ms.length;
   console.error(`\n${period} ${name.padEnd(24)} ${e.trades} صفقة  ${e.wins}ر/${e.losses}خ  `
-    + `${e.win_rate}%  ${e.months_won}/${e.months_total} شهر`);
+    + `${e.win_rate}%  ${e.months_won}/${e.months_total} شهر  ${e.net_points} نقطة`);
 }
 fs.writeFileSync(out, JSON.stringify(res, null, 1));
