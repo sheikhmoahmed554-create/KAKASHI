@@ -1,0 +1,1 @@
+{"name":"إصلاح البوابة + أصوات ٣","flags":{"minVotes":3.0},"rewrites":[["buySignal := buySignal or chTriB or chSniB\nsellSignal := sellSignal or chTriS or chSniS","buySignal := buySignal or chTriB or chSniB\nsellSignal := sellSignal or chTriS or chSniS\nbuySignal := buySignal and allowLong and not sfBlock\nsellSignal := sellSignal and allowShort and not sfBlock"]]}
