@@ -1,0 +1,82 @@
+{
+ "سحب نافذة 60": {
+  "2025-04": {
+   "trades": 310,
+   "win_rate": 64.52,
+   "per_trade": 1.677,
+   "per_day": 14.8
+  },
+  "2026-06": {
+   "trades": 330,
+   "win_rate": 65.76,
+   "per_trade": 2.894,
+   "per_day": 15
+  },
+  "2023-09": {
+   "trades": 82,
+   "win_rate": 59.76,
+   "per_trade": -2.268,
+   "per_day": 3.9
+  }
+ },
+ "سحب نافذة 20 عمق 1.3": {
+  "2025-04": {
+   "trades": 257,
+   "win_rate": 68.48,
+   "per_trade": 5.066,
+   "per_day": 12.2
+  },
+  "2026-06": {
+   "trades": 308,
+   "win_rate": 63.96,
+   "per_trade": 1.539,
+   "per_day": 14
+  },
+  "2023-09": {
+   "trades": 69,
+   "win_rate": 56.52,
+   "per_trade": -3.768,
+   "per_day": 3.3
+  }
+ },
+ "كفاءة الحركة ≤0.20": {
+  "2025-04": {
+   "trades": 635,
+   "win_rate": 57.95,
+   "per_trade": -0.803,
+   "per_day": 30.2
+  },
+  "2026-06": {
+   "trades": 754,
+   "win_rate": 59.02,
+   "per_trade": -0.735,
+   "per_day": 34.3
+  },
+  "2023-09": {
+   "trades": 80,
+   "win_rate": 58.75,
+   "per_trade": 0.05,
+   "per_day": 3.8
+  }
+ },
+ "كفاءة الحركة ≤0.35": {
+  "2025-04": {
+   "trades": 745,
+   "win_rate": 61.88,
+   "per_trade": 1.846,
+   "per_day": 35.5
+  },
+  "2026-06": {
+   "trades": 867,
+   "win_rate": 62.28,
+   "per_trade": 1.701,
+   "per_day": 39.4
+  },
+  "2023-09": {
+   "trades": 89,
+   "win_rate": 53.93,
+   "per_trade": -5.629,
+   "per_day": 4.2
+  }
+ }
+}

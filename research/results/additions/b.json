@@ -1,0 +1,82 @@
+{
+ "موضع الإغلاق ≤20٪": {
+  "2025-04": {
+   "trades": 634,
+   "win_rate": 61.36,
+   "per_trade": 1.333,
+   "per_day": 30.2
+  },
+  "2026-06": {
+   "trades": 745,
+   "win_rate": 63.62,
+   "per_trade": 3.039,
+   "per_day": 33.9
+  },
+  "2023-09": {
+   "trades": 83,
+   "win_rate": 72.29,
+   "per_trade": 12.072,
+   "per_day": 4.2
+  }
+ },
+ "موضع الإغلاق ≤40٪": {
+  "2025-04": {
+   "trades": 728,
+   "win_rate": 62.09,
+   "per_trade": 1.841,
+   "per_day": 34.7
+  },
+  "2026-06": {
+   "trades": 871,
+   "win_rate": 61.65,
+   "per_trade": 1.397,
+   "per_day": 39.6
+  },
+  "2023-09": {
+   "trades": 86,
+   "win_rate": 61.63,
+   "per_trade": 1.86,
+   "per_day": 4.1
+  }
+ },
+ "شمعتان متتاليتان": {
+  "2025-04": {
+   "trades": 584,
+   "win_rate": 60.96,
+   "per_trade": -0.771,
+   "per_day": 27.8
+  },
+  "2026-06": {
+   "trades": 668,
+   "win_rate": 61.68,
+   "per_trade": 0.045,
+   "per_day": 30.4
+  },
+  "2023-09": {
+   "trades": 80,
+   "win_rate": 60,
+   "per_trade": -0.75,
+   "per_day": 3.8
+  }
+ },
+ "ثلاث شموع متتالية": {
+  "2025-04": {
+   "trades": 493,
+   "win_rate": 63.49,
+   "per_trade": 1.278,
+   "per_day": 23.5
+  },
+  "2026-06": {
+   "trades": 543,
+   "win_rate": 64.09,
+   "per_trade": 1.982,
+   "per_day": 24.7
+  },
+  "2023-09": {
+   "trades": 68,
+   "win_rate": 54.41,
+   "per_trade": -5.485,
+   "per_day": 3.4
+  }
+ }
+}
