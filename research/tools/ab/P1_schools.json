@@ -1,0 +1,3 @@
+{"name":"أ — إحياء المدارس الثلاث + تخفيف شروطها + توصيلها",
+ "flags":{"syr30UseBalance":true,"syr30UseAsia":true,"syr30UseDeadAuction":true,"syr30AuctionBuyEnabled":true,"syr30BalanceMinADX":10.0,"syr30BalanceMinWidthATR":0.30,"syr30BalanceMaxWidthATR":3.00,"syr30AuctionMaxADX":30.0},
+ "rewrites":[["int m1SelectedSide = m1BaseSide","int m1SelectedSide = m1BaseSide != 0 ? m1BaseSide : syr30ReplacementSide"]]}

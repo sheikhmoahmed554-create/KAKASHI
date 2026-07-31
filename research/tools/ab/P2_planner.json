@@ -1,0 +1,2 @@
+{"name":"ب — المخطط الذكي يُحترم بدل تمييعه بقيمة ثابتة",
+ "rewrites":[["_baseT = f_clamp_float((_baseTarget + daeBaseTargetPts) * 0.5, _targetLo, _targetHi)","_baseT = f_clamp_float(_baseTarget, _targetLo, _targetHi)"]]}
