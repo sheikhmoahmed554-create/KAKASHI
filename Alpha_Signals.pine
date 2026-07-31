@@ -1,0 +1,156 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0
+// © your_name  — بنيته أنت، عدّل عليه براحتك
+//
+// Alpha Signals — مؤشر انعكاسات متكيّف (نسخة أصلية من الصفر)
+// مستوحى من فكرة عمل مؤشرات الإشارات المتقدمة (٤ طبقات تأكيد + فلترة متكيّفة + TP/SL ديناميكي).
+// هذا الكود ملكك بالكامل — غيّر أي قيمة أو منطق كما تريد.
+
+//@version=5
+indicator("Alpha Signals", overlay = true, max_labels_count = 500)
+
+// ============================================================================
+//                                الإعدادات
+// ============================================================================
+grpSig   = "إعدادات الإشارة"
+sens     = input.float(1.0,  "الحساسية (أصغر = إشارات أقل وأدق)", minval = 0.3, maxval = 3.0, step = 0.1, group = grpSig)
+rsiLen   = input.int(14,     "طول RSI (الزخم)",                   minval = 2,   group = grpSig)
+emaLen   = input.int(50,     "طول EMA (سياق الاتجاه)",            minval = 5,   group = grpSig)
+atrLen   = input.int(14,     "طول ATR (التذبذب)",                 minval = 2,   group = grpSig)
+
+grpAdapt = "الفلترة المتكيّفة"
+useAdapt = input.bool(true,  "تفعيل الفلترة المتكيّفة مع التذبذب", group = grpAdapt)
+volLook  = input.int(50,     "نافذة قياس متوسط التذبذب",          minval = 10,  group = grpAdapt)
+
+grpTP    = "الأهداف ووقف الخسارة (TP/SL ديناميكي)"
+showTPSL = input.bool(true,  "إظهار خطوط TP/SL",                  group = grpTP)
+slMult   = input.float(1.5,  "مضاعف SL (× ATR)",                  minval = 0.2, step = 0.1, group = grpTP)
+tpMult   = input.float(2.0,  "مضاعف TP (× ATR)",                  minval = 0.2, step = 0.1, group = grpTP)
+
+grpUI    = "المظهر واللوحة"
+showDash = input.bool(true,  "إظهار لوحة الإحصائيات (Win Rate)",  group = grpUI)
+buyCol   = input.color(color.new(#00c853, 0), "لون الشراء",       group = grpUI)
+sellCol  = input.color(color.new(#ff1744, 0), "لون البيع",        group = grpUI)
+
+// ============================================================================
+//                            المؤشرات الأساسية
+// ============================================================================
+rsi   = ta.rsi(close, rsiLen)
+emaV  = ta.ema(close, emaLen)
+atr   = ta.atr(atrLen)
+
+// الفلتر المتكيّف: عند ارتفاع التذبذب فوق متوسطه نشدّد شرط الحساسية تلقائياً
+atrAvg   = ta.sma(atr, volLook)
+volRatio = atrAvg > 0 ? atr / atrAvg : 1.0
+adaptMul = useAdapt ? math.max(volRatio, 1.0) : 1.0   // >1 وقت التذبذب العالي => تشديد
+effSens  = sens / adaptMul                            // حساسية فعّالة تنكمش عند التذبذب
+
+// ============================================================================
+//                        الطبقات الأربع للتأكيد
+// ============================================================================
+// (1) بنية انعكاس شمعي: شمعة ابتلاعية
+bullEngulf = close > open and close[1] < open[1] and close >= open[1] and open <= close[1]
+bearEngulf = close < open and close[1] > open[1] and close <= open[1] and open >= close[1]
+
+// (2) فلتر التذبذب/المدى: جسم الشمعة أكبر من عتبة نسبية للـ ATR
+body      = math.abs(close - open)
+rangeOK   = body > atr * (0.25 * effSens)
+
+// (3) تأكيد الزخم عبر RSI (عتبات تتحرّك مع الحساسية الفعّالة)
+buyRsiTh  = 50 - 15 * effSens
+sellRsiTh = 50 + 15 * effSens
+momUp     = rsi > buyRsiTh
+momDn     = rsi < sellRsiTh
+
+// (4) سياق الاتجاه قصير المدى عبر EMA
+trendUp   = close > emaV
+trendDn   = close < emaV
+
+// دمج الطبقات — كلها لازم تتفق
+rawBuy  = bullEngulf and rangeOK and momUp and trendUp
+rawSell = bearEngulf and rangeOK and momDn and trendDn
+
+// منع تكرار الإشارة بنفس الاتجاه المتتالي
+var int lastDir = 0            // 1 = آخرها شراء، -1 = آخرها بيع
+buySig  = rawBuy  and lastDir != 1
+sellSig = rawSell and lastDir != -1
+if buySig
+    lastDir := 1
+if sellSig
+    lastDir := -1
+
+// ملاحظة: الإشارات تُحسب على الشمعة المُغلقة (بدون repaint) لأننا لا نستخدم قيم مستقبلية.
+
+// ============================================================================
+//                              الرسم على الشارت
+// ============================================================================
+plotshape(buySig,  title = "BUY",  style = shape.labelup,   location = location.belowbar, color = buyCol,  text = "BUY",  textcolor = color.white, size = size.small)
+plotshape(sellSig, title = "SELL", style = shape.labeldown, location = location.abovebar, color = sellCol, text = "SELL", textcolor = color.white, size = size.small)
+
+plot(emaV, "EMA", color = color.new(color.orange, 40))
+
+// ============================================================================
+//                          TP / SL ديناميكي
+// ============================================================================
+var float entryPx = na
+var float slPx    = na
+var float tpPx    = na
+var int   posDir  = 0          // 1 لصفقة شراء، -1 لصفقة بيع
+
+if buySig
+    entryPx := close
+    slPx    := close - atr * slMult
+    tpPx    := close + atr * tpMult
+    posDir  := 1
+if sellSig
+    entryPx := close
+    slPx    := close + atr * slMult
+    tpPx    := close - atr * tpMult
+    posDir  := -1
+
+// ============================================================================
+//                       تتبّع النتائج + Win Rate
+// ============================================================================
+var int wins   = 0
+var int losses = 0
+
+if posDir == 1
+    if high >= tpPx
+        wins   += 1
+        posDir := 0
+    else if low <= slPx
+        losses += 1
+        posDir := 0
+if posDir == -1
+    if low <= tpPx
+        wins   += 1
+        posDir := 0
+    else if high >= slPx
+        losses += 1
+        posDir := 0
+
+// رسم خطوط الهدف/الوقف للصفقة المفتوحة
+plot(showTPSL and posDir != 0 ? tpPx : na, "TP", color = color.new(color.green, 0), style = plot.style_linebr, linewidth = 2)
+plot(showTPSL and posDir != 0 ? slPx : na, "SL", color = color.new(color.red,   0), style = plot.style_linebr, linewidth = 2)
+
+// ============================================================================
+//                              لوحة الإحصائيات
+// ============================================================================
+totalTrades = wins + losses
+winRate     = totalTrades > 0 ? wins / totalTrades * 100 : 0.0
+
+if showDash and barstate.islast
+    var table dash = table.new(position.top_right, 2, 4, border_width = 1)
+    table.cell(dash, 0, 0, "Alpha Signals", text_color = color.white, bgcolor = color.new(color.black, 0), text_size = size.normal)
+    table.cell(dash, 1, 0, "",              bgcolor = color.new(color.black, 0))
+    table.cell(dash, 0, 1, "الصفقات",       text_color = color.white, bgcolor = color.new(#1e1e1e, 0))
+    table.cell(dash, 1, 1, str.tostring(totalTrades), text_color = color.white, bgcolor = color.new(#1e1e1e, 0))
+    table.cell(dash, 0, 2, "رابحة/خاسرة",   text_color = color.white, bgcolor = color.new(#1e1e1e, 0))
+    table.cell(dash, 1, 2, str.tostring(wins) + " / " + str.tostring(losses), text_color = color.white, bgcolor = color.new(#1e1e1e, 0))
+    table.cell(dash, 0, 3, "Win Rate",      text_color = color.white, bgcolor = color.new(#1e1e1e, 0))
+    table.cell(dash, 1, 3, str.tostring(winRate, "#.#") + " %", text_color = winRate >= 50 ? buyCol : sellCol, bgcolor = color.new(#1e1e1e, 0))
+
+// ============================================================================
+//                               التنبيهات
+// ============================================================================
+alertcondition(buySig,  "إشارة شراء",  "Alpha Signals: BUY")
+alertcondition(sellSig, "إشارة بيع",   "Alpha Signals: SELL")
