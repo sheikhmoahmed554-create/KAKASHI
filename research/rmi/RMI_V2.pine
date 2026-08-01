@@ -122,6 +122,12 @@ mcSmbMode = input.string("Off", "Smart Money Breakout", options=["Off", "Source"
 mcSmbSwing = input.int(25, "SMB Structure Horizon", minval=2, group=G_SRC)
 mcSmbConfType = input.string("Candle Close", "SMB Break Confirmation", options=["Candle Close", "Wicks"], group=G_SRC)
 
+mcSrMode = input.string("Off", "S/R Re-test Finder", options=["Off", "Source", "Filter"], group=G_SRC)
+mcSrLeft = input.int(20, "S/R Left Bars", minval=1, group=G_SRC)
+mcSrRight = input.int(20, "S/R Right Bars", minval=1, group=G_SRC)
+mcSrMethod = input.string("Wick", "S/R Detection Method", options=["Wick", "Body"], group=G_SRC)
+mcSrMaxAge = input.int(1000, "S/R Level Max Age", minval=50, group=G_SRC)
+
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 
 // ══════════════════════════════════════════════════════════════════
@@ -374,6 +380,273 @@ mcSmbLowActive := mcSmbSell ? false : mcSmbLowActive
 mcSmbBuyOK = not na(mcSmbPrevLow) and close > mcSmbPrevLow
 mcSmbSellOK = not na(mcSmbPrevHigh) and close < mcSmbPrevHigh
 
+// S/R Re-test Finder — مقاومة تُكسر فتصير دعماً، فإذا عاد السعر ولمسها
+// بشمعة صاعدة فتلك إشارة شراء. والعكس بيع.
+// الأصل يحفظ المستويات المعلّقة في قوائم ديناميكية؛ القوائم غير متاحة في محرك
+// الاختبار فتُكتب ثماني فتحات لكل طور ولكل جهة، وتسقط الأقدم عند الامتلاء.
+// هذا تقريب للأصل: مستوى تاسع معلّق في الوقت نفسه يضيع.
+
+mcSrSrcHi = mcSrMethod == "Wick" ? high : close > open ? close : open
+mcSrSrcLo = mcSrMethod == "Wick" ? low : close < open ? close : open
+mcSrPh = ta.pivothigh(mcSrSrcHi, mcSrLeft, mcSrRight)
+mcSrPl = ta.pivotlow(mcSrSrcLo, mcSrLeft, mcSrRight)
+mcSrNewHi = not na(mcSrPh)
+mcSrNewLo = not na(mcSrPl)
+
+var float mcSrF1HP0 = na
+var int mcSrF1HB0 = na
+var float mcSrF1HP1 = na
+var int mcSrF1HB1 = na
+var float mcSrF1HP2 = na
+var int mcSrF1HB2 = na
+var float mcSrF1HP3 = na
+var int mcSrF1HB3 = na
+var float mcSrF1HP4 = na
+var int mcSrF1HB4 = na
+var float mcSrF1HP5 = na
+var int mcSrF1HB5 = na
+var float mcSrF1HP6 = na
+var int mcSrF1HB6 = na
+var float mcSrF1HP7 = na
+var int mcSrF1HB7 = na
+
+var float mcSrF2HP0 = na
+var int mcSrF2HB0 = na
+var float mcSrF2HP1 = na
+var int mcSrF2HB1 = na
+var float mcSrF2HP2 = na
+var int mcSrF2HB2 = na
+var float mcSrF2HP3 = na
+var int mcSrF2HB3 = na
+var float mcSrF2HP4 = na
+var int mcSrF2HB4 = na
+var float mcSrF2HP5 = na
+var int mcSrF2HB5 = na
+var float mcSrF2HP6 = na
+var int mcSrF2HB6 = na
+var float mcSrF2HP7 = na
+var int mcSrF2HB7 = na
+
+var float mcSrF1LP0 = na
+var int mcSrF1LB0 = na
+var float mcSrF1LP1 = na
+var int mcSrF1LB1 = na
+var float mcSrF1LP2 = na
+var int mcSrF1LB2 = na
+var float mcSrF1LP3 = na
+var int mcSrF1LB3 = na
+var float mcSrF1LP4 = na
+var int mcSrF1LB4 = na
+var float mcSrF1LP5 = na
+var int mcSrF1LB5 = na
+var float mcSrF1LP6 = na
+var int mcSrF1LB6 = na
+var float mcSrF1LP7 = na
+var int mcSrF1LB7 = na
+
+var float mcSrF2LP0 = na
+var int mcSrF2LB0 = na
+var float mcSrF2LP1 = na
+var int mcSrF2LB1 = na
+var float mcSrF2LP2 = na
+var int mcSrF2LB2 = na
+var float mcSrF2LP3 = na
+var int mcSrF2LB3 = na
+var float mcSrF2LP4 = na
+var int mcSrF2LB4 = na
+var float mcSrF2LP5 = na
+var int mcSrF2LB5 = na
+var float mcSrF2LP6 = na
+var int mcSrF2LB6 = na
+var float mcSrF2LP7 = na
+var int mcSrF2LB7 = na
+
+mcSrD2H0 = not na(mcSrF2HP0) and (low <= mcSrF2HP0 and close > mcSrF2HP0 and close > open or close < mcSrF2HP0 or bar_index - mcSrF2HB0 > mcSrMaxAge)
+mcSrD2H1 = not na(mcSrF2HP1) and (low <= mcSrF2HP1 and close > mcSrF2HP1 and close > open or close < mcSrF2HP1 or bar_index - mcSrF2HB1 > mcSrMaxAge)
+mcSrD2H2 = not na(mcSrF2HP2) and (low <= mcSrF2HP2 and close > mcSrF2HP2 and close > open or close < mcSrF2HP2 or bar_index - mcSrF2HB2 > mcSrMaxAge)
+mcSrD2H3 = not na(mcSrF2HP3) and (low <= mcSrF2HP3 and close > mcSrF2HP3 and close > open or close < mcSrF2HP3 or bar_index - mcSrF2HB3 > mcSrMaxAge)
+mcSrD2H4 = not na(mcSrF2HP4) and (low <= mcSrF2HP4 and close > mcSrF2HP4 and close > open or close < mcSrF2HP4 or bar_index - mcSrF2HB4 > mcSrMaxAge)
+mcSrD2H5 = not na(mcSrF2HP5) and (low <= mcSrF2HP5 and close > mcSrF2HP5 and close > open or close < mcSrF2HP5 or bar_index - mcSrF2HB5 > mcSrMaxAge)
+mcSrD2H6 = not na(mcSrF2HP6) and (low <= mcSrF2HP6 and close > mcSrF2HP6 and close > open or close < mcSrF2HP6 or bar_index - mcSrF2HB6 > mcSrMaxAge)
+mcSrD2H7 = not na(mcSrF2HP7) and (low <= mcSrF2HP7 and close > mcSrF2HP7 and close > open or close < mcSrF2HP7 or bar_index - mcSrF2HB7 > mcSrMaxAge)
+
+mcSrBuy = (not na(mcSrF2HP0) and low <= mcSrF2HP0 and close > mcSrF2HP0 and close > open) or (not na(mcSrF2HP1) and low <= mcSrF2HP1 and close > mcSrF2HP1 and close > open) or (not na(mcSrF2HP2) and low <= mcSrF2HP2 and close > mcSrF2HP2 and close > open) or (not na(mcSrF2HP3) and low <= mcSrF2HP3 and close > mcSrF2HP3 and close > open) or (not na(mcSrF2HP4) and low <= mcSrF2HP4 and close > mcSrF2HP4 and close > open) or (not na(mcSrF2HP5) and low <= mcSrF2HP5 and close > mcSrF2HP5 and close > open) or (not na(mcSrF2HP6) and low <= mcSrF2HP6 and close > mcSrF2HP6 and close > open) or (not na(mcSrF2HP7) and low <= mcSrF2HP7 and close > mcSrF2HP7 and close > open)
+
+mcSrD2L0 = not na(mcSrF2LP0) and (high >= mcSrF2LP0 and close < mcSrF2LP0 and close < open or close > mcSrF2LP0 or bar_index - mcSrF2LB0 > mcSrMaxAge)
+mcSrD2L1 = not na(mcSrF2LP1) and (high >= mcSrF2LP1 and close < mcSrF2LP1 and close < open or close > mcSrF2LP1 or bar_index - mcSrF2LB1 > mcSrMaxAge)
+mcSrD2L2 = not na(mcSrF2LP2) and (high >= mcSrF2LP2 and close < mcSrF2LP2 and close < open or close > mcSrF2LP2 or bar_index - mcSrF2LB2 > mcSrMaxAge)
+mcSrD2L3 = not na(mcSrF2LP3) and (high >= mcSrF2LP3 and close < mcSrF2LP3 and close < open or close > mcSrF2LP3 or bar_index - mcSrF2LB3 > mcSrMaxAge)
+mcSrD2L4 = not na(mcSrF2LP4) and (high >= mcSrF2LP4 and close < mcSrF2LP4 and close < open or close > mcSrF2LP4 or bar_index - mcSrF2LB4 > mcSrMaxAge)
+mcSrD2L5 = not na(mcSrF2LP5) and (high >= mcSrF2LP5 and close < mcSrF2LP5 and close < open or close > mcSrF2LP5 or bar_index - mcSrF2LB5 > mcSrMaxAge)
+mcSrD2L6 = not na(mcSrF2LP6) and (high >= mcSrF2LP6 and close < mcSrF2LP6 and close < open or close > mcSrF2LP6 or bar_index - mcSrF2LB6 > mcSrMaxAge)
+mcSrD2L7 = not na(mcSrF2LP7) and (high >= mcSrF2LP7 and close < mcSrF2LP7 and close < open or close > mcSrF2LP7 or bar_index - mcSrF2LB7 > mcSrMaxAge)
+
+mcSrSell = (not na(mcSrF2LP0) and high >= mcSrF2LP0 and close < mcSrF2LP0 and close < open) or (not na(mcSrF2LP1) and high >= mcSrF2LP1 and close < mcSrF2LP1 and close < open) or (not na(mcSrF2LP2) and high >= mcSrF2LP2 and close < mcSrF2LP2 and close < open) or (not na(mcSrF2LP3) and high >= mcSrF2LP3 and close < mcSrF2LP3 and close < open) or (not na(mcSrF2LP4) and high >= mcSrF2LP4 and close < mcSrF2LP4 and close < open) or (not na(mcSrF2LP5) and high >= mcSrF2LP5 and close < mcSrF2LP5 and close < open) or (not na(mcSrF2LP6) and high >= mcSrF2LP6 and close < mcSrF2LP6 and close < open) or (not na(mcSrF2LP7) and high >= mcSrF2LP7 and close < mcSrF2LP7 and close < open)
+
+mcSrUp0 = not na(mcSrF1HP0) and low > mcSrF1HP0
+mcSrDn0 = not na(mcSrF1LP0) and high < mcSrF1LP0
+mcSrUp1 = not na(mcSrF1HP1) and low > mcSrF1HP1
+mcSrDn1 = not na(mcSrF1LP1) and high < mcSrF1LP1
+mcSrUp2 = not na(mcSrF1HP2) and low > mcSrF1HP2
+mcSrDn2 = not na(mcSrF1LP2) and high < mcSrF1LP2
+mcSrUp3 = not na(mcSrF1HP3) and low > mcSrF1HP3
+mcSrDn3 = not na(mcSrF1LP3) and high < mcSrF1LP3
+mcSrUp4 = not na(mcSrF1HP4) and low > mcSrF1HP4
+mcSrDn4 = not na(mcSrF1LP4) and high < mcSrF1LP4
+mcSrUp5 = not na(mcSrF1HP5) and low > mcSrF1HP5
+mcSrDn5 = not na(mcSrF1LP5) and high < mcSrF1LP5
+mcSrUp6 = not na(mcSrF1HP6) and low > mcSrF1HP6
+mcSrDn6 = not na(mcSrF1LP6) and high < mcSrF1LP6
+mcSrUp7 = not na(mcSrF1HP7) and low > mcSrF1HP7
+mcSrDn7 = not na(mcSrF1LP7) and high < mcSrF1LP7
+
+mcSrPromoH = mcSrUp0 or mcSrUp1 or mcSrUp2 or mcSrUp3 or mcSrUp4 or mcSrUp5 or mcSrUp6 or mcSrUp7
+
+mcSrPromoHP = mcSrUp0 ? mcSrF1HP0 : mcSrUp1 ? mcSrF1HP1 : mcSrUp2 ? mcSrF1HP2 : mcSrUp3 ? mcSrF1HP3 : mcSrUp4 ? mcSrF1HP4 : mcSrUp5 ? mcSrF1HP5 : mcSrUp6 ? mcSrF1HP6 : mcSrUp7 ? mcSrF1HP7 : na
+
+mcSrPromoHB = mcSrUp0 ? mcSrF1HB0 : mcSrUp1 ? mcSrF1HB1 : mcSrUp2 ? mcSrF1HB2 : mcSrUp3 ? mcSrF1HB3 : mcSrUp4 ? mcSrF1HB4 : mcSrUp5 ? mcSrF1HB5 : mcSrUp6 ? mcSrF1HB6 : mcSrUp7 ? mcSrF1HB7 : na
+
+mcSrPromoL = mcSrDn0 or mcSrDn1 or mcSrDn2 or mcSrDn3 or mcSrDn4 or mcSrDn5 or mcSrDn6 or mcSrDn7
+
+mcSrPromoLP = mcSrDn0 ? mcSrF1LP0 : mcSrDn1 ? mcSrF1LP1 : mcSrDn2 ? mcSrF1LP2 : mcSrDn3 ? mcSrF1LP3 : mcSrDn4 ? mcSrF1LP4 : mcSrDn5 ? mcSrF1LP5 : mcSrDn6 ? mcSrF1LP6 : mcSrDn7 ? mcSrF1LP7 : na
+
+mcSrPromoLB = mcSrDn0 ? mcSrF1LB0 : mcSrDn1 ? mcSrF1LB1 : mcSrDn2 ? mcSrF1LB2 : mcSrDn3 ? mcSrF1LB3 : mcSrDn4 ? mcSrF1LB4 : mcSrDn5 ? mcSrF1LB5 : mcSrDn6 ? mcSrF1LB6 : mcSrDn7 ? mcSrF1LB7 : na
+
+mcSrF1HP0 := mcSrUp0 or (not na(mcSrF1HB0) and bar_index - mcSrF1HB0 > mcSrMaxAge) ? na : mcSrF1HP0
+
+mcSrF1LP0 := mcSrDn0 or (not na(mcSrF1LB0) and bar_index - mcSrF1LB0 > mcSrMaxAge) ? na : mcSrF1LP0
+
+mcSrF2HP0 := mcSrD2H0 ? na : mcSrF2HP0
+
+mcSrF2LP0 := mcSrD2L0 ? na : mcSrF2LP0
+
+mcSrF1HP1 := mcSrUp1 or (not na(mcSrF1HB1) and bar_index - mcSrF1HB1 > mcSrMaxAge) ? na : mcSrF1HP1
+
+mcSrF1LP1 := mcSrDn1 or (not na(mcSrF1LB1) and bar_index - mcSrF1LB1 > mcSrMaxAge) ? na : mcSrF1LP1
+
+mcSrF2HP1 := mcSrD2H1 ? na : mcSrF2HP1
+
+mcSrF2LP1 := mcSrD2L1 ? na : mcSrF2LP1
+
+mcSrF1HP2 := mcSrUp2 or (not na(mcSrF1HB2) and bar_index - mcSrF1HB2 > mcSrMaxAge) ? na : mcSrF1HP2
+
+mcSrF1LP2 := mcSrDn2 or (not na(mcSrF1LB2) and bar_index - mcSrF1LB2 > mcSrMaxAge) ? na : mcSrF1LP2
+
+mcSrF2HP2 := mcSrD2H2 ? na : mcSrF2HP2
+
+mcSrF2LP2 := mcSrD2L2 ? na : mcSrF2LP2
+
+mcSrF1HP3 := mcSrUp3 or (not na(mcSrF1HB3) and bar_index - mcSrF1HB3 > mcSrMaxAge) ? na : mcSrF1HP3
+
+mcSrF1LP3 := mcSrDn3 or (not na(mcSrF1LB3) and bar_index - mcSrF1LB3 > mcSrMaxAge) ? na : mcSrF1LP3
+
+mcSrF2HP3 := mcSrD2H3 ? na : mcSrF2HP3
+
+mcSrF2LP3 := mcSrD2L3 ? na : mcSrF2LP3
+
+mcSrF1HP4 := mcSrUp4 or (not na(mcSrF1HB4) and bar_index - mcSrF1HB4 > mcSrMaxAge) ? na : mcSrF1HP4
+
+mcSrF1LP4 := mcSrDn4 or (not na(mcSrF1LB4) and bar_index - mcSrF1LB4 > mcSrMaxAge) ? na : mcSrF1LP4
+
+mcSrF2HP4 := mcSrD2H4 ? na : mcSrF2HP4
+
+mcSrF2LP4 := mcSrD2L4 ? na : mcSrF2LP4
+
+mcSrF1HP5 := mcSrUp5 or (not na(mcSrF1HB5) and bar_index - mcSrF1HB5 > mcSrMaxAge) ? na : mcSrF1HP5
+
+mcSrF1LP5 := mcSrDn5 or (not na(mcSrF1LB5) and bar_index - mcSrF1LB5 > mcSrMaxAge) ? na : mcSrF1LP5
+
+mcSrF2HP5 := mcSrD2H5 ? na : mcSrF2HP5
+
+mcSrF2LP5 := mcSrD2L5 ? na : mcSrF2LP5
+
+mcSrF1HP6 := mcSrUp6 or (not na(mcSrF1HB6) and bar_index - mcSrF1HB6 > mcSrMaxAge) ? na : mcSrF1HP6
+
+mcSrF1LP6 := mcSrDn6 or (not na(mcSrF1LB6) and bar_index - mcSrF1LB6 > mcSrMaxAge) ? na : mcSrF1LP6
+
+mcSrF2HP6 := mcSrD2H6 ? na : mcSrF2HP6
+
+mcSrF2LP6 := mcSrD2L6 ? na : mcSrF2LP6
+
+mcSrF1HP7 := mcSrUp7 or (not na(mcSrF1HB7) and bar_index - mcSrF1HB7 > mcSrMaxAge) ? na : mcSrF1HP7
+
+mcSrF1LP7 := mcSrDn7 or (not na(mcSrF1LB7) and bar_index - mcSrF1LB7 > mcSrMaxAge) ? na : mcSrF1LP7
+
+mcSrF2HP7 := mcSrD2H7 ? na : mcSrF2HP7
+
+mcSrF2LP7 := mcSrD2L7 ? na : mcSrF2LP7
+
+mcSrF2HP7 := mcSrPromoH ? mcSrF2HP6 : mcSrF2HP7
+mcSrF2HB7 := mcSrPromoH ? mcSrF2HB6 : mcSrF2HB7
+mcSrF2HP6 := mcSrPromoH ? mcSrF2HP5 : mcSrF2HP6
+mcSrF2HB6 := mcSrPromoH ? mcSrF2HB5 : mcSrF2HB6
+mcSrF2HP5 := mcSrPromoH ? mcSrF2HP4 : mcSrF2HP5
+mcSrF2HB5 := mcSrPromoH ? mcSrF2HB4 : mcSrF2HB5
+mcSrF2HP4 := mcSrPromoH ? mcSrF2HP3 : mcSrF2HP4
+mcSrF2HB4 := mcSrPromoH ? mcSrF2HB3 : mcSrF2HB4
+mcSrF2HP3 := mcSrPromoH ? mcSrF2HP2 : mcSrF2HP3
+mcSrF2HB3 := mcSrPromoH ? mcSrF2HB2 : mcSrF2HB3
+mcSrF2HP2 := mcSrPromoH ? mcSrF2HP1 : mcSrF2HP2
+mcSrF2HB2 := mcSrPromoH ? mcSrF2HB1 : mcSrF2HB2
+mcSrF2HP1 := mcSrPromoH ? mcSrF2HP0 : mcSrF2HP1
+mcSrF2HB1 := mcSrPromoH ? mcSrF2HB0 : mcSrF2HB1
+mcSrF2HP0 := mcSrPromoH ? mcSrPromoHP : mcSrF2HP0
+mcSrF2HB0 := mcSrPromoH ? mcSrPromoHB : mcSrF2HB0
+
+mcSrF2LP7 := mcSrPromoL ? mcSrF2LP6 : mcSrF2LP7
+mcSrF2LB7 := mcSrPromoL ? mcSrF2LB6 : mcSrF2LB7
+mcSrF2LP6 := mcSrPromoL ? mcSrF2LP5 : mcSrF2LP6
+mcSrF2LB6 := mcSrPromoL ? mcSrF2LB5 : mcSrF2LB6
+mcSrF2LP5 := mcSrPromoL ? mcSrF2LP4 : mcSrF2LP5
+mcSrF2LB5 := mcSrPromoL ? mcSrF2LB4 : mcSrF2LB5
+mcSrF2LP4 := mcSrPromoL ? mcSrF2LP3 : mcSrF2LP4
+mcSrF2LB4 := mcSrPromoL ? mcSrF2LB3 : mcSrF2LB4
+mcSrF2LP3 := mcSrPromoL ? mcSrF2LP2 : mcSrF2LP3
+mcSrF2LB3 := mcSrPromoL ? mcSrF2LB2 : mcSrF2LB3
+mcSrF2LP2 := mcSrPromoL ? mcSrF2LP1 : mcSrF2LP2
+mcSrF2LB2 := mcSrPromoL ? mcSrF2LB1 : mcSrF2LB2
+mcSrF2LP1 := mcSrPromoL ? mcSrF2LP0 : mcSrF2LP1
+mcSrF2LB1 := mcSrPromoL ? mcSrF2LB0 : mcSrF2LB1
+mcSrF2LP0 := mcSrPromoL ? mcSrPromoLP : mcSrF2LP0
+mcSrF2LB0 := mcSrPromoL ? mcSrPromoLB : mcSrF2LB0
+
+mcSrF1HP7 := mcSrNewHi ? mcSrF1HP6 : mcSrF1HP7
+mcSrF1HB7 := mcSrNewHi ? mcSrF1HB6 : mcSrF1HB7
+mcSrF1HP6 := mcSrNewHi ? mcSrF1HP5 : mcSrF1HP6
+mcSrF1HB6 := mcSrNewHi ? mcSrF1HB5 : mcSrF1HB6
+mcSrF1HP5 := mcSrNewHi ? mcSrF1HP4 : mcSrF1HP5
+mcSrF1HB5 := mcSrNewHi ? mcSrF1HB4 : mcSrF1HB5
+mcSrF1HP4 := mcSrNewHi ? mcSrF1HP3 : mcSrF1HP4
+mcSrF1HB4 := mcSrNewHi ? mcSrF1HB3 : mcSrF1HB4
+mcSrF1HP3 := mcSrNewHi ? mcSrF1HP2 : mcSrF1HP3
+mcSrF1HB3 := mcSrNewHi ? mcSrF1HB2 : mcSrF1HB3
+mcSrF1HP2 := mcSrNewHi ? mcSrF1HP1 : mcSrF1HP2
+mcSrF1HB2 := mcSrNewHi ? mcSrF1HB1 : mcSrF1HB2
+mcSrF1HP1 := mcSrNewHi ? mcSrF1HP0 : mcSrF1HP1
+mcSrF1HB1 := mcSrNewHi ? mcSrF1HB0 : mcSrF1HB1
+mcSrF1HP0 := mcSrNewHi ? mcSrPh : mcSrF1HP0
+mcSrF1HB0 := mcSrNewHi ? bar_index - mcSrRight : mcSrF1HB0
+
+mcSrF1LP7 := mcSrNewLo ? mcSrF1LP6 : mcSrF1LP7
+mcSrF1LB7 := mcSrNewLo ? mcSrF1LB6 : mcSrF1LB7
+mcSrF1LP6 := mcSrNewLo ? mcSrF1LP5 : mcSrF1LP6
+mcSrF1LB6 := mcSrNewLo ? mcSrF1LB5 : mcSrF1LB6
+mcSrF1LP5 := mcSrNewLo ? mcSrF1LP4 : mcSrF1LP5
+mcSrF1LB5 := mcSrNewLo ? mcSrF1LB4 : mcSrF1LB5
+mcSrF1LP4 := mcSrNewLo ? mcSrF1LP3 : mcSrF1LP4
+mcSrF1LB4 := mcSrNewLo ? mcSrF1LB3 : mcSrF1LB4
+mcSrF1LP3 := mcSrNewLo ? mcSrF1LP2 : mcSrF1LP3
+mcSrF1LB3 := mcSrNewLo ? mcSrF1LB2 : mcSrF1LB3
+mcSrF1LP2 := mcSrNewLo ? mcSrF1LP1 : mcSrF1LP2
+mcSrF1LB2 := mcSrNewLo ? mcSrF1LB1 : mcSrF1LB2
+mcSrF1LP1 := mcSrNewLo ? mcSrF1LP0 : mcSrF1LP1
+mcSrF1LB1 := mcSrNewLo ? mcSrF1LB0 : mcSrF1LB1
+mcSrF1LP0 := mcSrNewLo ? mcSrPl : mcSrF1LP0
+mcSrF1LB0 := mcSrNewLo ? bar_index - mcSrRight : mcSrF1LB0
+
+mcSrBuyOK = not na(mcSrF2HP0) and close > mcSrF2HP0
+mcSrSellOK = not na(mcSrF2LP0) and close < mcSrF2LP0
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -384,27 +657,27 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0)
 
 // ══════════════════════════════════════════════════════════════════
 // REACTION ENGINE
