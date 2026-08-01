@@ -124,7 +124,8 @@ rows = "".join(
     f"<td>{r['per_trade']:+.3f}</td></tr>"
     for f, r in [(c[0], c[1]) for c in curve if c[0] % 2000 == 0])
 
-html = f"""<title>SYR30 — أعلى نسبة ربح على نظام الأهداف</title>
+html = f"""<meta charset="utf-8">
+<title>SYR30 — أعلى نسبة ربح على نظام الأهداف</title>
 <style>
 body{{margin:0;background:#070b11;color:#f4f7fb;font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;direction:rtl}}
 .wrap{{max-width:1000px;margin:auto;padding:16px}}
@@ -202,5 +203,5 @@ th{{background:#192435}} .up{{color:#20d17a;font-weight:700}} .dn{{color:#ff5968
 </div>
 </div>"""
 
-open('research/results/tpsl_report.html', 'w').write(html)
+open('research/results/tpsl_report.html', 'w', encoding='utf-8').write(html)
 print("wrote research/results/tpsl_report.html", len(html), "bytes")

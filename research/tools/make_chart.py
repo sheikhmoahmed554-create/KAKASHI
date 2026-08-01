@@ -75,7 +75,8 @@ rows = "".join(
     for s in seg.itertuples()
 )
 
-html = f"""<title>KAKASHI — خريطة أنواع السوق 2026</title>
+html = f"""<meta charset="utf-8">
+<title>KAKASHI — خريطة أنواع السوق 2026</title>
 <style>
 body{{margin:0;background:#070b11;color:#f4f7fb;font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;direction:rtl}}
 .wrap{{max-width:1460px;margin:auto;padding:16px}}
@@ -113,5 +114,5 @@ th{{background:#192435;position:sticky;top:0}}
 </table></div></div>
 </div>"""
 
-open("regime_map.html", "w").write(html)
+open("regime_map.html", "w", encoding="utf-8").write(html)
 print("wrote regime_map.html", len(html), "bytes")

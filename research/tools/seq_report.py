@@ -76,7 +76,24 @@ trs += (f"<tr style='background:#2a1416'><td><b>R16 الآن</b></td><td>{B_WR:.
         f"<td>—</td><td>{B_NET:,}</td><td>—</td><td>{B_PT:.3f}</td><td>{B_DAY}</td>"
         f"<td>{B_NEG}</td><td>{B_WORST:,}</td></tr>")
 
-html = f"""<title>SYR30 — أفضل خطة لصفقة واحدة في المرة</title>
+# ── الاختبار خارج العيّنة: القسمة عند ١٥ أبريل ──────────────────────────────
+OOS = [("44 / 59", 59.27, 6782, 58.09, 2285, "أعلى صافي خارج العيّنة"),
+       ("40 / 65", 62.79, 3070, 62.34, 1250, "أعلى فوز — وتتفوّق على R16 في الاثنين"),
+       ("44 / 62", 60.25, 6122, 59.21, 2064, ""),
+       ("46 / 59", 58.44, 7772, 56.91, 2047, ""),
+       ("60 / 54", 50.77, 12336, 47.95, 1674, ""),
+       ("R16 الحالي", 61.18, 7352, 60.15, 388, "انهار خارج العيّنة")]
+oos_rows = ""
+for n, a, b, c, d, note in OOS:
+    bg = " style='background:#12301f'" if n.startswith("44 / 59") else (
+         " style='background:#2a1416'" if n.startswith("R16") else "")
+    oos_rows += (f"<tr{bg}><td><b>{n}</b></td><td>{a:.2f}%</td><td>{b:,}</td>"
+                 f"<td class='{'up' if c >= 60 else ''}'>{c:.2f}%</td>"
+                 f"<td class='{'up' if d > 1500 else 'dn' if d < 600 else ''}'>{d:,}</td>"
+                 f"<td style='font-size:11px;color:#91a1b6'>{note}</td></tr>")
+
+html = f"""<meta charset="utf-8">
+<title>SYR30 — أفضل خطة لصفقة واحدة في المرة</title>
 <style>
 body{{margin:0;background:#070b11;color:#f4f7fb;font-family:-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;direction:rtl}}
 .wrap{{max-width:940px;margin:auto;padding:16px}}
@@ -118,8 +135,37 @@ th{{background:#192435}} .up{{color:#20d17a;font-weight:700}} .dn{{color:#ff5968
 <th>نقطة/صفقة</th><th>صفقة/يوم</th><th>شهور خاسرة</th><th>أسوأ شهر</th></tr>
 {trs}</table></div></div>
 
+<div class="card">
+<h2>الاختبار خارج العيّنة — القسمة عند ١٥ أبريل</h2>
+<div class="sub" style="margin:0 0 9px">
+٧٢ يوم تدريب و٦٨ يوم اختبار. كل ما سبق محسوب على الفترة كاملة؛ وهذه على فترة
+لم تدخل في أي اختيار — وهي وحدها ما يُعتمد عليه.
+</div>
+<div class="scroll"><table>
+<tr><th>هدف/وقف</th><th>تدريب فوز%</th><th>تدريب صافي</th><th>اختبار فوز%</th>
+<th>اختبار صافي</th><th></th></tr>
+{oos_rows}</table></div>
+<div class="sub" style="margin:9px 0 0">
+نظام R16 الحالي يعطي <b>+٣٨٨ نقطة على ٦٨ يوماً</b> — أي +٠.١٢٩ لكل صفقة، قريباً من الصفر.
+كل الخطط الثابتة أعلاه تتفوّق عليه في النقاط، و<b>٤٠/٦٥ تتفوّق عليه في نسبة الفوز أيضاً</b>.
+</div>
+</div>
+
+<div class="card" style="border-color:#6d2530;background:#1a1013">
+<h2 style="color:#ff8a95">تبديل الخطة حسب نوع السوق — فشل الاختبار</h2>
+<div class="sub" style="margin:0;line-height:1.95">
+اختيار أفضل خطة لكل نوع سوق من فترة التدريب وحدها، ثم قياسها على فترة الاختبار:<br><br>
+<b style="color:#20d17a">التدريب: +١٤,٢٧٨ نقطة</b> (+٤.٤٥٨ لكل صفقة)
+&nbsp;←&nbsp; <b style="color:#ff5968">الاختبار: −٢ نقطة</b><br><br>
+وفي ثلاثة أنواع من أربعة، الخطة المختارة لنوعٍ ما ليست أفضل خطة له خارج العيّنة —
+وفي الرينج والتذبذب هي <b>أسوأ الأربع</b>. الاختيار التقط ضجيجاً لا بنية،
+فلا يوجد ما يكشفه كاشف لحظي.
+</div>
+</div>
+
 <div class="pick">
 <b>التوصية: هدف ٤٤ / وقف ٥٩</b><br>
+صمدت خارج العيّنة: <b>+٢,٢٨٥ نقطة</b> مقابل <b>+٣٨٨</b> لنظامك الحالي — ستة أضعاف.<br>
 تدفع <b>١.٩٦ نقطة مئوية</b> من نسبة الفوز (٥٨.٧٤٪ بدل ٦٠.٧٠٪) وتأخذ مقابلها:<br>
 • <b>+١٧٪ نقاط</b> — ٩,٠٦٧ بدل ٧,٧٤٠<br>
 • <b>شهر خاسر واحد بدل شهرين</b><br>
@@ -131,5 +177,5 @@ th{{background:#192435}} .up{{color:#20d17a;font-weight:700}} .dn{{color:#ff5968
 </div>
 </div>"""
 
-open('research/results/seq_report.html', 'w').write(html)
+open('research/results/seq_report.html', 'w', encoding='utf-8').write(html)
 print("wrote research/results/seq_report.html")
