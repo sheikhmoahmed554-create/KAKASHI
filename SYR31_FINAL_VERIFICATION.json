@@ -1,0 +1,16 @@
+[
+  {
+    "name": "FINAL_defaults_verify",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6451,
+      "win_rate": 61.03,
+      "net_points": 10998,
+      "profit_factor": 1.08,
+      "expectancy": 1.705,
+      "max_loss_streak": 10
+    },
+    "seconds": 777
+  }
+]
