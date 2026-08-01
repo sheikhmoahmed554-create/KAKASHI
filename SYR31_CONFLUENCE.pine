@@ -221,7 +221,7 @@ baseCleanMoveMinEfficiency = 0.20
 
 // 07 ■ FVG / Imbalance
 useBaseFVG = input.bool(true, "Use Base FVG", group=G_FVG_NEW)
-baseFVGMinATR = input.float(0.01, "Base FVG Min ATR", step=0.01, minval=0.0, group=G_FVG_NEW)
+baseFVGMinATR = input.float(0.18, "Base FVG Min ATR — 0.18 بالقياس (كان 0.01)", step=0.01, minval=0.0, group=G_FVG_NEW)
 baseFVGRequireEMA = true
 
 // 08 ■ Fibonacci / Premium / Discount
@@ -299,7 +299,7 @@ baseRangeMaxHTFScore = 4.0
 // 10 ■ Momentum / Candle / Oscillators
 atrLen = input.int(13, "ATR Length", minval=1, group=G_MOM_NEW)
 atrAvgLen = input.int(20, "ATR Average Length", minval=10, maxval=500, group=G_MOM_NEW)
-minBodyPct = input.float(30.0, "Min Rejection Body %", minval=5, maxval=95, step=1, group=G_MOM_NEW)
+minBodyPct = input.float(50.0, "Min Rejection Body % — 50 بالقياس (كان 30)", minval=5, maxval=95, step=1, group=G_MOM_NEW)
 strongBodyPct = input.float(35.0, "Strong Body %", minval=10, maxval=95, step=1, group=G_MOM_NEW)
 minWickPct = input.float(50.0, "Min Rejection Wick %", minval=0, maxval=90, step=1, group=G_MOM_NEW)
 maxSignalCandleATR = input.float(6.00, "Max Signal Candle ATR", minval=0.3, maxval=10, step=0.05, group=G_MOM_NEW)
