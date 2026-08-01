@@ -2552,7 +2552,7 @@ if rmiPendSell >= rmiConfirmBars
 rmiBuyZoneOK = not (rmiUseModule and rmiUseFilter) or rmiInOversold or rmiEntryBuy
 rmiSellZoneOK = not (rmiUseModule and rmiUseFilter) or rmiInOverbought or rmiEntrySell
 
-rmiZoneText = rmiInOverbought ? "OB - SELL" : rmiInOversold ? "OS - BUY" : "MID - NOT ADVISED"
+rmiZoneText = rmiInMiddle ? "MID - NOT ADVISED" : rmiInOverbought ? "OB - SELL" : "OS - BUY"
 
 // The arbiter only ever hears the voice on candidates that actually reach it,
 // and most entries do not — the Lab Champion sources are OR-ed in after R17
@@ -2848,14 +2848,14 @@ vetoText = "B " + str.tostring(vetoBuyYes) + "/" + str.tostring(vetoBuyNo) + "  
 //   With the RMI module, the veto panel and the unified gate all switched off,
 //   the legacy path is the original engine, unchanged.
 // ═════════════════════════════════════════════════════════════════
-legacyRawBuy = buySignal or chPoolPreBuy
-legacyRawSell = sellSignal or chPoolPreSell
+gateLegacyBuy = buySignal or chPoolPreBuy
+gateLegacySell = sellSignal or chPoolPreSell
 
-unifiedEligibleBuy = (legacyRawBuy or chPoolPostBuy) and taPassBuy and (not r6UseObBuyFilter or not r6InBullOB) and not sfBlock and vetoBuyOK and rmiBuyZoneOK and allowLong
-unifiedEligibleSell = (legacyRawSell or chPoolPostSell) and taPassSell and (not r6UseObSellFilter or not r6InBearOB) and not sfBlock and vetoSellOK and rmiSellZoneOK and allowShort
+unifiedEligibleBuy = (gateLegacyBuy or chPoolPostBuy) and taPassBuy and (not r6UseObBuyFilter or not r6InBullOB) and not sfBlock and vetoBuyOK and rmiBuyZoneOK and allowLong
+unifiedEligibleSell = (gateLegacySell or chPoolPostSell) and taPassSell and (not r6UseObSellFilter or not r6InBearOB) and not sfBlock and vetoSellOK and rmiSellZoneOK and allowShort
 
-qaRawBuy = useUnifiedGate ? unifiedEligibleBuy : legacyRawBuy
-qaRawSell = useUnifiedGate ? unifiedEligibleSell : legacyRawSell
+qaRawBuy = useUnifiedGate ? unifiedEligibleBuy : gateLegacyBuy
+qaRawSell = useUnifiedGate ? unifiedEligibleSell : gateLegacySell
 
 // ━━━ R17 FINAL QUALITY ARBITER ━━━
 // K3 is a candidate generator. Which candidates reach this scoring depends on

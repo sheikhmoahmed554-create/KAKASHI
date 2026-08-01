@@ -2532,7 +2532,7 @@ if rmiPendSell >= rmiConfirmBars
 rmiBuyZoneOK = not rmiUseFilter or rmiInOversold or rmiEntryBuy
 rmiSellZoneOK = not rmiUseFilter or rmiInOverbought or rmiEntrySell
 
-rmiZoneText = rmiInOverbought ? "OB - SELL" : rmiInOversold ? "OS - BUY" : "MID - NOT ADVISED"
+rmiZoneText = rmiInMiddle ? "MID - NOT ADVISED" : rmiInOverbought ? "OB - SELL" : "OS - BUY"
 
 // The arbiter only ever hears the voice on candidates that actually reach it,
 // and most entries do not — the Lab Champion sources are OR-ed in after R17
