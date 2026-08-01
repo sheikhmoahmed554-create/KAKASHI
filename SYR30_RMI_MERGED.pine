@@ -7,9 +7,10 @@
 // R13: Fast Trend TF is connected to both the base map and the final K3 router.
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
-// RMI MERGE: the Relative Momentum Index by TheLark (2014, Pine v1) is transcribed unchanged into v6
-// and wired in as an unbypassable gate — SELL out of overbought, BUY out of oversold, middle blocked —
-// plus an in-zone score term for the R17 arbiter, and it stands as an entry source of its own.
+// RMI MERGE: the Relative Momentum Index by TheLark (2014, Pine v1) is transcribed unchanged into
+// v6 and added on top as a source of its own — it fires on the reaction inside an exhaustion zone
+// and is the only source permitted to ignore the cooldown clocks. Reversal hold, the three extra
+// reaction conditions and the zone filter all ship at 0 / off.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
 // Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
 
@@ -2398,75 +2399,121 @@ if r11ConnS
 buySignal := buySignal or r11ConnB
 sellSignal := sellSignal or r11ConnS
 
-// ══════════════════════════════════════════════════════════════════
-// 24 ■ RMI ZONE FILTER — Relative Momentum Index (TheLark, 2014)
+// ═════════════════════════════════════════════════════════════════
+// 24 ■ RMI — Relative Momentum Index (TheLark, 2014)
 //   Roger Altman's RMI, transcribed from the original Pine v1 study with the
 //   formula left exactly as published:
 //       up     = ema(max(close - close[mom], 0), len)
 //       dn     = ema(max(close[mom] - close, 0), len)
 //       rmi    = dn == 0 ? 0 : 100 - 100 / (1 + up / dn)
 //       signal = sma(rmi, sig)
-//   Read as an exhaustion oscillator and wired in two ways:
-//     • Gate no source may bypass — SELL only while the RMI sits in the
-//       overbought zone, BUY only while it sits in the oversold zone, and
-//       nothing at all opens in the middle band.
-//     • Entry source — the reaction inside a zone is the trigger: price
-//       reaches 80, the RMI rolls over, that is the SELL; it reaches 20, the
-//       RMI turns back up, that is the BUY. The turn is the original study's
-//       own colour flip (rmi > rmi[1]), so no new logic is invented.
-// ══════════════════════════════════════════════════════════════════
-G_RMI = "24 ■ RMI Zone Filter (TheLark)"
+//   Read as an exhaustion oscillator and used two ways:
+//     • Source — price reaches 80 and the RMI rolls over, that is the SELL;
+//       it reaches 20 and the RMI turns back up, that is the BUY. The turn is
+//       the study's own colour rule (rmi > rmi[1]), so nothing is invented.
+//       This source alone may ignore the cooldown clocks; see the entry gate.
+//     • Zone filter — optional, OFF by default. Switched on it blocks every
+//       entry that is not standing inside its own zone, middle band included.
+//   The reaction can be held for a number of bars before it counts, and can be
+//   made conditional on a prior level, a liquidity sweep or the Fibonacci zone.
+//   All four of those ship at 0 / off and only bite once switched on.
+// ═════════════════════════════════════════════════════════════════
+G_RMI = "24 ■ RMI (TheLark)"
 
 rmiLen = input.int(20, "RMI Length", minval=1, group=G_RMI)
 rmiMom = input.int(4, "RMI Momentum", minval=0, group=G_RMI)
 rmiOb = input.float(80.0, "Overbought — SELL zone", minval=50.0, maxval=99.0, step=1.0, group=G_RMI)
 rmiOs = input.float(20.0, "Oversold — BUY zone", minval=1.0, maxval=50.0, step=1.0, group=G_RMI)
 rmiSigLen = input.int(6, "Signal Length", minval=1, group=G_RMI)
-rmiDeepOffset = input.float(10.0, "Deep Zone Extra Distance", minval=0.0, maxval=30.0, step=1.0, group=G_RMI)
-rmiZoneScore = input.float(0.90, "R17 Score — In Zone", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
-rmiDeepScore = input.float(0.60, "R17 Score — Deep Zone Extra", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
-rmiShowMarks = input.bool(false, "Show RMI Zone Marks", group=G_RMI)
+rmiUseSource = input.bool(true, "RMI Gives Signals", group=G_RMI)
+rmiConfirmBars = input.int(0, "Hold The Reversal For N Bars — 0 = off", minval=0, maxval=20, group=G_RMI)
+rmiNeedPriorLevel = input.bool(false, "Require A Prior High / Low", group=G_RMI)
+rmiPriorLookback = input.int(20, "Prior High / Low Lookback", minval=2, maxval=300, group=G_RMI)
+rmiNeedSweep = input.bool(false, "Require A Liquidity Sweep", group=G_RMI)
+rmiNeedFib = input.bool(false, "Require The Fibonacci Zone", group=G_RMI)
+rmiUseFilter = input.bool(false, "RMI Zone Filter — block entries outside the zones", group=G_RMI)
+rmiShowMarks = input.bool(false, "Show RMI Marks", group=G_RMI)
 
-// ── original RMI calculation, unchanged ──
+// -- original RMI calculation, unchanged --
 rmiUpAvg = ta.ema(math.max(close - close[rmiMom], 0.0), rmiLen)
 rmiDnAvg = ta.ema(math.max(close[rmiMom] - close, 0.0), rmiLen)
 rmiVal = rmiDnAvg == 0 ? 0.0 : 100.0 - 100.0 / (1.0 + rmiUpAvg / rmiDnAvg)
 rmiSignalLine = ta.sma(rmiVal, rmiSigLen)
 rmiRising = rmiVal > rmiVal[1]
 
-// ── zones ──
+// -- zones --
 rmiObLevel = math.max(rmiOb, rmiOs)
 rmiOsLevel = math.min(rmiOb, rmiOs)
 rmiInOverbought = rmiVal >= rmiObLevel
 rmiInOversold = rmiVal <= rmiOsLevel
 rmiInMiddle = not rmiInOverbought and not rmiInOversold
-rmiDeepOverbought = rmiVal >= math.min(99.0, rmiObLevel + rmiDeepOffset)
-rmiDeepOversold = rmiVal <= math.max(1.0, rmiOsLevel - rmiDeepOffset)
 
-// SELL out of the overbought zone, BUY out of the oversold zone, nothing in
-// the middle. No bypass path on purpose — this is the last word on both sides.
-rmiBuyZoneOK = rmiInOversold
-rmiSellZoneOK = rmiInOverbought
+// -- optional conditions on the reaction, all off by default --
+// The sweep and the Fibonacci zone are the engine's existing readings rather
+// than new calculations: sweepLow/sweepHigh come from the base sweep block and
+// the hidden Fib assist is already resolved on its own timeframe further up.
+rmiPriorHigh = ta.highest(high, rmiPriorLookback)[1]
+rmiPriorLow = ta.lowest(low, rmiPriorLookback)[1]
+rmiPriorBuyOK = not rmiNeedPriorLevel or (not na(rmiPriorLow) and low <= rmiPriorLow)
+rmiPriorSellOK = not rmiNeedPriorLevel or (not na(rmiPriorHigh) and high >= rmiPriorHigh)
+rmiSweepBuyOK = not rmiNeedSweep or sweepLow
+rmiSweepSellOK = not rmiNeedSweep or sweepHigh
+rmiFibBuyOK = not rmiNeedFib or hiddenFibBuyOK or hiddenFibInBuyZone
+rmiFibSellOK = not rmiNeedFib or hiddenFibSellOK or hiddenFibInSellZone
 
-// ── the reaction inside a zone, used as the RMI's own entry ──
-// The turn is taken from the study's colour rule: the plot flips whenever
-// rmi crosses its own previous value. A flip up while the oscillator is still
-// parked in oversold is the BUY reaction; a flip down while it is still in
-// overbought is the SELL reaction. Both fire inside the zone, so they satisfy
-// the gate above without needing an exception carved out for them.
+// -- the reaction inside a zone --
+// The plot in the original study flips colour whenever rmi crosses its own
+// previous value. A flip up while the oscillator is still parked in oversold is
+// the BUY reaction; a flip down while it is still in overbought is the SELL.
 rmiWasRising = rmiRising[1]
 rmiTurnUp = rmiRising and not rmiWasRising
 rmiTurnDown = not rmiRising and rmiWasRising
-rmiEntryBuy = tradeableBase and rmiInOversold and rmiTurnUp
-rmiEntrySell = tradeableBase and rmiInOverbought and rmiTurnDown
+rmiReactionBuy = rmiUseSource and tradeableBase and rmiInOversold and rmiTurnUp and rmiPriorBuyOK and rmiSweepBuyOK and rmiFibBuyOK
+rmiReactionSell = rmiUseSource and tradeableBase and rmiInOverbought and rmiTurnDown and rmiPriorSellOK and rmiSweepSellOK and rmiFibSellOK
 
-rmiBuyScore = (rmiInOversold ? rmiZoneScore : 0.0) + (rmiDeepOversold ? rmiDeepScore : 0.0)
-rmiSellScore = (rmiInOverbought ? rmiZoneScore : 0.0) + (rmiDeepOverbought ? rmiDeepScore : 0.0)
+// -- holding the reversal --
+// A reaction arms a counter instead of firing straight away. Every bar the RMI
+// keeps travelling the reaction's way the counter advances; the first bar it
+// turns back the counter is torn up and that reaction is dead. The entry fires
+// once the counter reaches the configured number of bars, so at the default of
+// 0 the reaction bar itself is the entry and the hold changes nothing.
+var int rmiPendBuy = -1
+var int rmiPendSell = -1
+bool rmiEntryBuy = false
+bool rmiEntrySell = false
 
-rmiZoneText = rmiInOverbought ? "OB — SELL" : rmiInOversold ? "OS — BUY" : "MID — BLOCKED"
+if rmiPendBuy >= 0
+    if rmiRising
+        rmiPendBuy := rmiPendBuy + 1
+    else
+        rmiPendBuy := -1
+if rmiPendBuy < 0 and rmiReactionBuy
+    rmiPendBuy := 0
+if rmiPendBuy >= rmiConfirmBars
+    rmiEntryBuy := true
+    rmiPendBuy := -1
 
-plotshape(rmiShowMarks and rmiInOversold, title="RMI Oversold", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 25), size=size.tiny, text="RMI OS")
-plotshape(rmiShowMarks and rmiInOverbought, title="RMI Overbought", style=shape.circle, location=location.top, color=color.new(SELL_C, 25), size=size.tiny, text="RMI OB")
+if rmiPendSell >= 0
+    if not rmiRising
+        rmiPendSell := rmiPendSell + 1
+    else
+        rmiPendSell := -1
+if rmiPendSell < 0 and rmiReactionSell
+    rmiPendSell := 0
+if rmiPendSell >= rmiConfirmBars
+    rmiEntrySell := true
+    rmiPendSell := -1
+
+// Optional. Off by default, so out of the box the RMI only adds signals and
+// takes none away. On, it is absolute: no side trades outside its own zone.
+// The RMI's own entry passes because its reaction started inside the zone --
+// with a hold of several bars the oscillator may already have climbed out of it
+// by the time the entry fires, and that is the reversal working, not a leak.
+rmiBuyZoneOK = not rmiUseFilter or rmiInOversold or rmiEntryBuy
+rmiSellZoneOK = not rmiUseFilter or rmiInOverbought or rmiEntrySell
+
+rmiZoneText = rmiInOverbought ? "OB - SELL" : rmiInOversold ? "OS - BUY" : "MID"
+
 plotshape(rmiShowMarks and rmiEntryBuy, title="RMI Source BUY", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 0), size=size.tiny, text="RMI")
 plotshape(rmiShowMarks and rmiEntrySell, title="RMI Source SELL", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 0), size=size.tiny, text="RMI")
 
@@ -2487,8 +2534,8 @@ qaSellRoomOK = not qaRequireRoom or roomSell or qaSellReversal
 qaBuyLate = sy337UpMovePts > qaMaxLatePts and not qaBuyReversal
 qaSellLate = sy337DownMovePts > qaMaxLatePts and not qaSellReversal
 
-qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0) + (rmiEntryBuy ? 1.00 : 0.0)
-qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0) + (rmiEntrySell ? 1.00 : 0.0)
+qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0) + (rmiEntryBuy ? 1.20 : 0.0)
+qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0) + (rmiEntrySell ? 1.20 : 0.0)
 
 qaBuyTrendScore = (htfScore >= 2.0 ? 1.10 : htfScore > 0 ? 0.45 : htfScore <= -2.0 ? -1.15 : -0.35) + (tf5Dir == 1 ? 0.40 : tf5Dir == -1 ? -0.40 : 0.0) + (tf15Dir == 1 ? 0.55 : tf15Dir == -1 ? -0.55 : 0.0) + (sy389BiasUp ? 0.55 : sy389BiasDown ? -0.55 : 0.0) + (pDI > mDI ? 0.35 : -0.20) + (sy325EmaSlope >= 0.10 ? 0.35 : sy325EmaSlope < -0.10 ? -0.35 : 0.0)
 qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 2.0 ? -1.15 : -0.35) + (tf5Dir == -1 ? 0.40 : tf5Dir == 1 ? -0.40 : 0.0) + (tf15Dir == -1 ? 0.55 : tf15Dir == 1 ? -0.55 : 0.0) + (sy389BiasDown ? 0.55 : sy389BiasUp ? -0.55 : 0.0) + (mDI > pDI ? 0.35 : -0.20) + (sy325EmaSlope <= -0.10 ? 0.35 : sy325EmaSlope > 0.10 ? -0.35 : 0.0)
@@ -2496,8 +2543,8 @@ qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 
 qaBuyLocationScore = (rangePos <= 25 ? 0.70 : rangePos <= 45 ? 0.35 : rangePos >= 82 ? -0.75 : 0.0) + (bullReject ? 0.45 : bullMomentum ? 0.30 : 0.0) + (sweepLow ? 0.55 : 0.0) + (close > ema20 ? 0.20 : -0.20)
 qaSellLocationScore = (rangePos >= 75 ? 0.70 : rangePos >= 55 ? 0.35 : rangePos <= 18 ? -0.75 : 0.0) + (bearReject ? 0.45 : bearMomentum ? 0.30 : 0.0) + (sweepHigh ? 0.55 : 0.0) + (close < ema20 ? 0.20 : -0.20)
 
-qaBuyScore = qaRawBuy ? 1.0 + qaBuySourceScore + qaBuyTrendScore + qaBuyLocationScore + rmiBuyScore + (qaBuyReversal ? 0.80 : 0.0) - (qaBuyLate ? 1.20 : 0.0) - (not qaBuyRoomOK ? 2.00 : 0.0) : -100.0
-qaSellScore = qaRawSell ? 1.0 + qaSellSourceScore + qaSellTrendScore + qaSellLocationScore + rmiSellScore + (qaSellReversal ? 0.80 : 0.0) - (qaSellLate ? 1.20 : 0.0) - (not qaSellRoomOK ? 2.00 : 0.0) : -100.0
+qaBuyScore = qaRawBuy ? 1.0 + qaBuySourceScore + qaBuyTrendScore + qaBuyLocationScore + (qaBuyReversal ? 0.80 : 0.0) - (qaBuyLate ? 1.20 : 0.0) - (not qaBuyRoomOK ? 2.00 : 0.0) : -100.0
+qaSellScore = qaRawSell ? 1.0 + qaSellSourceScore + qaSellTrendScore + qaSellLocationScore + (qaSellReversal ? 0.80 : 0.0) - (qaSellLate ? 1.20 : 0.0) - (not qaSellRoomOK ? 2.00 : 0.0) : -100.0
 qaBuyPass = qaRawBuy and qaBuyRoomOK and not qaBuyLate and qaBuyScore >= qaMinScore
 qaSellPass = qaRawSell and qaSellRoomOK and not qaSellLate and qaSellScore >= qaMinScore
 qaBuyWinsCollision = qaBuyPass and (not qaSellPass or qaBuyScore >= qaSellScore + qaMinEdge)
@@ -2727,17 +2774,24 @@ sellSignal := sellSignal or chCvdS
 buySignal := buySignal or chTriB or chSniB
 sellSignal := sellSignal or chTriS or chSniS
 
-// ━━━ RMI ZONE HARD GATE — last stop before entry evaluation ━━━
+// RMI OPTIONAL ZONE FILTER - last stop before entry evaluation.
 // Deliberately placed here rather than next to the R17 arbiter: every Lab
 // Champion source above is OR-ed into buySignal/sellSignal after the arbiter
-// has run, so a gate applied any earlier would never see them. At this point
-// the gate covers all of them, plus the shadow learning engine and the alerts,
-// which read the same two variables further down. Nothing gets past it.
+// has run, so a filter applied any earlier would never see them. From here it
+// also covers the shadow learning engine and the alerts, which read the same
+// two variables further down. Switched off it is a no-op.
 buySignal := buySignal and rmiBuyZoneOK
 sellSignal := sellSignal and rmiSellZoneOK
 
-canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
-canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
+// The RMI reaction is the one source allowed to ignore the cooldown clocks -
+// an exhaustion print is worth taking whether or not the last trade just
+// closed. The not-active guard is untouched and still applies to every source
+// alike, so this can never open a second position on top of a live one.
+rmiOverrideLong = rmiEntryBuy and rmiBuyZoneOK
+rmiOverrideShort = rmiEntrySell and rmiSellZoneOK
+
+canEnterLong = barstate.isconfirmed and not active and (rmiOverrideLong or (canCooldown and canLongAfterLoss)) and buySignal
+canEnterShort = barstate.isconfirmed and not active and (rmiOverrideShort or (canCooldown and canShortAfterLoss)) and sellSignal
 
 if canEnterLong or canEnterShort
     active := true
@@ -2987,8 +3041,10 @@ if statsActive
     learnLongOK = learnBaseLongOK and learnGlobalLossOK and learnBuySideOK and learnLongTypeOK
     learnShortOK = learnBaseShortOK and learnGlobalLossOK and learnSellSideOK and learnShortTypeOK
 
-    learnGoLong = not sy999LearnActive and learnCooldown and learnLongOK and buySignal
-    learnGoShort = not sy999LearnActive and learnCooldown and learnShortOK and sellSignal
+    // Mirrors the live cooldown override so the learned statistics are built
+    // from the same trade population the indicator actually takes.
+    learnGoLong = not sy999LearnActive and (rmiOverrideLong or (learnCooldown and learnLongOK)) and buySignal
+    learnGoShort = not sy999LearnActive and (rmiOverrideShort or (learnCooldown and learnShortOK)) and sellSignal
     if learnGoLong or learnGoShort
         sy999LearnSide := learnGoLong ? 1 : -1
         sy999LearnTradeKind := sy999LearnSide == 1 ? learnLongTypeNow : learnShortTypeNow
@@ -3155,7 +3211,7 @@ if showTable and barstate.islast
     table.cell(t, 1, 17, str.tostring(rmiVal, "#.#") + " / " + str.tostring(rmiSignalLine, "#.#"), text_color=rmiRising ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
     table.cell(t, 0, 18, "RMI Zone", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 18, rmiZoneText, text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 18, rmiZoneText + (rmiUseFilter ? " | FILTER ON" : ""), text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 else if not showTable and barstate.islast
     table.clear(t, 0, 0, 1, 18)
 
