@@ -97,6 +97,12 @@ mcMisCciOB = input.int(100, "MIS CCI Overbought", minval=50, maxval=150, group=G
 mcMisStochOS = input.int(20, "MIS Stochastic Oversold", minval=10, maxval=40, group=G_SRC)
 mcMisStochOB = input.int(80, "MIS Stochastic Overbought", minval=60, maxval=90, group=G_SRC)
 
+mcM4cMode = input.string("Off", "MACD 4-Colour", options=["Off", "Source", "Filter"], group=G_SRC)
+mcM4cTrigger = input.string("Colour Flip", "MACD 4C Trigger", options=["Colour Flip", "Zero Cross", "Signal Cross", "Strong Only"], group=G_SRC)
+mcM4cFast = input.int(12, "4C Fast MA", minval=2, group=G_SRC)
+mcM4cSlow = input.int(26, "4C Slow MA", minval=3, group=G_SRC)
+mcM4cSignal = input.int(9, "4C Signal Length", minval=1, group=G_SRC)
+
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 '''
 
@@ -645,6 +651,39 @@ mcMisSell = mcMisCombo == "RSI & CCI" ? (mcMisRsiS and mcMisCciS) :
 mcMisBuyOK = mcMisRsi < 50.0 and mcMisCci < 0.0 and mcMisK < 50.0
 mcMisSellOK = mcMisRsi > 50.0 and mcMisCci > 0.0 and mcMisK > 50.0
 
+// MACD 4-Colour — الأصل يلوّن الهيستوغرام بأربع حالات: فوق الصفر صاعداً أو هابطاً،
+// وتحته هابطاً أو صاعداً. خط إشارته متوسط بسيط لا أسّي، وهذا يميّزه عن مصدر MACD
+// القياسي أعلاه. اللون نفسه ليس إشارة؛ الإشارة هي انقلاب الحالة.
+[mcM4cLine, mcM4cIgnore1, mcM4cIgnore2] = ta.macd(close, mcM4cFast, mcM4cSlow, mcM4cSignal)
+mcM4cSig = ta.sma(mcM4cLine, mcM4cSignal)
+mcM4cRising = mcM4cLine > nz(mcM4cLine[1], mcM4cLine)
+mcM4cAbove = mcM4cLine > 0.0
+
+// الحالات الأربع: 2 قوي صاعد، 1 ضعيف صاعد، -1 ضعيف هابط، -2 قوي هابط
+mcM4cState = mcM4cAbove ? (mcM4cRising ? 2 : 1) : (mcM4cRising ? -1 : -2)
+mcM4cPrev = nz(mcM4cState[1], mcM4cState)
+
+mcM4cFlipBuy = mcM4cState == 2 and mcM4cPrev != 2
+mcM4cFlipSell = mcM4cState == -2 and mcM4cPrev != -2
+mcM4cZeroBuy = ta.crossover(mcM4cLine, 0.0)
+mcM4cZeroSell = ta.crossunder(mcM4cLine, 0.0)
+mcM4cSigBuy = ta.crossover(mcM4cLine, mcM4cSig)
+mcM4cSigSell = ta.crossunder(mcM4cLine, mcM4cSig)
+mcM4cStrongBuy = mcM4cState == 2 and mcM4cPrev <= 0
+mcM4cStrongSell = mcM4cState == -2 and mcM4cPrev >= 0
+
+mcM4cBuy = mcM4cTrigger == "Colour Flip" ? mcM4cFlipBuy :
+ mcM4cTrigger == "Zero Cross" ? mcM4cZeroBuy :
+ mcM4cTrigger == "Signal Cross" ? mcM4cSigBuy : mcM4cStrongBuy
+
+mcM4cSell = mcM4cTrigger == "Colour Flip" ? mcM4cFlipSell :
+ mcM4cTrigger == "Zero Cross" ? mcM4cZeroSell :
+ mcM4cTrigger == "Signal Cross" ? mcM4cSigSell : mcM4cStrongSell
+
+// كفلتر: الشراء ممنوع ما دامت الحالة قوية هابطة، والعكس
+mcM4cBuyOK = mcM4cState > -2
+mcM4cSellOK = mcM4cState < 2
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -655,27 +694,27 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy) or f_src(mcMisMode, mcMisBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy) or f_src(mcMisMode, mcMisBuy) or f_src(mcM4cMode, mcM4cBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell) or f_src(mcMisMode, mcMisSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell) or f_src(mcMisMode, mcMisSell) or f_src(mcM4cMode, mcM4cSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK) and f_flt(mcMisMode, mcMisBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK) and f_flt(mcMisMode, mcMisBuyOK) and f_flt(mcM4cMode, mcM4cBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK) and f_flt(mcMisMode, mcMisSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK) and f_flt(mcMisMode, mcMisSellOK) and f_flt(mcM4cMode, mcM4cSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0) + (mcMisMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0) + (mcMisMode != "Off" ? 1 : 0) + (mcM4cMode != "Off" ? 1 : 0)
 '''
 
 
