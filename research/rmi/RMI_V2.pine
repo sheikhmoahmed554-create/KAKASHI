@@ -132,6 +132,19 @@ mcStrMode = input.string("Off", "Strong Reversal (Liquidity Sweep)", options=["O
 mcStrPivLen = input.int(20, "Sweep Pivot Length", minval=3, maxval=100, group=G_SRC)
 mcStrWick = input.float(20.0, "Min Reversal Wick %", minval=1.0, maxval=100.0, group=G_SRC)
 
+mcMisMode = input.string("Off", "Multi-Indicator Confluence", options=["Off", "Source", "Filter"], group=G_SRC)
+mcMisCombo = input.string("RSI & CCI", "Confluence Combination", options=["RSI & CCI", "RSI & Stoch", "CCI & Stoch", "All Three", "Any Two"], group=G_SRC)
+mcMisRsiLen = input.int(14, "MIS RSI Length", minval=1, group=G_SRC)
+mcMisCciLen = input.int(14, "MIS CCI Length", minval=1, group=G_SRC)
+mcMisStochLen = input.int(14, "MIS Stochastic %K Length", minval=1, group=G_SRC)
+mcMisStochSmooth = input.int(3, "MIS Stochastic Smoothing", minval=1, group=G_SRC)
+mcMisRsiOS = input.int(30, "MIS RSI Oversold", minval=10, maxval=50, group=G_SRC)
+mcMisRsiOB = input.int(70, "MIS RSI Overbought", minval=50, maxval=90, group=G_SRC)
+mcMisCciOS = input.int(-100, "MIS CCI Oversold", minval=-150, maxval=-50, group=G_SRC)
+mcMisCciOB = input.int(100, "MIS CCI Overbought", minval=50, maxval=150, group=G_SRC)
+mcMisStochOS = input.int(20, "MIS Stochastic Oversold", minval=10, maxval=40, group=G_SRC)
+mcMisStochOB = input.int(80, "MIS Stochastic Overbought", minval=60, maxval=90, group=G_SRC)
+
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 
 // ══════════════════════════════════════════════════════════════════
@@ -697,6 +710,39 @@ mcStrState := mcStrSell or mcStrBuy ? 0 : mcStrState
 mcStrBuyOK = mcStrState != 1
 mcStrSellOK = mcStrState != -1
 
+// Multi-Indicator Confluence — الأصل يشترط تقاطع مؤشرين أو ثلاثة في الشمعة نفسها.
+// ta.stoch غير متاح في محرك الاختبار فكُتبت الصيغة صراحةً، وهي التعريف نفسه.
+mcMisRsi = ta.rsi(close, mcMisRsiLen)
+mcMisCci = ta.cci((high + low + close) / 3.0, mcMisCciLen)
+mcMisHH = ta.highest(high, mcMisStochLen)
+mcMisLL = ta.lowest(low, mcMisStochLen)
+mcMisRawK = mcMisHH - mcMisLL == 0 ? 50.0 : 100.0 * (close - mcMisLL) / (mcMisHH - mcMisLL)
+mcMisK = ta.sma(mcMisRawK, mcMisStochSmooth)
+
+mcMisRsiB = ta.crossover(mcMisRsi, mcMisRsiOS)
+mcMisRsiS = ta.crossunder(mcMisRsi, mcMisRsiOB)
+mcMisCciB = ta.crossover(mcMisCci, mcMisCciOS)
+mcMisCciS = ta.crossunder(mcMisCci, mcMisCciOB)
+mcMisStoB = ta.crossover(mcMisK, mcMisStochOS)
+mcMisStoS = ta.crossunder(mcMisK, mcMisStochOB)
+
+mcMisBuyVotes = (mcMisRsiB ? 1 : 0) + (mcMisCciB ? 1 : 0) + (mcMisStoB ? 1 : 0)
+mcMisSellVotes = (mcMisRsiS ? 1 : 0) + (mcMisCciS ? 1 : 0) + (mcMisStoS ? 1 : 0)
+
+mcMisBuy = mcMisCombo == "RSI & CCI" ? (mcMisRsiB and mcMisCciB) :
+ mcMisCombo == "RSI & Stoch" ? (mcMisRsiB and mcMisStoB) :
+ mcMisCombo == "CCI & Stoch" ? (mcMisCciB and mcMisStoB) :
+ mcMisCombo == "All Three" ? (mcMisRsiB and mcMisCciB and mcMisStoB) : mcMisBuyVotes >= 2
+
+mcMisSell = mcMisCombo == "RSI & CCI" ? (mcMisRsiS and mcMisCciS) :
+ mcMisCombo == "RSI & Stoch" ? (mcMisRsiS and mcMisStoS) :
+ mcMisCombo == "CCI & Stoch" ? (mcMisCciS and mcMisStoS) :
+ mcMisCombo == "All Three" ? (mcMisRsiS and mcMisCciS and mcMisStoS) : mcMisSellVotes >= 2
+
+// كفلتر: لا يشترط تقاطعاً، بل أن تكون المؤشرات الثلاثة في النصف الموافق
+mcMisBuyOK = mcMisRsi < 50.0 and mcMisCci < 0.0 and mcMisK < 50.0
+mcMisSellOK = mcMisRsi > 50.0 and mcMisCci > 0.0 and mcMisK > 50.0
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -707,27 +753,27 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy) or f_src(mcMisMode, mcMisBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell) or f_src(mcMisMode, mcMisSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK) and f_flt(mcMisMode, mcMisBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK) and f_flt(mcMisMode, mcMisSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0) + (mcMisMode != "Off" ? 1 : 0)
 
 // ══════════════════════════════════════════════════════════════════
 // REACTION ENGINE
