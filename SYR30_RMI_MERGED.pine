@@ -9,7 +9,7 @@
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
 // RMI MERGE: the Relative Momentum Index by TheLark (2014, Pine v1) is transcribed unchanged into v6
 // and wired in as an unbypassable gate — BUY out of overbought, SELL out of oversold, middle blocked —
-// plus an in-zone score term for the R17 arbiter.
+// plus an in-zone score term for the R17 arbiter, and it stands as an entry source of its own.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
 // Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
 
@@ -2448,10 +2448,24 @@ rmiSellZoneOK = rmiInOversold
 rmiBuyScore = (rmiInOverbought ? rmiZoneScore : 0.0) + (rmiDeepOverbought ? rmiDeepScore : 0.0)
 rmiSellScore = (rmiInOversold ? rmiZoneScore : 0.0) + (rmiDeepOversold ? rmiDeepScore : 0.0)
 
+// ── RMI as an entry source of its own ──
+// The trigger is the RMI stepping into its zone, confirmed by the study's own
+// signal line. One trigger per swing, and it sits inside the zone by
+// construction, so it satisfies the gate below without any special case.
+rmiEntryBuy = tradeableBase and ta.crossover(rmiVal, rmiObLevel) and rmiVal > rmiSignalLine
+rmiEntrySell = tradeableBase and ta.crossunder(rmiVal, rmiOsLevel) and rmiVal < rmiSignalLine
+
 rmiZoneText = rmiInOverbought ? "OB — BUY" : rmiInOversold ? "OS — SELL" : "MID — BLOCKED"
 
 plotshape(rmiShowMarks and rmiInOverbought, title="RMI Overbought", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 25), size=size.tiny, text="RMI OB")
 plotshape(rmiShowMarks and rmiInOversold, title="RMI Oversold", style=shape.circle, location=location.top, color=color.new(SELL_C, 25), size=size.tiny, text="RMI OS")
+plotshape(rmiShowMarks and rmiEntryBuy, title="RMI Source BUY", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 0), size=size.tiny, text="RMI")
+plotshape(rmiShowMarks and rmiEntrySell, title="RMI Source SELL", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 0), size=size.tiny, text="RMI")
+
+// Fed in at the same point as the R11 Connors source, so the RMI reaches the
+// R17 arbiter as a scored candidate instead of slipping in behind it.
+buySignal := buySignal or rmiEntryBuy
+sellSignal := sellSignal or rmiEntrySell
 
 // ━━━ R17 FINAL QUALITY ARBITER ━━━
 // K3 becomes a candidate generator. This last gate receives every source,
@@ -2465,8 +2479,8 @@ qaSellRoomOK = not qaRequireRoom or roomSell or qaSellReversal
 qaBuyLate = sy337UpMovePts > qaMaxLatePts and not qaBuyReversal
 qaSellLate = sy337DownMovePts > qaMaxLatePts and not qaSellReversal
 
-qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0)
-qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0)
+qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0) + (rmiEntryBuy ? 1.00 : 0.0)
+qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0) + (rmiEntrySell ? 1.00 : 0.0)
 
 qaBuyTrendScore = (htfScore >= 2.0 ? 1.10 : htfScore > 0 ? 0.45 : htfScore <= -2.0 ? -1.15 : -0.35) + (tf5Dir == 1 ? 0.40 : tf5Dir == -1 ? -0.40 : 0.0) + (tf15Dir == 1 ? 0.55 : tf15Dir == -1 ? -0.55 : 0.0) + (sy389BiasUp ? 0.55 : sy389BiasDown ? -0.55 : 0.0) + (pDI > mDI ? 0.35 : -0.20) + (sy325EmaSlope >= 0.10 ? 0.35 : sy325EmaSlope < -0.10 ? -0.35 : 0.0)
 qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 2.0 ? -1.15 : -0.35) + (tf5Dir == -1 ? 0.40 : tf5Dir == 1 ? -0.40 : 0.0) + (tf15Dir == -1 ? 0.55 : tf15Dir == 1 ? -0.55 : 0.0) + (sy389BiasDown ? 0.55 : sy389BiasUp ? -0.55 : 0.0) + (mDI > pDI ? 0.35 : -0.20) + (sy325EmaSlope <= -0.10 ? 0.35 : sy325EmaSlope > 0.10 ? -0.35 : 0.0)
