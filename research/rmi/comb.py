@@ -18,7 +18,7 @@ SL = 70.0
 HORIZON = 4000
 NEVER = np.int32(1 << 30)
 YEARS = ('2021', '2023', '2025', '2026')
-SOURCES = ['Rsi', 'Macd', 'Adx', 'Bb', 'Ichi', 'Sar', 'Pivot', 'Fib', 'Ma']
+SOURCES = ['Rsi', 'Macd', 'Adx', 'Bb', 'Ichi', 'Sar', 'Pivot', 'Fib', 'Ma', 'Brt', 'Smb']
 # خط الأساس العشوائي (شراء, بيع) لكل سنة — محسوب في random_baseline.py
 RND = {'2021': (34.11, 34.93), '2023': (34.57, 34.00),
        '2025': (38.25, 32.46), '2026': (32.67, 36.94)}

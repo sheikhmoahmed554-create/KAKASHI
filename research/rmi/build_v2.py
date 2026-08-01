@@ -70,6 +70,10 @@ mcBrtConfirmDiv = input.int(2, "BRT Confirmation Divider", minval=1, maxval=10, 
 mcBrtAtrLen = input.int(40, "BRT ATR Length", minval=1, group=G_SRC)
 mcBrtAtrMult = input.float(2.0, "BRT ATR Multiplier", minval=0.1, step=0.1, group=G_SRC)
 
+mcSmbMode = input.string("Off", "Smart Money Breakout", options=["Off", "Source", "Filter"], group=G_SRC)
+mcSmbSwing = input.int(25, "SMB Structure Horizon", minval=2, group=G_SRC)
+mcSmbConfType = input.string("Candle Close", "SMB Break Confirmation", options=["Candle Close", "Wicks"], group=G_SRC)
+
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 '''
 
@@ -246,6 +250,32 @@ mcBrtL0 := not na(mcBrtPl) ? mcBrtPl : mcBrtL0
 mcBrtBuyOK = not na(mcBrtL0) and close > mcBrtL0
 mcBrtSellOK = not na(mcBrtH0) and close < mcBrtH0
 
+// Smart Money Breakout — كسر آخر قمة أو قاع هيكلي لم يُكسر بعد.
+// النقطة المحورية تُؤكَّد بعد swingSize شمعة، فقد يكون السعر تجاوزها فعلاً لحظة
+// التأكيد؛ هذا سلوك الأصل نفسه ولا نظرة أمامية فيه.
+mcSmbPivHi = ta.pivothigh(high, mcSmbSwing, mcSmbSwing)
+mcSmbPivLo = ta.pivotlow(low, mcSmbSwing, mcSmbSwing)
+var float mcSmbPrevHigh = na
+var float mcSmbPrevLow = na
+var bool mcSmbHighActive = false
+var bool mcSmbLowActive = false
+
+mcSmbPrevHigh := na(mcSmbPivHi) ? mcSmbPrevHigh : mcSmbPivHi
+mcSmbHighActive := na(mcSmbPivHi) ? mcSmbHighActive : true
+mcSmbPrevLow := na(mcSmbPivLo) ? mcSmbPrevLow : mcSmbPivLo
+mcSmbLowActive := na(mcSmbPivLo) ? mcSmbLowActive : true
+
+mcSmbHighSrc = mcSmbConfType == "Candle Close" ? close : high
+mcSmbLowSrc = mcSmbConfType == "Candle Close" ? close : low
+mcSmbBuy = not na(mcSmbPrevHigh) and mcSmbHighActive and mcSmbHighSrc > mcSmbPrevHigh
+mcSmbSell = not na(mcSmbPrevLow) and mcSmbLowActive and mcSmbLowSrc < mcSmbPrevLow
+mcSmbHighActive := mcSmbBuy ? false : mcSmbHighActive
+mcSmbLowActive := mcSmbSell ? false : mcSmbLowActive
+
+// كفلتر: السعر فوق آخر قاع هيكلي للشراء، وتحت آخر قمة للبيع
+mcSmbBuyOK = not na(mcSmbPrevLow) and close > mcSmbPrevLow
+mcSmbSellOK = not na(mcSmbPrevHigh) and close < mcSmbPrevHigh
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -256,27 +286,27 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0)
 '''
 
 
