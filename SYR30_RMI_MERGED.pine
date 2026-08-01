@@ -120,7 +120,7 @@ sy389SlopeLen = 10
 sy389MinSlopeATR = input.float(0.40, "Min Slope ATR", minval=0.0, maxval=2.0, step=0.01, group=G_TREND_NEW)
 sy389MinER = input.float(0.10, "Min Efficiency For Trend", minval=0.01, maxval=1.0, step=0.01, group=G_TREND_NEW)
 sy389UseHTFConfirm = input.bool(true, "Need Old HTF Confirm", group=G_TREND_NEW)
-useSY130TrendProtect = true
+useSY130TrendProtect = input.bool(true, "Use SY130 Trend Protect", group=G_TREND_NEW)
 sy130ProtectTF = "1"
 sy130UseRP = true
 sy130UseATRTrend = true
@@ -132,7 +132,10 @@ sy130RPFastMult = 1.0
 sy130ATRSource = low
 sy130ATRMult = 2.0
 sy130ATRLen = 10
-useSY319TrendAddons = false
+// Every constant in this block used to be hardcoded, which is why the settings
+// around them did nothing. Each one keeps the exact value it was pinned to, so
+// the engine behaves identically until you change one.
+useSY319TrendAddons = input.bool(false, "Use SY319 Trend Add-Ons (no logic behind it — see notes)", group=G_TREND_NEW)
 useSY325FastDriver = input.bool(true, "Use SY325 Fast Driver", group=G_TREND_NEW)
 sy325DriverBars = 3
 sy325DriverSlopeATR = input.float(0.10, "Sy325 Driver Slope ATR", step=0.01, group=G_TREND_NEW)
@@ -144,30 +147,30 @@ sy389ConvertWrongSide = input.bool(true, "Wrong Side Signal Follows Bias", group
 sy389KeepRangeOriginal = input.bool(true, "Range Keeps Original Both Sides", group=G_COUNTER_NEW)
 vtzAllowEdgeReversal = input.bool(true, "Allow Edge Sweep/Reversal", group=G_COUNTER_NEW)
 sy337BuyUseRealRev = true
-useSY338TrendGuard = false
-sy338TrendScoreLevel = 2.0
-sy338RequireFastDriver = true
-sy338AllowCounterOnlyWithSweep = true
-sy338RequireCounterMSS = true
-sy338MSSLen = 3
-sy338CounterBuyMaxRange = 30.0
-sy338CounterSellMinRange = 70.0
+useSY338TrendGuard = input.bool(false, "Use SY338 Strong Trend Guard", group=G_COUNTER_NEW)
+sy338TrendScoreLevel = input.float(2.0, "SY338 Strong Trend Score", minval=1.0, maxval=4.5, step=0.5, group=G_COUNTER_NEW)
+sy338RequireFastDriver = input.bool(true, "SY338 Require Fast Driver", group=G_COUNTER_NEW)
+sy338AllowCounterOnlyWithSweep = input.bool(true, "SY338 Counter Only With Sweep", group=G_COUNTER_NEW)
+sy338RequireCounterMSS = input.bool(true, "SY338 Require Counter MSS", group=G_COUNTER_NEW)
+sy338MSSLen = input.int(3, "SY338 MSS Lookback", minval=1, maxval=30, group=G_COUNTER_NEW)
+sy338CounterBuyMaxRange = input.float(30.0, "SY338 Counter BUY Under Range %", minval=1.0, maxval=99.0, step=1.0, group=G_COUNTER_NEW)
+sy338CounterSellMinRange = input.float(70.0, "SY338 Counter SELL Over Range %", minval=1.0, maxval=99.0, step=1.0, group=G_COUNTER_NEW)
 sy130ProtectMode = "Off"
 hiddenFibCanBypassTrendBlock = true
-useHTFMasterGuard = false
-htfBlockLevel = input.float(5.0, "HTF Block Level", step=0.01, group=G_COUNTER_NEW)
+useHTFMasterGuard = input.bool(false, "Use HTF Master Guard", group=G_COUNTER_NEW)
+htfBlockLevel = input.float(3.50, "HTF Block Level", minval=0.5, maxval=4.5, step=0.25, group=G_COUNTER_NEW)
 allowCounterReversal = input.bool(true, "Allow Counter Reversal", group=G_COUNTER_NEW)
-counterNeedsZone = false
-counterNeedsCandle = false
-useSY320PhaseGuard = false
-useSY320WeakHTFBlock = false
-useSY320SellTrixBlock = false
-sy320Trix34BlockLevel = 0.10
-sy325AllowRealReversal = false
+counterNeedsZone = input.bool(false, "Counter Reversal Needs Premium/Discount", group=G_COUNTER_NEW)
+counterNeedsCandle = input.bool(false, "Counter Reversal Needs Rejection Candle", group=G_COUNTER_NEW)
+useSY320PhaseGuard = input.bool(false, "Use SY320 Phase Guard", group=G_COUNTER_NEW)
+useSY320WeakHTFBlock = input.bool(false, "SY320 Block Weak Opposite HTF", group=G_COUNTER_NEW)
+useSY320SellTrixBlock = input.bool(false, "SY320 Block SELL On Rising TRIX", group=G_COUNTER_NEW)
+sy320Trix34BlockLevel = input.float(0.10, "SY320 TRIX Block Level", step=0.01, group=G_COUNTER_NEW)
+sy325AllowRealReversal = input.bool(false, "SY325 Driver Allows Real Reversal", group=G_COUNTER_NEW)
 k3CacheOpposeLimit = input.float(3.0, "K3 Cache Opposite Trend Limit", step=0.01, minval=0.0, group=G_COUNTER_NEW)
 pbRequireSlowTrend = input.bool(true, "Block Opposite Slow Structure", group=G_COUNTER_NEW)
-baseBlockOppositePower = false
-baseAllowRealReversalBypass = false
+baseBlockOppositePower = input.bool(false, "Base Blocks Signals Against Power Trend", group=G_COUNTER_NEW)
+baseAllowRealReversalBypass = input.bool(false, "Real Reversal Bypasses The Power Block", group=G_COUNTER_NEW)
 
 // 04 ■ Liquidity Sweep
 sy337BuyUseSweep = input.bool(true, "BUY Use Sweep", group=G_LIQ_NEW)
@@ -254,7 +257,7 @@ baseFibSellMin = 50.0
 baseFibSellMax = 79.0
 
 // 09 ■ Range / Chop / Volatility
-useVTZ = true
+useVTZ = input.bool(true, "Use Volatility Transition Zone", group=G_RANGE_NEW)
 vtzMode = input.string("Assist Only", "VTZ Mode", options=["Off", "Assist Only", "Zone Guard", "Retest Guard"], group=G_RANGE_NEW)
 vtzBoxLookback = input.int(45, "Compression Box Lookback", minval=10, maxval=120, group=G_RANGE_NEW)
 vtzATRLenFast = 5
@@ -270,8 +273,8 @@ vtzBlockMiddleFade = true
 sy337SellUseRange = true
 squeezeLookback = 60
 useSY322RegimeGuard = input.bool(true, "Use SY322 Regime Guard", group=G_RANGE_NEW)
-useSY322ShockATRBlock = false
-sy322MaxAtrRatio = 3.0
+useSY322ShockATRBlock = input.bool(false, "Use SY322 Shock ATR Block", group=G_RANGE_NEW)
+sy322MaxAtrRatio = input.float(3.0, "SY322 Max ATR Ratio", minval=1.0, maxval=10.0, step=0.1, group=G_RANGE_NEW)
 useSY322DeadATRWeakHTF = input.bool(true, "Use SY322 Dead ATR Weak HTF", group=G_RANGE_NEW)
 sy322DeadAtrRatio = input.float(0.90, "Sy322 Dead ATR Ratio", step=0.01, group=G_RANGE_NEW)
 useSY324QuietFix = input.bool(true, "Use SY324 Quiet Fix", group=G_RANGE_NEW)
@@ -284,8 +287,11 @@ sy324MiddleMax = 75.0
 useSY327QuietRange = input.bool(true, "Use SY327 Quiet Range — UPGRADED", group=G_RANGE_NEW)
 sy327RangeLen = 60
 sy327MaxRangeATR = 7.0
-sy327BuyEdge = 18.0
-sy327SellEdge = 82.0
+// These two named the edges but the rule below used bare literals instead, so
+// changing them did nothing. They now carry the values that were really in use.
+sy327BuyEdge = input.float(12.0, "SY327 BUY Under Range %", minval=1.0, maxval=49.0, step=1.0, group=G_RANGE_NEW)
+sy327SellEdge = input.float(88.0, "SY327 SELL Over Range %", minval=51.0, maxval=99.0, step=1.0, group=G_RANGE_NEW)
+sy327MaxADX = input.float(22.0, "SY327 Max ADX", minval=5.0, maxval=50.0, step=1.0, group=G_RANGE_NEW)
 useSY328RangeEdgeToMid = input.bool(true, "Use SY328 Range Edge To Mid", group=G_RANGE_NEW)
 sy328RangeLen = 50
 sy328MaxRangeATR = 7.0
@@ -314,9 +320,10 @@ sy327CCIBuyLevel = -100.0
 sy327CCISellLevel = 100.0
 
 // 11 ■ Schools / Source Engines
-useSmartExitPlanner = true
+useSmartExitPlanner = input.bool(true, "Use Smart Exit Planner", group=G_RISK_NEW)
 useRealCloseSender = input.bool(false, "Send Confirmed Real CLOSE Requests", group=G_SCHOOLS_NEW)
 useSY315WebAddons = input.bool(true, "Use SY315 Web Addons", group=G_SCHOOLS_NEW)
+useOrphanSchools = input.bool(false, "Connect The Unwired Schools (VWAP pullback / SY328 edge / SY327 CCI)", group=G_SCHOOLS_NEW)
 sy328TenkanLen = 6
 sy328KijunLen = 24
 // ── إعدادات المدارس المطورة (قيم مثبتة بالمختبر) ──
@@ -345,7 +352,7 @@ sy334UseSellSweep = true
 sy334UseSellTrend = true
 sy334ApplyOldGuardsToType = input.bool(true, "Sy334 Apply Old Guards To Type", group=G_SCHOOLS_NEW)
 useSY336Best = input.bool(true, "Use SY336 Best", group=G_SCHOOLS_NEW)
-sy336UseKeltnerSell = false
+sy336UseKeltnerSell = input.bool(false, "Sy336 Use Keltner Sell", group=G_SCHOOLS_NEW)
 
 // 12 ■ Source Priority / Fusion / Collision
 pbOriginalPriority = input.bool(true, "Original 8100 Signal Has Priority", group=G_ROUTER_NEW)
@@ -553,13 +560,13 @@ smartChopTargetCut = 1.0
 smartMomentumTargetAdd = 20.0
 smartMomentumStopAdd = 5.0
 smartUseSwingTargetOnly = false
-useSourceRiskManager = true
-usePocTargetExtension = false
-pocTargetAddPoints = 50
-pocKeepAdaptiveStop = true
-pocFixedStopPoints = 65
-useSeparateSideRisk = false
-useSY333TypeRisk = true
+useSourceRiskManager = input.bool(true, "Use Source Risk Manager", group=G_RISK_NEW)
+usePocTargetExtension = input.bool(false, "POC Source Extends The Target", group=G_RISK_NEW)
+pocTargetAddPoints = input.int(50, "POC Target Extra Points", minval=1, group=G_RISK_NEW)
+pocKeepAdaptiveStop = input.bool(true, "POC Keeps The Adaptive Stop", group=G_RISK_NEW)
+pocFixedStopPoints = input.int(65, "POC Fixed Stop Points", minval=1, group=G_RISK_NEW)
+useSeparateSideRisk = input.bool(false, "Separate BUY / SELL Risk", group=G_RISK_NEW)
+useSY333TypeRisk = input.bool(true, "Risk By Trade Type", group=G_RISK_NEW)
 buyTargetPoints = 60
 buyStopPoints = 65
 sellTargetPoints = 50
@@ -1029,8 +1036,9 @@ sellStory = (localTrendSell and valueSell and (bearReject or bearMomentum) and (
 buyPlace = discount or rangePos <= baseBuyPlaceMaxRange or sweepLow or retestBuy or bullFVG or realRevBuy
 sellPlace = premium or rangePos >= baseSellPlaceMinRange or sweepHigh or retestSell or bearFVG or realRevSell
 
-baseBuyPowerOK = true
-baseSellPowerOK = true
+// Pinned to true, so both settings above did nothing at all.
+baseBuyPowerOK = not baseBlockOppositePower or not powerDown or (baseAllowRealReversalBypass and realRevBuy)
+baseSellPowerOK = not baseBlockOppositePower or not powerUp or (baseAllowRealReversalBypass and realRevSell)
 baseBuy = tradeableBase and buyStory and buyPlace and baseBuyPowerOK and roomBuy
 baseSell = tradeableBase and sellStory and sellPlace and baseSellPowerOK and roomSell
 
@@ -1107,8 +1115,8 @@ sy327Range = math.max(sy327RangeHigh - sy327RangeLow, syminfo.mintick)
 sy327RangeATR = sy327Range / math.max(atr, syminfo.mintick)
 sy327RangePos = (close - sy327RangeLow) / sy327Range * 100.0
 sy327Quiet = sy327RangeATR < sy327MaxRangeATR
-sy327RangeBuy = useSY327QuietRange and adx < 22 and sy327RangePos < 12 and stRsi3 < 18.0 and (high - low) > 1.5 * atr
-sy327RangeSell = useSY327QuietRange and adx < 22 and sy327RangePos > 88 and stRsi3 > 82.0 and (high - low) > 1.5 * atr
+sy327RangeBuy = useSY327QuietRange and adx < sy327MaxADX and sy327RangePos < sy327BuyEdge and stRsi3 < 18.0 and (high - low) > 1.5 * atr
+sy327RangeSell = useSY327QuietRange and adx < sy327MaxADX and sy327RangePos > sy327SellEdge and stRsi3 > 82.0 and (high - low) > 1.5 * atr
 
 sy328RangeHigh = ta.highest(high, sy328RangeLen)
 sy328RangeLow = ta.lowest(low, sy328RangeLen)
@@ -1116,6 +1124,7 @@ sy328Range = math.max(sy328RangeHigh - sy328RangeLow, syminfo.mintick)
 sy328RangeATR = sy328Range / math.max(atr, syminfo.mintick)
 sy328RangePos = (close - sy328RangeLow) / sy328Range * 100.0
 sy328RangeEdgeBuy = useSY328RangeEdgeToMid and sy328RangeATR < schREdgeAtr and sy328RangePos < schREdgePos and stRsi3 < schRsiTh and (high - low) > schBigK * atr
+sy328RangeEdgeSell = useSY328RangeEdgeToMid and sy328RangeATR < schREdgeAtr and sy328RangePos > 100.0 - schREdgePos and stRsi3 > 100.0 - schRsiTh and (high - low) > schBigK * atr
 sy328Tenkan = (ta.highest(high, sy328TenkanLen) + ta.lowest(low, sy328TenkanLen)) / 2.0
 sy328Kijun = (ta.highest(high, sy328KijunLen) + ta.lowest(low, sy328KijunLen)) / 2.0
 
@@ -1160,7 +1169,21 @@ sy331Range100Low = ta.lowest(low, 100)
 sy331Range100 = math.max(sy331Range100High - sy331Range100Low, syminfo.mintick)
 sy331Range100ATR = sy331Range100 / math.max(atr, syminfo.mintick)
 sy331Range100Pos = (close - sy331Range100Low) / sy331Range100 * 100.0
-sy331Buy = sy331BBBuy or sy331Range20Buy or sy331Range40Buy
+// The VWAP pullback family, the SY328 range edge and the SY327 CCI were all
+// computed in full and then never read. They are wired here, behind the master
+// switch, so the file keeps its current behaviour until you turn it on.
+sy326PullBuy = useOrphanSchools and sy337BuyUseVWAPPull and sy326DriverBuy and sy326TouchBuy and math.abs(sy326DistVWAP) <= sy326VWAPMaxDistATR and rsi14 >= sy326RSIBuyMin and rsi14 <= sy326RSIBuyMax
+sy326PullSell = useOrphanSchools and sy337BuyUseVWAPPull and sy326DriverSell and sy326TouchSell and math.abs(sy326DistVWAP) <= sy326VWAPMaxDistATR and rsi14 >= sy326RSISellMin and rsi14 <= sy326RSISellMax
+sy326ZBuy = useOrphanSchools and sy337BuyUseVWAPZ and sy326DistVWAP[1] <= -sy326VWAPMaxDistATR and sy326DistVWAP > sy326DistVWAP[1] and close > open
+sy326ZSell = useOrphanSchools and sy337BuyUseVWAPZ and sy326DistVWAP[1] >= sy326VWAPMaxDistATR and sy326DistVWAP < sy326DistVWAP[1] and close < open
+sy327CCIBuy = useOrphanSchools and sy327Quiet and sy327CCI <= sy327CCIBuyLevel and close > open
+sy327CCISell = useOrphanSchools and sy327Quiet and sy327CCI >= sy327CCISellLevel and close < open
+sy328EdgeBuy = useOrphanSchools and sy328RangeEdgeBuy
+sy328EdgeSell = useOrphanSchools and sy328RangeEdgeSell
+orphanBuy = sy326PullBuy or sy326ZBuy or sy327CCIBuy or sy328EdgeBuy
+orphanSell = sy326PullSell or sy326ZSell or sy327CCISell or sy328EdgeSell
+
+sy331Buy = sy331BBBuy or sy331Range20Buy or sy331Range40Buy or orphanBuy
 
 
 
@@ -1186,14 +1209,16 @@ sy336KeltMid80 = ta.ema(hlc3, 80)
 sy336KeltAtr80 = ta.rma(ta.tr(true), 80)
 sy336KeltUpper80 = sy336KeltMid80 + sy336KeltAtr80 * 1.5
 
+// The Keltner upper band was computed and then dropped on the floor.
+sy336KeltSell = useSY336Best and sy336UseKeltnerSell and high >= sy336KeltUpper80 and close < sy336KeltUpper80 and close < open
 sy336BuyBest = sy336Range80Buy or sy336Range60Buy
-sy336SellBest = sy336Range60Sell
+sy336SellBest = sy336Range60Sell or sy336KeltSell
 
-sy334BuyRangeRaw = sy331BBBuy or sy331Range20Buy or sy331Range40Buy
+sy334BuyRangeRaw = sy331BBBuy or sy331Range20Buy or sy331Range40Buy or orphanBuy
 sy334BuySweepRaw = false
 sy334BuyTrendRaw = sy336BuyBest
 
-sy334SellRangeRaw = false
+sy334SellRangeRaw = orphanSell
 sy334SellSweepRaw = false
 sy334SellTrendRaw = sy336SellBest
 
@@ -1207,8 +1232,9 @@ sy334SellTrend = sy334UseSellTrend and sy334SellTrendRaw
 sy334TypeBuy = sy334BuySweep or sy334BuyRange or sy334BuyTrend
 sy334TypeSell = sy334SellSweep or sy334SellRange or sy334SellTrend
 
-sy315WebBuy = sy327RangeBuy
-sy315WebSell = sy327RangeSell
+// The Use SY315 Web Addons setting was never read. It is now the gate it says it is.
+sy315WebBuy = useSY315WebAddons and sy327RangeBuy
+sy315WebSell = useSY315WebAddons and sy327RangeSell
 
 extraBuyVotes = (quadBuy ? 1.0 : 0.0) + (rsi14ShiftBuy ? 1.0 : 0.0) + (bbkcBuy ? 1.0 : 0.0)
 extraSellVotes = (quadSell ? 1.0 : 0.0) + (rsi14ShiftSell ? 1.0 : 0.0) + (bbkcSell ? 1.0 : 0.0)
@@ -1226,16 +1252,18 @@ moreTradesSell = ((baseSell or researchVoteSell) or trendCorrSell or sy315WebSel
 rawBuy0 = useResearchGate ? (mode == "Higher WR" ? higherWRBuy : mode == "More Trades" ? moreTradesBuy : bestNetBuy) : baseBuy
 rawSell0 = useResearchGate ? (mode == "Higher WR" ? higherWRSell : mode == "More Trades" ? moreTradesSell : bestNetSell) : baseSell
 
-counterBuyZoneOK = true
-counterSellZoneOK = true
-counterBuyCandleOK = true
-counterSellCandleOK = true
+// All four were pinned to true, so the two settings above were dead letters.
+counterBuyZoneOK = not counterNeedsZone or discount or bbRangeBuy
+counterSellZoneOK = not counterNeedsZone or premium or bbRangeSell
+counterBuyCandleOK = not counterNeedsCandle or bullReject or bullMomentum
+counterSellCandleOK = not counterNeedsCandle or bearReject or bearMomentum
 counterBuyAllowed = allowCounterReversal and realRevBuy and sweepLow and counterBuyZoneOK and counterBuyCandleOK
 counterSellAllowed = allowCounterReversal and realRevSell and sweepHigh and counterSellZoneOK and counterSellCandleOK
 wrongBuyHTF = htfScore <= -htfBlockLevel
 wrongSellHTF = htfScore >= htfBlockLevel
-htfBuyOK = true
-htfSellOK = true
+// Was pinned to true, which left the HTF Block Level setting with nothing to do.
+htfBuyOK = not useHTFMasterGuard or not wrongBuyHTF
+htfSellOK = not useHTFMasterGuard or not wrongSellHTF
 
 trix34Diff = trix34 - trix34Sig
 sy320WeakOppBuy = htfScore <= -0.5 and htfScore >= -2.0
@@ -1267,8 +1295,9 @@ sy324QuietOK = not sy324PostImpulseQuiet
 sy325EmaSlope = (ema20 - ema20[sy325DriverBars]) / math.max(atr, syminfo.mintick)
 sy325DriverBuy = close > ema20 and sy325EmaSlope >= sy325DriverSlopeATR and (not sy325UseEMA50 or ema20 >= ema50)
 sy325DriverSell = close < ema20 and sy325EmaSlope <= -sy325DriverSlopeATR and (not sy325UseEMA50 or ema20 <= ema50)
-sy325BuyAgainstDriver = useSY325FastDriver and sy325DriverSell
-sy325SellAgainstDriver = useSY325FastDriver and sy325DriverBuy
+// The allow-real-reversal setting had no reader; it now excuses a confirmed one.
+sy325BuyAgainstDriver = useSY325FastDriver and sy325DriverSell and not (sy325AllowRealReversal and realRevBuy)
+sy325SellAgainstDriver = useSY325FastDriver and sy325DriverBuy and not (sy325AllowRealReversal and realRevSell)
 sy325BuyOK = not sy325BuyAgainstDriver
 sy325SellOK = not sy325SellAgainstDriver
 
@@ -2932,7 +2961,13 @@ if active and bar_index > entryBar
         closeSimple = sy963WebhookKey + " " + sy999CloseAction + " " + sy963BotSymbol + " " + closeSide + " REGIME_80_REAL UID " + realCloseTradeUid + " TRY " + str.tostring(realCloseAttempts)
         alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
 
-    earlyExit = false
+    // The engine used to tell the bot to close and then hold the trade to its own
+    // TP or SL, so its books and the bot's diverged. When the CLOSE sender is on,
+    // the engine now closes with it. Off — the default — nothing changes.
+    if realCloseFire
+        sy999IntrabarExitTradeId := sy999TradeId
+        sy999IntrabarExitPrice := close
+    earlyExit = useRealCloseSender and sy999IntrabarExitTradeId == sy999TradeId and not na(sy999IntrabarExitPrice) and not hardExit
     if hardExit or earlyExit
         exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
         exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)
