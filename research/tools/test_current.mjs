@@ -48,9 +48,15 @@ const CONFIGS = cfgFile
   ? Object.entries(JSON.parse(fs.readFileSync(cfgFile, 'utf8')))
   : DEFAULT_CONFIGS;
 const months = MONTHS[period];
-const vaultText = zlib.gunzipSync(fs.readFileSync('research/data/vault_utc.csv.gz')).toString('utf8');
 
-// نُبقي في الذاكرة أسطر هذه الفترة فقط (مع إحماء)، لا الخزنة كلها
+// الحاوية تُعاد كل عشر دقائق، فكلفة الإقلاع تتكرّر. فكّ ضغط الخزنة كاملةً
+// (١.٢ مليون شمعة) وقصّها كان يأكل دقيقتين من كل عمر — فالمقاطع تُجهَّز مرة
+// واحدة على القرص، والإقلاع بعدها ثوانٍ.
+const slicePath = `research/data/slice_${period}.csv`;
+const vaultText = fs.existsSync(slicePath)
+  ? fs.readFileSync(slicePath, 'utf8')
+  : zlib.gunzipSync(fs.readFileSync('research/data/vault_utc.csv.gz')).toString('utf8');
+
 const headLine = vaultText.slice(0, vaultText.indexOf('\n'));
 const lo = new Date(Date.parse(months[0] + '-01T00:00Z') - 12 * 86400000).toISOString().slice(0, 10);
 const hi = months[months.length - 1] + '-32';
