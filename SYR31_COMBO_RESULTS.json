@@ -1,0 +1,44 @@
+[
+  {
+    "name": "A_1plus2plus3",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6451,
+      "win_rate": 61.03,
+      "net_points": 10998,
+      "profit_factor": 1.08,
+      "expectancy": 1.705,
+      "max_loss_streak": 10
+    },
+    "seconds": 839
+  },
+  {
+    "name": "B_2plus3",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6452,
+      "win_rate": 60.99,
+      "net_points": 10740,
+      "profit_factor": 1.078,
+      "expectancy": 1.665,
+      "max_loss_streak": 10
+    },
+    "seconds": 844
+  },
+  {
+    "name": "C_1plus2",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6447,
+      "win_rate": 61.02,
+      "net_points": 10719,
+      "profit_factor": 1.078,
+      "expectancy": 1.663,
+      "max_loss_streak": 10
+    },
+    "seconds": 844
+  }
+]

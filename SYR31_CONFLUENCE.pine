@@ -2906,7 +2906,7 @@ schBodyOK = schBodyPct >= schMinBodyPct
 schBase = schVolOK and schBodyOK and not ctxDead
 
 // ── 1) كسر بفوليوم — حالة PEAK_VOL ──
-sch1Use = input.bool(false, "1 · كسر بفوليوم (PEAK_VOL)", group = G_SCH)
+sch1Use = input.bool(true, "1 · كسر بفوليوم (PEAK_VOL) — مُفعَّلة بالقياس", group = G_SCH)
 sch1Len = input.int(20, "1 · نافذة الكسر", minval = 5, maxval = 100, group = G_SCH)
 sch1Hi = ta.highest(high, sch1Len)[1]
 sch1Lo = ta.lowest(low, sch1Len)[1]
@@ -2914,7 +2914,7 @@ sch1B = sch1Use and schBase and ctxPeakVol and schBull and close > sch1Hi and sc
 sch1S = sch1Use and schBase and ctxPeakVol and schBear and close < sch1Lo and schClosePos <= 0.35
 
 // ── 2) متابعة ترند — حالة TREND_QUIET ──
-sch2Use = input.bool(false, "2 · متابعة ترند بسحب (TREND_QUIET)", group = G_SCH)
+sch2Use = input.bool(true, "2 · متابعة ترند بسحب (TREND_QUIET) — مُفعَّلة بالقياس", group = G_SCH)
 sch2TouchATR = input.float(0.35, "2 · قرب السحب من EMA20 (×ATR)", minval = 0.05, maxval = 2.0, step = 0.05, group = G_SCH)
 sch2Near = math.abs(close - ema20) <= atr * sch2TouchATR
 sch2Up = ema20 > ema50 and close > ema20
@@ -2923,7 +2923,7 @@ sch2B = sch2Use and schBase and ctxTrending and not ctxVolatile and sch2Up and s
 sch2S = sch2Use and schBase and ctxTrending and not ctxVolatile and sch2Dn and sch2Near[1] and schBear
 
 // ── 3) اندفاع — حالة TREND_VOLATILE ──
-sch3Use = input.bool(false, "3 · اندفاع بعد شمعة قوية (TREND_VOLATILE)", group = G_SCH)
+sch3Use = input.bool(true, "3 · اندفاع بعد شمعة قوية (TREND_VOLATILE) — مُفعَّلة بالقياس", group = G_SCH)
 sch3ImpATR = input.float(1.10, "3 · حجم شمعة الاندفاع (×ATR)", minval = 0.4, maxval = 4.0, step = 0.05, group = G_SCH)
 sch3BigUp = close[1] > open[1] and (close[1] - open[1]) >= atr * sch3ImpATR
 sch3BigDn = close[1] < open[1] and (open[1] - close[1]) >= atr * sch3ImpATR
@@ -2931,7 +2931,7 @@ sch3B = sch3Use and schBase and ctxTrending and ctxVolatile and sch3BigUp and sc
 sch3S = sch3Use and schBase and ctxTrending and ctxVolatile and sch3BigDn and schBear and close < close[1]
 
 // ── 4) ارتداد حواف — حالة RANGE_QUIET ──
-sch4Use = input.bool(false, "4 · ارتداد من حافة النطاق (RANGE_QUIET)", group = G_SCH)
+sch4Use = input.bool(false, "4 · ارتداد من حافة النطاق (RANGE_QUIET) — أضرّت بالقياس، تُترك مطفأة", group = G_SCH)
 sch4Len = input.int(40, "4 · طول النطاق", minval = 10, maxval = 150, group = G_SCH)
 sch4Edge = input.float(18.0, "4 · حدّ الحافة %", minval = 5.0, maxval = 45.0, step = 1.0, group = G_SCH)
 sch4Hi = ta.highest(high, sch4Len)
