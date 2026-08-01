@@ -2956,8 +2956,83 @@ sch6DnWick = (math.min(open, close) - low) / schRange * 100.0
 sch6B = sch6Use and schVolOK and ctxPeakVol and sch6DnWick >= sch6WickPct and close > open and low <= ta.lowest(low, 10)
 sch6S = sch6Use and schVolOK and ctxPeakVol and sch6UpWick >= sch6WickPct and close < open and high >= ta.highest(high, 10)
 
-schBuy = sch1B or sch2B or sch3B or sch4B or sch5B or sch6B
-schSell = sch1S or sch2S or sch3S or sch4S or sch5S or sch6S
+// ══════════════════════════════════════════════════════════════════
+// الدفعة الثانية من المدارس — أفكار جديدة غير موجودة في SYR30
+// كلها OFF افتراضياً وتُقاس واحدة واحدة على المحرّك.
+// ══════════════════════════════════════════════════════════════════
+G_SCH2 = "26 ■ مدارس الدفعة الثانية"
+
+sch2MinVol = input.float(0.80, "أقل فوليوم للدفعة الثانية", minval = 0.0, maxval = 4.0, step = 0.05, group = G_SCH2)
+schVol2OK = ctxVolRatio >= sch2MinVol and not ctxDead
+
+// ── 5b) سحب سيولة — نسخة موسّعة (الأصلية أعطت صفر صفقات) ──
+sch5rUse = input.bool(false, "5b · سحب سيولة موسّع", group = G_SCH2)
+sch5rLen = input.int(15, "5b · نافذة السيولة", minval = 3, maxval = 60, group = G_SCH2)
+sch5rClosePos = input.float(0.55, "5b · موضع الإغلاق المطلوب", minval = 0.40, maxval = 0.90, step = 0.01, group = G_SCH2)
+sch5rLo = ta.lowest(low, sch5rLen)[1]
+sch5rHi = ta.highest(high, sch5rLen)[1]
+sch5rB = sch5rUse and schVol2OK and low < sch5rLo and close > sch5rLo and schClosePos >= sch5rClosePos
+sch5rS = sch5rUse and schVol2OK and high > sch5rHi and close < sch5rHi and schClosePos <= (1.0 - sch5rClosePos)
+
+// ── 6b) استنزاف — نسخة موسّعة ──
+sch6rUse = input.bool(false, "6b · استنزاف موسّع", group = G_SCH2)
+sch6rVol = input.float(1.40, "6b · عتبة ذروة الفوليوم", minval = 1.0, maxval = 4.0, step = 0.05, group = G_SCH2)
+sch6rWick = input.float(45.0, "6b · أقل ذيل رفض %", minval = 25.0, maxval = 85.0, step = 1.0, group = G_SCH2)
+sch6rExtLen = input.int(15, "6b · نافذة القمة/القاع", minval = 5, maxval = 60, group = G_SCH2)
+sch6rUpWick = (high - math.max(open, close)) / schRange * 100.0
+sch6rDnWick = (math.min(open, close) - low) / schRange * 100.0
+sch6rB = sch6rUse and not ctxDead and ctxVolRatio >= sch6rVol and sch6rDnWick >= sch6rWick and low <= ta.lowest(low, sch6rExtLen)
+sch6rS = sch6rUse and not ctxDead and ctxVolRatio >= sch6rVol and sch6rUpWick >= sch6rWick and high >= ta.highest(high, sch6rExtLen)
+
+// ── 7) ارتداد من بُعد متطرّف عن VWAP ──
+sch7Use = input.bool(false, "7 · ارتداد VWAP المتطرّف", group = G_SCH2)
+sch7DistATR = input.float(2.00, "7 · أقل بُعد عن VWAP (×ATR)", minval = 0.5, maxval = 6.0, step = 0.1, group = G_SCH2)
+sch7Far = not na(vwapVal) and math.abs(close - vwapVal) >= atr * sch7DistATR
+sch7B = sch7Use and schVol2OK and sch7Far and close < vwapVal and schBull and schClosePos >= 0.6
+sch7S = sch7Use and schVol2OK and sch7Far and close > vwapVal and schBear and schClosePos <= 0.4
+
+// ── 8) انعكاس ثلاث شمعات ──
+sch8Use = input.bool(false, "8 · انعكاس ثلاث شمعات", group = G_SCH2)
+sch8B = sch8Use and schVol2OK and low[1] < low[2] and low[1] < low and close > high[1] and schBull
+sch8S = sch8Use and schVol2OK and high[1] > high[2] and high[1] > high and close < low[1] and schBear
+
+// ── 9) كسر شمعة داخلية (ضغط ثم انفجار) ──
+sch9Use = input.bool(false, "9 · كسر شمعة داخلية", group = G_SCH2)
+sch9Inside = high[1] < high[2] and low[1] > low[2]
+sch9B = sch9Use and schVol2OK and sch9Inside and close > high[1] and schBull and schClosePos >= 0.6
+sch9S = sch9Use and schVol2OK and sch9Inside and close < low[1] and schBear and schClosePos <= 0.4
+
+// ── 10) كسر كاذب مرتد (Failed Breakout Fade) ──
+sch10Use = input.bool(false, "10 · كسر كاذب مرتد", group = G_SCH2)
+sch10Len = input.int(25, "10 · نافذة الكسر الكاذب", minval = 5, maxval = 100, group = G_SCH2)
+sch10Hi = ta.highest(high, sch10Len)[1]
+sch10Lo = ta.lowest(low, sch10Len)[1]
+sch10S = sch10Use and schVol2OK and high > sch10Hi and close < sch10Hi and schBear
+sch10B = sch10Use and schVol2OK and low < sch10Lo and close > sch10Lo and schBull
+
+// ── 11) رفض عند رقم مستدير ──
+sch11Use = input.bool(false, "11 · رفض عند رقم مستدير", group = G_SCH2)
+sch11Step = input.float(1.0, "11 · مسافة الرقم المستدير", minval = 0.1, maxval = 50.0, step = 0.1, group = G_SCH2)
+sch11TolATR = input.float(0.25, "11 · سماحية القرب (×ATR)", minval = 0.05, maxval = 1.5, step = 0.05, group = G_SCH2)
+sch11NearLo = math.abs(low - math.round(low / sch11Step) * sch11Step) <= atr * sch11TolATR
+sch11NearHi = math.abs(high - math.round(high / sch11Step) * sch11Step) <= atr * sch11TolATR
+sch11B = sch11Use and schVol2OK and sch11NearLo and schBull and schClosePos >= 0.65
+sch11S = sch11Use and schVol2OK and sch11NearHi and schBear and schClosePos <= 0.35
+
+// ── 12) استرجاع RSI من التشبّع ──
+sch12Use = input.bool(false, "12 · استرجاع RSI من التشبّع", group = G_SCH2)
+sch12Len = input.int(14, "12 · طول RSI", minval = 2, maxval = 50, group = G_SCH2)
+sch12OS = input.float(28.0, "12 · حد التشبّع البيعي", minval = 5.0, maxval = 45.0, step = 1.0, group = G_SCH2)
+sch12OB = input.float(72.0, "12 · حد التشبّع الشرائي", minval = 55.0, maxval = 95.0, step = 1.0, group = G_SCH2)
+sch12Rsi = ta.rsi(close, sch12Len)
+sch12B = sch12Use and schVol2OK and ta.crossover(sch12Rsi, sch12OS) and schBull
+sch12S = sch12Use and schVol2OK and ta.crossunder(sch12Rsi, sch12OB) and schBear
+
+sch2Buy = sch5rB or sch6rB or sch7B or sch8B or sch9B or sch10B or sch11B or sch12B
+sch2Sell = sch5rS or sch6rS or sch7S or sch8S or sch9S or sch10S or sch11S or sch12S
+
+schBuy = sch1B or sch2B or sch3B or sch4B or sch5B or sch6B or sch2Buy
+schSell = sch1S or sch2S or sch3S or sch4S or sch5S or sch6S or sch2Sell
 buySignal := buySignal or (schBuy and allowLong)
 sellSignal := sellSignal or (schSell and allowShort)
 
