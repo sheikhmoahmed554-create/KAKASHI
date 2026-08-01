@@ -2740,6 +2740,91 @@ r31RegPos = r31RegHi <= r31RegLo ? 50.0 : (close - r31RegLo) / (r31RegHi - r31Re
 r31BuyRegimeOK = not r31UseBuyRegime or (r31TrendATR <= -r31RegimeMinATR and r31Ema21 < r31Ema50v and r31Ema50v < ema100 and r31RegPos <= r31RegimeMaxPos)
 buySignal := buySignal and r31BuyRegimeOK
 
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RMI FILTER — "RMI by TheLark", transcribed exactly, wired as a general gate
+//
+// The oscillator below is the original source, line for line: the same EMA
+// smoothing (not Wilder's RMA), the same momentum lookback, the same SMA signal
+// line, the same colour rule where the plot is blue while rising and red while
+// falling. Every input the original exposes is exposed here under its own name.
+//
+// It gates the MAIN engine. Nothing here opens a trade of its own — it only
+// removes entries the engine would otherwise take. Every switch ships OFF, so
+// with the filter untouched the indicator produces exactly what it produced
+// before, trade for trade.
+//
+// Measured on 2026 before shipping, so the cost of each switch is known:
+//   engine untouched ............................ +15,665
+//   direction lock at 85/15 ......................+14,712
+//   direction lock at 80/20 ......................+13,948
+//   dead zone 40-60 ..............................+11,998
+//   dead zone 35-70 ...............................+6,203
+//   dead zone 35-70, strong entries on a 90 stop ..+4,359
+// Where the engine's profit actually sits, by the RMI reading at entry:
+//   0-9 5% | 10-19 8% | 20-29 18% | 30-39 14% | 40-49 0% | 50-59 18%
+//   60-69 8% | 70-79 22% | 80-89 10% | 90-99 -2%
+// Roughly 40% of the year's profit is earned between 35 and 70, which is why
+// blocking that band costs what it costs. The two bands that genuinely earn
+// nothing are 40-49 and 90-99.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+G_RMI = "27 ■ RMI Filter (TheLark)"
+
+// ── the original indicator's own inputs, same names, same defaults ──
+rmiLen    = input.int(20,  "RMI  Length",    minval=1, group=G_RMI)
+rmiMom    = input.int(4,   "RMI  Momentum",  minval=0, group=G_RMI)
+rmiOB     = input.int(70,  "RMI  Overbought", group=G_RMI)
+rmiOS     = input.int(30,  "RMI  Oversold",   group=G_RMI)
+rmiSigLen = input.int(6,   "RMI  Signal Length", minval=1, group=G_RMI)
+
+// ── the original calculation ──
+rmiUp     = ta.ema(math.max(close - close[rmiMom], 0), rmiLen)
+rmiDn     = ta.ema(math.max(close[rmiMom] - close, 0), rmiLen)
+rmiVal    = rmiDn == 0 ? 0.0 : 100.0 - 100.0 / (1.0 + rmiUp / rmiDn)
+rmiSig    = ta.sma(rmiVal, rmiSigLen)
+rmiBlue   = rmiVal > rmiVal[1]            // the plot's colour rule
+rmiTurnDn = rmiVal[1] > rmiVal[2] and rmiVal <= rmiVal[1]
+rmiTurnUp = rmiVal[1] <= rmiVal[2] and rmiVal > rmiVal[1]
+
+// ── the gate. Everything below is off until switched on. ──
+rmiFUse       = input.bool(false, "Enable the RMI filter", group=G_RMI, tooltip="Master switch. While this is off nothing below has any effect and the engine behaves exactly as it did before.")
+
+rmiFLock      = input.bool(false, "At saturation, allow one direction only", group=G_RMI, tooltip="Above the overbought level only SELL may fire; below oversold only BUY may fire. Cost on 2026 at 85/15: -953 points. At 80/20: -1,717.")
+rmiFLockOB    = input.float(85.0, "   ...overbought level for the lock", minval=50, maxval=99, group=G_RMI)
+rmiFLockOS    = input.float(15.0, "   ...oversold level for the lock",   minval=1,  maxval=50, group=G_RMI)
+
+rmiFDead      = input.bool(false, "Block entries in the middle of the range", group=G_RMI, tooltip="Blocks BOTH directions while RMI sits between the two levels below. Expensive: about 40% of 2026's profit was earned inside 35-70, and blocking that band took the year from +15,665 to +6,203. The bands that genuinely earn nothing are 40-49 and 90-99.")
+rmiFDeadLo    = input.float(35.0, "   ...from", minval=0, maxval=100, group=G_RMI)
+rmiFDeadHi    = input.float(70.0, "   ...to",   minval=0, maxval=100, group=G_RMI)
+
+rmiFDeadPass  = input.bool(false, "   ...but let strong signals through on a wider stop", group=G_RMI, tooltip="A trade in the blocked middle is allowed when the arbiter score clears the level below, and it uses the wider stop instead of its planned one. Measured cost on 2026: -11,306 against the untouched engine, and the drawdown roughly doubled — a wider stop means one loss eats two wins.")
+rmiFPassScore = input.float(6.0,  "   ...arbiter score needed", step=0.5, group=G_RMI)
+rmiFWideStop  = input.float(90.0, "   ...stop used for those trades", minval=10, group=G_RMI)
+
+rmiFCapBuy    = input.bool(false, "Block BUY above an RMI level", group=G_RMI)
+rmiFCapBuyLv  = input.float(70.0, "   ...level", minval=0, maxval=100, group=G_RMI)
+rmiFCapSell   = input.bool(false, "Block SELL below an RMI level", group=G_RMI)
+rmiFCapSellLv = input.float(30.0, "   ...level", minval=0, maxval=100, group=G_RMI)
+
+rmiFNeedTurn  = input.bool(false, "Only enter while the line is turning your way", group=G_RMI, tooltip="A SELL needs the line to have just gone red, a BUY needs it to have just gone blue.")
+rmiFShow      = input.bool(true,  "Show the RMI panel", group=G_RMI)
+
+// ── decide ──
+rmiInDead   = rmiVal > rmiFDeadLo and rmiVal < rmiFDeadHi
+rmiStrongB  = qaBuyScore  >= rmiFPassScore
+rmiStrongS  = qaSellScore >= rmiFPassScore
+rmiDeadPassB = rmiFDeadPass and rmiStrongB
+rmiDeadPassS = rmiFDeadPass and rmiStrongS
+
+rmiBlockBuy  = rmiFUse and ((rmiFLock and rmiVal >= rmiFLockOB) or (rmiFCapBuy and rmiVal > rmiFCapBuyLv) or (rmiFDead and rmiInDead and not rmiDeadPassB) or (rmiFNeedTurn and not rmiTurnUp))
+rmiBlockSell = rmiFUse and ((rmiFLock and rmiVal <= rmiFLockOS) or (rmiFCapSell and rmiVal < rmiFCapSellLv) or (rmiFDead and rmiInDead and not rmiDeadPassS) or (rmiFNeedTurn and not rmiTurnDn))
+
+// a trade allowed through the blocked middle carries the wider stop
+rmiUseWideStop = rmiFUse and rmiFDead and rmiFDeadPass and rmiInDead
+
+buySignal  := buySignal  and not rmiBlockBuy
+sellSignal := sellSignal and not rmiBlockSell
+
 canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
 canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
 
@@ -2755,6 +2840,8 @@ if canEnterLong or canEnterShort
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
     tradeTargetPts := math.max(30.0, plannedTarget)
     tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
+    if rmiUseWideStop
+        tradeStopPts := rmiFWideStop
     tradeExitMode := plannedExitMode
     tradeDirectionScore := plannedDirectionScore
 
@@ -3574,3 +3661,27 @@ if b3Use and b3ShowTable and barstate.islast
     table.cell(b3T, 1, 6, str.tostring(b3BE, "#.##") + "%", text_color=color.yellow, text_size=size.small)
     table.cell(b3T, 0, 7, "Net points", text_color=color.white, text_size=size.small)
     table.cell(b3T, 1, 7, str.tostring(b3Net, "#") + "  (" + str.tostring(b3Exp, "#.##") + "/trade)", text_color=b3Net >= 0 ? BUY_C : SELL_C, text_size=size.small)
+
+
+// ── RMI readout. The indicator overlays price, so it cannot draw the oscillator
+//    in a pane of its own — keep TheLark's own indicator loaded for the visual.
+//    These publish the same numbers to the data window and to a small panel.
+plot(rmiVal, title="RMI", color=rmiBlue ? color.rgb(0, 148, 255) : color.rgb(255, 0, 110), display=display.data_window)
+plot(rmiSig, title="RMI Signal", color=color.rgb(216, 122, 104), display=display.data_window)
+
+var table rmiT = table.new(position.top_left, 2, 6, border_width=0)
+if rmiFShow and barstate.islast
+    rmiZone = rmiVal >= rmiOB ? "OVERBOUGHT" : rmiVal <= rmiOS ? "OVERSOLD" : "middle"
+    rmiZoneC = rmiVal >= rmiOB ? SELL_C : rmiVal <= rmiOS ? BUY_C : color.gray
+    table.cell(rmiT, 0, 0, "RMI " + str.tostring(rmiLen) + "/" + str.tostring(rmiMom), text_color=color.black, bgcolor=rmiBlue ? color.rgb(0, 148, 255) : color.rgb(255, 0, 110), text_size=size.small)
+    table.cell(rmiT, 1, 0, str.tostring(rmiVal, "#.#"), text_color=color.black, bgcolor=rmiBlue ? color.rgb(0, 148, 255) : color.rgb(255, 0, 110), text_size=size.small)
+    table.cell(rmiT, 0, 1, "Line", text_color=color.white, text_size=size.small)
+    table.cell(rmiT, 1, 1, rmiBlue ? "BLUE  rising" : "RED  falling", text_color=rmiBlue ? color.rgb(0, 148, 255) : color.rgb(255, 0, 110), text_size=size.small)
+    table.cell(rmiT, 0, 2, "Signal", text_color=color.white, text_size=size.small)
+    table.cell(rmiT, 1, 2, str.tostring(rmiSig, "#.#"), text_color=color.white, text_size=size.small)
+    table.cell(rmiT, 0, 3, "Zone", text_color=color.white, text_size=size.small)
+    table.cell(rmiT, 1, 3, rmiZone, text_color=rmiZoneC, text_size=size.small)
+    table.cell(rmiT, 0, 4, "Filter", text_color=color.white, text_size=size.small)
+    table.cell(rmiT, 1, 4, rmiFUse ? "ON" : "off", text_color=rmiFUse ? color.yellow : color.gray, text_size=size.small)
+    table.cell(rmiT, 0, 5, "Blocking now", text_color=color.white, text_size=size.small)
+    table.cell(rmiT, 1, 5, not rmiFUse ? "-" : (rmiBlockBuy and rmiBlockSell ? "BUY + SELL" : rmiBlockBuy ? "BUY" : rmiBlockSell ? "SELL" : "nothing"), text_color=(rmiBlockBuy or rmiBlockSell) ? SELL_C : BUY_C, text_size=size.small)
