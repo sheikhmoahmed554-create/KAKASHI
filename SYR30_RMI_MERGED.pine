@@ -2068,6 +2068,9 @@ var float tradeDirectionScore = 0.0
 var float tradeTargetPts = na
 var float tradeStopPts = na
 var int tradeKind = 0
+var bool rmiOwnedTrade = false
+var string rmiTradeVoice = ""
+var float rmiTradeVoiceScore = 0.0
 var int entryBar = na
 var int lastTradeBar = na
 var int lastLongStopBar = na
@@ -2207,6 +2210,9 @@ if manualResetKey != lastResetKey   // date is display-only filter; engine runs 
     tradeTargetSource := ""
     tradeEntrySource := ""
     tradeEntrySourceCode := 0
+    rmiOwnedTrade := false
+    rmiTradeVoice := ""
+    rmiTradeVoiceScore := 0.0
     tradeExitMode := 1
     tradeDirectionScore := 0.0
     m1LiveOwnTrades := 0
@@ -2432,6 +2438,9 @@ rmiPriorLookback = input.int(20, "Prior High / Low Lookback", minval=2, maxval=3
 rmiNeedSweep = input.bool(false, "Require A Liquidity Sweep", group=G_RMI)
 rmiNeedFib = input.bool(false, "Require The Fibonacci Zone", group=G_RMI)
 rmiUseFilter = input.bool(false, "RMI Zone Filter — block entries outside the zones", group=G_RMI)
+rmiTargetPoints = input.float(50.0, "RMI Target Points — its own", minval=1.0, step=1.0, group=G_RMI)
+rmiStopPoints = input.float(65.0, "RMI Stop Points — its own", minval=1.0, step=1.0, group=G_RMI)
+rmiVoiceWeight = input.float(1.00, "RMI Advice Weight — 0 = silent", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
 rmiShowMarks = input.bool(false, "Show RMI Marks", group=G_RMI)
 
 // -- original RMI calculation, unchanged --
@@ -2447,6 +2456,17 @@ rmiOsLevel = math.min(rmiOb, rmiOs)
 rmiInOverbought = rmiVal >= rmiObLevel
 rmiInOversold = rmiVal <= rmiOsLevel
 rmiInMiddle = not rmiInOverbought and not rmiInOversold
+
+// -- the RMI's voice --
+// This vetoes nothing. It is an opinion the R17 arbiter weighs alongside
+// everything else it already looks at: standing in its own zone the RMI backs
+// the trade, in the middle band it says it would rather you did not, and in
+// the opposite zone it says so twice as loudly. The trade can still be taken
+// over its objection if the rest of the evidence carries it. Weight 0 mutes it.
+// It only reaches candidates that pass through the arbiter — the Lab Champion
+// sources are OR-ed in after R17 has run and never hear it.
+rmiAdviceBuy = rmiVoiceWeight * (rmiInOversold ? 1.0 : rmiInOverbought ? -2.0 : -1.0)
+rmiAdviceSell = rmiVoiceWeight * (rmiInOverbought ? 1.0 : rmiInOversold ? -2.0 : -1.0)
 
 // -- optional conditions on the reaction, all off by default --
 // The sweep and the Fibonacci zone are the engine's existing readings rather
@@ -2512,7 +2532,14 @@ if rmiPendSell >= rmiConfirmBars
 rmiBuyZoneOK = not rmiUseFilter or rmiInOversold or rmiEntryBuy
 rmiSellZoneOK = not rmiUseFilter or rmiInOverbought or rmiEntrySell
 
-rmiZoneText = rmiInOverbought ? "OB - SELL" : rmiInOversold ? "OS - BUY" : "MID"
+rmiZoneText = rmiInOverbought ? "OB - SELL" : rmiInOversold ? "OS - BUY" : "MID - NOT ADVISED"
+
+// The arbiter only ever hears the voice on candidates that actually reach it,
+// and most entries do not — the Lab Champion sources are OR-ed in after R17
+// has run. So the opinion is also spoken in plain words here, and those words
+// travel with the trade onto the label, into the table and out to the bot.
+rmiVoiceBuyText = rmiInOversold ? "AGREE" : rmiInOverbought ? "AGAINST" : "NOT ADVISED"
+rmiVoiceSellText = rmiInOverbought ? "AGREE" : rmiInOversold ? "AGAINST" : "NOT ADVISED"
 
 plotshape(rmiShowMarks and rmiEntryBuy, title="RMI Source BUY", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 0), size=size.tiny, text="RMI")
 plotshape(rmiShowMarks and rmiEntrySell, title="RMI Source SELL", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 0), size=size.tiny, text="RMI")
@@ -2543,8 +2570,8 @@ qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 
 qaBuyLocationScore = (rangePos <= 25 ? 0.70 : rangePos <= 45 ? 0.35 : rangePos >= 82 ? -0.75 : 0.0) + (bullReject ? 0.45 : bullMomentum ? 0.30 : 0.0) + (sweepLow ? 0.55 : 0.0) + (close > ema20 ? 0.20 : -0.20)
 qaSellLocationScore = (rangePos >= 75 ? 0.70 : rangePos >= 55 ? 0.35 : rangePos <= 18 ? -0.75 : 0.0) + (bearReject ? 0.45 : bearMomentum ? 0.30 : 0.0) + (sweepHigh ? 0.55 : 0.0) + (close < ema20 ? 0.20 : -0.20)
 
-qaBuyScore = qaRawBuy ? 1.0 + qaBuySourceScore + qaBuyTrendScore + qaBuyLocationScore + (qaBuyReversal ? 0.80 : 0.0) - (qaBuyLate ? 1.20 : 0.0) - (not qaBuyRoomOK ? 2.00 : 0.0) : -100.0
-qaSellScore = qaRawSell ? 1.0 + qaSellSourceScore + qaSellTrendScore + qaSellLocationScore + (qaSellReversal ? 0.80 : 0.0) - (qaSellLate ? 1.20 : 0.0) - (not qaSellRoomOK ? 2.00 : 0.0) : -100.0
+qaBuyScore = qaRawBuy ? 1.0 + qaBuySourceScore + qaBuyTrendScore + qaBuyLocationScore + rmiAdviceBuy + (qaBuyReversal ? 0.80 : 0.0) - (qaBuyLate ? 1.20 : 0.0) - (not qaBuyRoomOK ? 2.00 : 0.0) : -100.0
+qaSellScore = qaRawSell ? 1.0 + qaSellSourceScore + qaSellTrendScore + qaSellLocationScore + rmiAdviceSell + (qaSellReversal ? 0.80 : 0.0) - (qaSellLate ? 1.20 : 0.0) - (not qaSellRoomOK ? 2.00 : 0.0) : -100.0
 qaBuyPass = qaRawBuy and qaBuyRoomOK and not qaBuyLate and qaBuyScore >= qaMinScore
 qaSellPass = qaRawSell and qaSellRoomOK and not qaSellLate and qaSellScore >= qaMinScore
 qaBuyWinsCollision = qaBuyPass and (not qaSellPass or qaBuyScore >= qaSellScore + qaMinEdge)
@@ -2798,19 +2825,26 @@ if canEnterLong or canEnterShort
     side := canEnterLong ? 1 : -1
     entryPrice := close
     tradeKind := side == 1 ? longTypeNow : shortTypeNow
-    tradeEntrySourceCode := m1SelectedSourceCode
-    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : "BASE 999"
+    rmiOwnedTrade := side == 1 ? rmiOverrideLong : rmiOverrideShort
+    rmiTradeVoice := side == 1 ? rmiVoiceBuyText : rmiVoiceSellText
+    rmiTradeVoiceScore := side == 1 ? rmiAdviceBuy : rmiAdviceSell
+    tradeEntrySourceCode := rmiOwnedTrade ? 7 : m1SelectedSourceCode
+    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI" : "BASE 999"
 
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
-    tradeTargetPts := math.max(30.0, plannedTarget)
-    tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
+    // An RMI entry carries its own target and stop. They skip the adaptive
+    // planner and the 30-point floor entirely, and they are what reaches the
+    // bot: the webhook further down reads these same two variables, and the
+    // TP/SL prices are derived from them a few lines below.
+    tradeTargetPts := rmiOwnedTrade ? rmiTargetPoints : math.max(30.0, plannedTarget)
+    tradeStopPts := rmiOwnedTrade ? rmiStopPoints : math.min(plannedStop, tradeTargetPts + 20.0)
     tradeExitMode := plannedExitMode
     tradeDirectionScore := plannedDirectionScore
 
     exitModeText = tradeExitMode == 0 ? "STRONG" : tradeExitMode == 1 ? "ALIGNED" : tradeExitMode == 2 ? "RANGE" : tradeExitMode == 3 ? "REVERSAL" : tradeExitMode == 4 ? "COUNTER" : "LATE"
-    tradeRiskState := useDirectionalAdaptiveExit ? "DIR " + exitModeText + " HARD" : "BASE HARD"
-    tradeTargetSource := useDirectionalAdaptiveExit ? "M1/M5/M15 + LIQ" : "BASE PLAN"
+    tradeRiskState := rmiOwnedTrade ? "RMI OWN HARD" : useDirectionalAdaptiveExit ? "DIR " + exitModeText + " HARD" : "BASE HARD"
+    tradeTargetSource := rmiOwnedTrade ? "RMI PLAN" : useDirectionalAdaptiveExit ? "M1/M5/M15 + LIQ" : "BASE PLAN"
     if tradeEntrySourceCode == 1
         m1LiveOwnTrades += 1
     else if tradeEntrySourceCode == 2
@@ -2821,7 +2855,7 @@ if canEnterLong or canEnterShort
         trendVoteLiveTrades += 1
     else if tradeEntrySourceCode == 6
         finalFusionLiveTrades += 1
-    lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
+    lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#") + " | RMI " + rmiZoneText + " " + rmiTradeVoice
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
     entryBar := bar_index
@@ -3001,6 +3035,9 @@ if active and bar_index > entryBar
         tradeTargetSource := ""
         tradeEntrySource := ""
         tradeEntrySourceCode := 0
+        rmiOwnedTrade := false
+        rmiTradeVoice := ""
+        rmiTradeVoiceScore := 0.0
         tradeExitMode := 1
         tradeDirectionScore := 0.0
         sy999TradeMFE := 0.0
@@ -3051,8 +3088,9 @@ if statsActive
         sy999LearnEntry := close
         [learnBaseTarget, learnBaseStop] = f_sy999_source_plan(sy999LearnSide, sy999LearnEntry, m1SelectedSourceCode, sy999LearnTradeKind)
         [learnTarget, learnStop, learnExitMode, learnDirectionScore] = f_dae_exit_plan(sy999LearnSide, sy999LearnEntry, learnBaseTarget, learnBaseStop, sy999LearnTradeKind)
-        sy999LearnTarget := learnTarget
-        sy999LearnStop := learnStop
+        learnRmiOwned = sy999LearnSide == 1 ? rmiOverrideLong : rmiOverrideShort
+        sy999LearnTarget := learnRmiOwned ? rmiTargetPoints : learnTarget
+        sy999LearnStop := learnRmiOwned ? rmiStopPoints : learnStop
         sy999LearnTP := sy999LearnSide == 1 ? sy999LearnEntry + sy999LearnTarget * pointUnit : sy999LearnEntry - sy999LearnTarget * pointUnit
         sy999LearnSL := sy999LearnSide == 1 ? sy999LearnEntry - sy999LearnStop * pointUnit : sy999LearnEntry + sy999LearnStop * pointUnit
         sy999LearnMFE := 0.0
@@ -3119,8 +3157,8 @@ if sy963WebhookFire
     sy963AlertStopPts = na(tradeStopPts) ? sy963WebhookStopPoints : tradeStopPts
     sy963AlertTPPrice = na(tpPrice) ? (side == 1 ? entryPrice + sy963AlertTargetPts * pointUnit : entryPrice - sy963AlertTargetPts * pointUnit) : tpPrice
     sy963AlertSLPrice = na(slPrice) ? (side == 1 ? entryPrice - sy963AlertStopPts * pointUnit : entryPrice + sy963AlertStopPts * pointUnit) : slPrice
-    sy963JsonMsg = '{"key":"' + sy963WebhookKey + '","action":"' + sy963SideText + '","side":"' + sy963SideText + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"tp_points":' + str.tostring(sy963AlertTargetPts, "#.##") + ',"sl_points":' + str.tostring(sy963AlertStopPts, "#.##") + ',"target_points":' + str.tostring(sy963AlertTargetPts, "#.##") + ',"stop_points":' + str.tostring(sy963AlertStopPts, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice, format.mintick) + ',"tp_price":' + str.tostring(sy963AlertTPPrice, format.mintick) + ',"sl_price":' + str.tostring(sy963AlertSLPrice, format.mintick) + ',"exit_state":"' + tradeRiskState + '","target_source":"' + tradeTargetSource + '","exit_model":"ADAPTIVE_AT_ENTRY_HARD_TP_SL_WITH_REAL_CLOSE","trade_id":' + str.tostring(sy999TradeId) + ',"trade_uid":"' + realCloseTradeUid + '","indicator":"SYR30","time":"' + str.tostring(time) + '"}'
-    sy963SimpleMsg = sy963WebhookKey + " " + sy963SideText + " " + sy963BotSymbol + " MODEL ADAPTIVE_AT_ENTRY_HARD_TP_SL LOT " + str.tostring(sy963LotSize) + " TP " + str.tostring(sy963AlertTargetPts, "#.##") + " SL " + str.tostring(sy963AlertStopPts, "#.##")
+    sy963JsonMsg = '{"key":"' + sy963WebhookKey + '","action":"' + sy963SideText + '","side":"' + sy963SideText + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"tp_points":' + str.tostring(sy963AlertTargetPts, "#.##") + ',"sl_points":' + str.tostring(sy963AlertStopPts, "#.##") + ',"target_points":' + str.tostring(sy963AlertTargetPts, "#.##") + ',"stop_points":' + str.tostring(sy963AlertStopPts, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice, format.mintick) + ',"tp_price":' + str.tostring(sy963AlertTPPrice, format.mintick) + ',"sl_price":' + str.tostring(sy963AlertSLPrice, format.mintick) + ',"exit_state":"' + tradeRiskState + '","target_source":"' + tradeTargetSource + '","rmi":' + str.tostring(rmiVal, "#.##") + ',"rmi_zone":"' + rmiZoneText + '","rmi_advice":"' + rmiTradeVoice + '","rmi_advice_score":' + str.tostring(rmiTradeVoiceScore, "#.##") + ',"exit_model":"ADAPTIVE_AT_ENTRY_HARD_TP_SL_WITH_REAL_CLOSE","trade_id":' + str.tostring(sy999TradeId) + ',"trade_uid":"' + realCloseTradeUid + '","indicator":"SYR30","time":"' + str.tostring(time) + '"}'
+    sy963SimpleMsg = sy963WebhookKey + " " + sy963SideText + " " + sy963BotSymbol + " MODEL ADAPTIVE_AT_ENTRY_HARD_TP_SL LOT " + str.tostring(sy963LotSize) + " TP " + str.tostring(sy963AlertTargetPts, "#.##") + " SL " + str.tostring(sy963AlertStopPts, "#.##") + " RMI " + str.tostring(rmiVal, "#.#") + " " + rmiZoneText + " " + rmiTradeVoice
     alert(sy963AlertFormat == "JSON" ? sy963JsonMsg : sy963SimpleMsg, alert.freq_once_per_bar_close)
 
 plotshape(showSignals and statsActive and sy348EntryBuyPlot, title="SY354 Stable BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
@@ -3211,7 +3249,7 @@ if showTable and barstate.islast
     table.cell(t, 1, 17, str.tostring(rmiVal, "#.#") + " / " + str.tostring(rmiSignalLine, "#.#"), text_color=rmiRising ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
     table.cell(t, 0, 18, "RMI Zone", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 18, rmiZoneText + (rmiUseFilter ? " | FILTER ON" : ""), text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 18, rmiZoneText + (active ? " | SAID " + rmiTradeVoice : "") + (rmiUseFilter ? " | FILTER ON" : ""), text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 else if not showTable and barstate.islast
     table.clear(t, 0, 0, 1, 18)
 
