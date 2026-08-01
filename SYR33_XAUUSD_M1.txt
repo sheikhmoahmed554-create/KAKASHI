@@ -2691,7 +2691,7 @@ rmiTurnDn = rmiVal[1] > rmiVal[2] and rmiVal <= rmiVal[1]
 rmiTurnUp = rmiVal[1] <= rmiVal[2] and rmiVal > rmiVal[1]
 
 // ── the gate ──
-rmiFUse       = input.bool(true,  "Enable the RMI gate", group=G_RMI, tooltip="Master switch. Off means this whole group does nothing and the indicator is SYR30 exactly, trade for trade.")
+rmiFUse       = input.bool(false, "Enable the RMI gate", group=G_RMI, tooltip="Master switch. Off means this whole group does nothing and the indicator is SYR30 exactly, trade for trade.")
 
 rmiFDead      = input.bool(true,  "Block entries in the middle of the range", group=G_RMI, tooltip="Blocks BOTH directions while RMI sits between the two levels below.\n\nKnow the price before leaving this on: about 40% of 2026's profit was earned between 35 and 70, and blocking that band took the year from +6,565 to roughly -2,900 on this base. The two bands that genuinely earn nothing are 40-49 and 90-99, so a narrow block there costs far less than a wide one.")
 rmiFDeadLo    = input.float(35.0, "   ...from", minval=0, maxval=100, step=1, group=G_RMI)
@@ -2719,7 +2719,7 @@ rmiFNeedTurn  = input.bool(false, "Only enter while the line is turning your way
 // already holding, uses the engine's own adaptive target and stop, lands in the
 // engine's own statistics, and fires the engine's own alerts. One position, as
 // it has always been.
-rmiEUse      = input.bool(true,  "Also ENTER on RMI saturation", group=G_RMI, tooltip="The gate above only ever removes entries. This is what adds them: when RMI reaches the zone the engine takes the trade itself, even with none of its own schools speaking.")
+rmiEUse      = input.bool(false, "Also ENTER on RMI saturation", group=G_RMI, tooltip="The gate above only ever removes entries. This is what adds them: when RMI reaches the zone the engine takes the trade itself, even with none of its own schools speaking.")
 rmiEZoneS    = input.float(75.0, "   ...SELL when RMI is at or above", minval=50, maxval=99, step=1, group=G_RMI)
 rmiEZoneB    = input.float(25.0, "   ...BUY when RMI is at or below",  minval=1,  maxval=50, step=1, group=G_RMI)
 rmiENeedFlip = input.bool(true,  "   ...only as the line flips colour", group=G_RMI, tooltip="Blue turning red for a sell, red turning blue for a buy — the oscillator has topped or bottomed rather than merely being high or low. Without this the same rule reads about 50% instead of 54%.")
