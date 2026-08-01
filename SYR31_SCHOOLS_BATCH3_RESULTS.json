@@ -1,0 +1,142 @@
+[
+  {
+    "name": "13_DONCHIAN200",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6451,
+      "win_rate": 61.03,
+      "net_points": 10998,
+      "profit_factor": 1.08,
+      "expectancy": 1.705,
+      "max_loss_streak": 10
+    },
+    "seconds": 1269
+  },
+  {
+    "name": "15_STOCHASTIC",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6474,
+      "win_rate": 60.91,
+      "net_points": 9941,
+      "profit_factor": 1.072,
+      "expectancy": 1.536,
+      "max_loss_streak": 10
+    },
+    "seconds": 1283
+  },
+  {
+    "name": "14_DONCHIAN70",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6455,
+      "win_rate": 60.88,
+      "net_points": 9875,
+      "profit_factor": 1.071,
+      "expectancy": 1.53,
+      "max_loss_streak": 10
+    },
+    "seconds": 1313
+  },
+  {
+    "name": "16_REGIME",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6454,
+      "win_rate": 59.28,
+      "net_points": 5064,
+      "profit_factor": 1.035,
+      "expectancy": 0.785,
+      "max_loss_streak": 15
+    },
+    "seconds": 1245
+  },
+  {
+    "name": "17_RMI_sy248",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6590,
+      "win_rate": 59.74,
+      "net_points": 2137,
+      "profit_factor": 1.015,
+      "expectancy": 0.324,
+      "max_loss_streak": 10
+    },
+    "seconds": 1275
+  },
+  {
+    "name": "CAL_FVG_010",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6450,
+      "win_rate": 61.13,
+      "net_points": 11619,
+      "profit_factor": 1.085,
+      "expectancy": 1.801,
+      "max_loss_streak": 10
+    },
+    "seconds": 1250
+  },
+  {
+    "name": "CAL_FVG_018",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6450,
+      "win_rate": 61.16,
+      "net_points": 11801,
+      "profit_factor": 1.086,
+      "expectancy": 1.83,
+      "max_loss_streak": 10
+    },
+    "seconds": 1207
+  },
+  {
+    "name": "CAL_FVG_030",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6450,
+      "win_rate": 61.15,
+      "net_points": 11711,
+      "profit_factor": 1.085,
+      "expectancy": 1.816,
+      "max_loss_streak": 10
+    },
+    "seconds": 1222
+  },
+  {
+    "name": "CAL_BODY_16",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6450,
+      "win_rate": 60.99,
+      "net_points": 10781,
+      "profit_factor": 1.078,
+      "expectancy": 1.671,
+      "max_loss_streak": 10
+    },
+    "seconds": 1225
+  },
+  {
+    "name": "CAL_BODY_40",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6449,
+      "win_rate": 61.05,
+      "net_points": 11163,
+      "profit_factor": 1.081,
+      "expectancy": 1.731,
+      "max_loss_streak": 10
+    },
+    "seconds": 1150
+  }
+]
