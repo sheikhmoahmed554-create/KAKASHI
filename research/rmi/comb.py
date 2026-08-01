@@ -18,7 +18,7 @@ SL = 70.0
 HORIZON = 4000
 NEVER = np.int32(1 << 30)
 YEARS = ('2021', '2023', '2025', '2026')
-SOURCES = ['Rsi', 'Macd', 'Adx', 'Bb', 'Ichi', 'Sar', 'Pivot', 'Fib', 'Ma', 'Brt', 'Smb', 'Sr', 'Str']
+SOURCES = ['Rsi', 'Macd', 'Adx', 'Bb', 'Ichi', 'Sar', 'Pivot', 'Fib', 'Ma', 'Brt', 'Smb', 'Sr', 'Str', 'Mis', 'M4c', 'Vol', 'Mtx', 'Vfx', 'Qqe', 'Sqz', 'Kw']
 # خط الأساس العشوائي (شراء, بيع) لكل سنة — محسوب في random_baseline.py
 RND = {'2021': (34.11, 34.93), '2023': (34.57, 34.00),
        '2025': (38.25, 32.46), '2026': (32.67, 36.94)}
@@ -38,36 +38,44 @@ def load(year):
         cand |= B[f'mc{s}Buy'] | B[f'mc{s}Sell']
     idx = np.flatnonzero(cand)
 
-    # المسار لكل مرشّح، بالنقاط، للجهتين
+    # حلّ كل مرشّح على دفعات: بناء المصفوفة كاملةً يحتاج جيجابايتات لأن أكثر
+    # من نصف الشموع صارت مرشّحة بعد إضافة واحد وعشرين مصدراً.
     k = len(idx)
-    up = np.zeros((k, HORIZON), np.float32)     # أقصى صعود متاح
-    dn = np.zeros((k, HORIZON), np.float32)     # أقصى هبوط متاح
-    for a in range(k):
-        i = idx[a]; ep = c[i]
-        j0, j1 = i + 1, min(i + 1 + HORIZON, n)
-        m = j1 - j0
-        if m <= 0:
-            up[a, :] = -1e9; dn[a, :] = -1e9
-            continue
-        up[a, :m] = np.maximum.accumulate((h[j0:j1] - ep) / PU)
-        dn[a, :m] = np.maximum.accumulate((ep - l[j0:j1]) / PU)
-        if m < HORIZON:
-            up[a, m:] = up[a, m - 1]; dn[a, m:] = dn[a, m - 1]
+    res = {1: np.full(k, -1, np.int8), -1: np.full(k, -1, np.int8)}
+    bars = {1: np.zeros(k, np.int32), -1: np.zeros(k, np.int32)}
+    CH = 4000
+    for a0 in range(0, k, CH):
+        a1 = min(a0 + CH, k)
+        sub = idx[a0:a1]
+        m = len(sub)
+        up = np.zeros((m, HORIZON), np.float32)
+        dn = np.zeros((m, HORIZON), np.float32)
+        for a in range(m):
+            i = sub[a]; ep = c[i]
+            j0, j1 = i + 1, min(i + 1 + HORIZON, n)
+            w = j1 - j0
+            if w <= 0:
+                up[a, :] = -1e9; dn[a, :] = -1e9
+                continue
+            up[a, :w] = np.maximum.accumulate((h[j0:j1] - ep) / PU)
+            dn[a, :w] = np.maximum.accumulate((ep - l[j0:j1]) / PU)
+            if w < HORIZON:
+                up[a, w:] = up[a, w - 1]; dn[a, w:] = dn[a, w - 1]
 
-    def touch(curve, level):
-        return np.where(curve[:, -1] >= level,
-                        (curve >= level).argmax(1).astype(np.int32), NEVER)
+        def touch(curve, level):
+            return np.where(curve[:, -1] >= level,
+                            (curve >= level).argmax(1).astype(np.int32), NEVER)
 
-    # الشراء: الهدف صعوداً والوقف هبوطاً. البيع بالعكس.
-    res, bars = {}, {}
-    for side, (tpc, slc) in ((1, (up, dn)), (-1, (dn, up))):
-        t1 = touch(tpc, TP); t2 = touch(slc, SL)
-        o = np.full(k, -1, np.int8)
-        o[t1 < t2] = 1
-        o[t2 < t1] = 0
-        o[(t1 == t2) & (t1 < NEVER)] = -2        # تصادم في شمعة واحدة → تُلغى
-        b = np.minimum(t1, t2); b[b >= NEVER] = HORIZON
-        res[side] = o; bars[side] = b + 1
+        for side, (tpc, slc) in ((1, (up, dn)), (-1, (dn, up))):
+            t1 = touch(tpc, TP); t2 = touch(slc, SL)
+            o = np.full(m, -1, np.int8)
+            o[t1 < t2] = 1
+            o[t2 < t1] = 0
+            o[(t1 == t2) & (t1 < NEVER)] = -2
+            b = np.minimum(t1, t2); b[b >= NEVER] = HORIZON
+            res[side][a0:a1] = o
+            bars[side][a0:a1] = b + 1
+        del up, dn
 
     pos = -np.ones(n, np.int64); pos[idx] = np.arange(k)
     days = len(set(np.asarray(d['time']) // 86400000))

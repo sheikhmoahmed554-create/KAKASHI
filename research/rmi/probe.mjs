@@ -9,7 +9,7 @@ const core = Buffer.from(page.match(/CORE_B64="([^"]+)"/)[1],'base64').toString(
 globalThis.self = globalThis; (0,eval)(core);
 const { PineEngine } = globalThis.PineLabJS;
 
-const SOURCES = ['Rsi','Macd','Adx','Bb','Ichi','Sar','Pivot','Fib','Ma','Brt','Smb','Sr','Str'];
+const SOURCES = ['Rsi','Macd','Adx','Bb','Ichi','Sar','Pivot','Fib','Ma','Brt','Smb','Sr','Str','Mis','M4c','Vol','Mtx','Vfx','Qqe','Sqz','Kw'];
 const WANT = ['rmiRawBuy','rmiRawSell'];
 for (const s of SOURCES) WANT.push(`mc${s}Buy`, `mc${s}Sell`, `mc${s}BuyOK`, `mc${s}SellOK`);
 
