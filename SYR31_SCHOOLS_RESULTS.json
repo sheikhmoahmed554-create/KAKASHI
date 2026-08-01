@@ -1,0 +1,114 @@
+[
+  {
+    "name": "1_BREAKOUT_peakvol",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6414,
+      "win_rate": 61.02,
+      "net_points": 10131,
+      "profit_factor": 1.074,
+      "expectancy": 1.58,
+      "max_loss_streak": 8
+    },
+    "seconds": 737
+  },
+  {
+    "name": "0_REFERENCE",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6415,
+      "win_rate": 61,
+      "net_points": 9867,
+      "profit_factor": 1.072,
+      "expectancy": 1.538,
+      "max_loss_streak": 8
+    },
+    "seconds": 743
+  },
+  {
+    "name": "2_TRENDPULL_quiet",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6447,
+      "win_rate": 61.01,
+      "net_points": 10535,
+      "profit_factor": 1.076,
+      "expectancy": 1.634,
+      "max_loss_streak": 10
+    },
+    "seconds": 743
+  },
+  {
+    "name": "3_IMPULSE_volatile",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6419,
+      "win_rate": 61.01,
+      "net_points": 10229,
+      "profit_factor": 1.075,
+      "expectancy": 1.594,
+      "max_loss_streak": 8
+    },
+    "seconds": 725
+  },
+  {
+    "name": "5_SWEEP_rangevol",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6415,
+      "win_rate": 61,
+      "net_points": 9867,
+      "profit_factor": 1.072,
+      "expectancy": 1.538,
+      "max_loss_streak": 8
+    },
+    "seconds": 722
+  },
+  {
+    "name": "4_EDGEFADE_range",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6419,
+      "win_rate": 60.87,
+      "net_points": 8889,
+      "profit_factor": 1.065,
+      "expectancy": 1.385,
+      "max_loss_streak": 8
+    },
+    "seconds": 723
+  },
+  {
+    "name": "6_EXHAUST_peakvol",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6415,
+      "win_rate": 61,
+      "net_points": 9867,
+      "profit_factor": 1.072,
+      "expectancy": 1.538,
+      "max_loss_streak": 8
+    },
+    "seconds": 794
+  },
+  {
+    "name": "7_ALL_SIX_ON",
+    "knob_problems": {},
+    "error": null,
+    "stats": {
+      "trades": 6455,
+      "win_rate": 60.87,
+      "net_points": 9842,
+      "profit_factor": 1.071,
+      "expectancy": 1.525,
+      "max_loss_streak": 10
+    },
+    "seconds": 791
+  }
+]
