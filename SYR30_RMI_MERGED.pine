@@ -8,7 +8,7 @@
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
 // RMI MERGE: the Relative Momentum Index by TheLark (2014, Pine v1) is transcribed unchanged into v6
-// and wired in as an unbypassable gate — BUY out of overbought, SELL out of oversold, middle blocked —
+// and wired in as an unbypassable gate — SELL out of overbought, BUY out of oversold, middle blocked —
 // plus an in-zone score term for the R17 arbiter, and it stands as an entry source of its own.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
 // Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
@@ -2406,18 +2406,21 @@ sellSignal := sellSignal or r11ConnS
 //       dn     = ema(max(close[mom] - close, 0), len)
 //       rmi    = dn == 0 ? 0 : 100 - 100 / (1 + up / dn)
 //       signal = sma(rmi, sig)
-//   Wired in as a filter no source is allowed to bypass:
-//       BUY  only out of the overbought zone
-//       SELL only out of the oversold zone
-//       middle band closed to both sides
-//   A signal standing inside its zone also carries a score into R17.
+//   Read as an exhaustion oscillator and wired in two ways:
+//     • Gate no source may bypass — SELL only while the RMI sits in the
+//       overbought zone, BUY only while it sits in the oversold zone, and
+//       nothing at all opens in the middle band.
+//     • Entry source — the reaction inside a zone is the trigger: price
+//       reaches 80, the RMI rolls over, that is the SELL; it reaches 20, the
+//       RMI turns back up, that is the BUY. The turn is the original study's
+//       own colour flip (rmi > rmi[1]), so no new logic is invented.
 // ══════════════════════════════════════════════════════════════════
 G_RMI = "24 ■ RMI Zone Filter (TheLark)"
 
 rmiLen = input.int(20, "RMI Length", minval=1, group=G_RMI)
 rmiMom = input.int(4, "RMI Momentum", minval=0, group=G_RMI)
-rmiOb = input.float(70.0, "Overbought — BUY zone", minval=50.0, maxval=99.0, step=1.0, group=G_RMI)
-rmiOs = input.float(30.0, "Oversold — SELL zone", minval=1.0, maxval=50.0, step=1.0, group=G_RMI)
+rmiOb = input.float(80.0, "Overbought — SELL zone", minval=50.0, maxval=99.0, step=1.0, group=G_RMI)
+rmiOs = input.float(20.0, "Oversold — BUY zone", minval=1.0, maxval=50.0, step=1.0, group=G_RMI)
 rmiSigLen = input.int(6, "Signal Length", minval=1, group=G_RMI)
 rmiDeepOffset = input.float(10.0, "Deep Zone Extra Distance", minval=0.0, maxval=30.0, step=1.0, group=G_RMI)
 rmiZoneScore = input.float(0.90, "R17 Score — In Zone", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
@@ -2440,25 +2443,30 @@ rmiInMiddle = not rmiInOverbought and not rmiInOversold
 rmiDeepOverbought = rmiVal >= math.min(99.0, rmiObLevel + rmiDeepOffset)
 rmiDeepOversold = rmiVal <= math.max(1.0, rmiOsLevel - rmiDeepOffset)
 
-// BUY out of overbought, SELL out of oversold, nothing at all in the middle.
-// There is no bypass path here on purpose — this is the last word on both sides.
-rmiBuyZoneOK = rmiInOverbought
-rmiSellZoneOK = rmiInOversold
+// SELL out of the overbought zone, BUY out of the oversold zone, nothing in
+// the middle. No bypass path on purpose — this is the last word on both sides.
+rmiBuyZoneOK = rmiInOversold
+rmiSellZoneOK = rmiInOverbought
 
-rmiBuyScore = (rmiInOverbought ? rmiZoneScore : 0.0) + (rmiDeepOverbought ? rmiDeepScore : 0.0)
-rmiSellScore = (rmiInOversold ? rmiZoneScore : 0.0) + (rmiDeepOversold ? rmiDeepScore : 0.0)
+// ── the reaction inside a zone, used as the RMI's own entry ──
+// The turn is taken from the study's colour rule: the plot flips whenever
+// rmi crosses its own previous value. A flip up while the oscillator is still
+// parked in oversold is the BUY reaction; a flip down while it is still in
+// overbought is the SELL reaction. Both fire inside the zone, so they satisfy
+// the gate above without needing an exception carved out for them.
+rmiWasRising = rmiRising[1]
+rmiTurnUp = rmiRising and not rmiWasRising
+rmiTurnDown = not rmiRising and rmiWasRising
+rmiEntryBuy = tradeableBase and rmiInOversold and rmiTurnUp
+rmiEntrySell = tradeableBase and rmiInOverbought and rmiTurnDown
 
-// ── RMI as an entry source of its own ──
-// The trigger is the RMI stepping into its zone, confirmed by the study's own
-// signal line. One trigger per swing, and it sits inside the zone by
-// construction, so it satisfies the gate below without any special case.
-rmiEntryBuy = tradeableBase and ta.crossover(rmiVal, rmiObLevel) and rmiVal > rmiSignalLine
-rmiEntrySell = tradeableBase and ta.crossunder(rmiVal, rmiOsLevel) and rmiVal < rmiSignalLine
+rmiBuyScore = (rmiInOversold ? rmiZoneScore : 0.0) + (rmiDeepOversold ? rmiDeepScore : 0.0)
+rmiSellScore = (rmiInOverbought ? rmiZoneScore : 0.0) + (rmiDeepOverbought ? rmiDeepScore : 0.0)
 
-rmiZoneText = rmiInOverbought ? "OB — BUY" : rmiInOversold ? "OS — SELL" : "MID — BLOCKED"
+rmiZoneText = rmiInOverbought ? "OB — SELL" : rmiInOversold ? "OS — BUY" : "MID — BLOCKED"
 
-plotshape(rmiShowMarks and rmiInOverbought, title="RMI Overbought", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 25), size=size.tiny, text="RMI OB")
-plotshape(rmiShowMarks and rmiInOversold, title="RMI Oversold", style=shape.circle, location=location.top, color=color.new(SELL_C, 25), size=size.tiny, text="RMI OS")
+plotshape(rmiShowMarks and rmiInOversold, title="RMI Oversold", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 25), size=size.tiny, text="RMI OS")
+plotshape(rmiShowMarks and rmiInOverbought, title="RMI Overbought", style=shape.circle, location=location.top, color=color.new(SELL_C, 25), size=size.tiny, text="RMI OB")
 plotshape(rmiShowMarks and rmiEntryBuy, title="RMI Source BUY", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 0), size=size.tiny, text="RMI")
 plotshape(rmiShowMarks and rmiEntrySell, title="RMI Source SELL", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 0), size=size.tiny, text="RMI")
 
@@ -3147,7 +3155,7 @@ if showTable and barstate.islast
     table.cell(t, 1, 17, str.tostring(rmiVal, "#.#") + " / " + str.tostring(rmiSignalLine, "#.#"), text_color=rmiRising ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
     table.cell(t, 0, 18, "RMI Zone", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 18, rmiZoneText, text_color=rmiInOverbought ? BUY_C : rmiInOversold ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 18, rmiZoneText, text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 else if not showTable and barstate.islast
     table.clear(t, 0, 0, 1, 18)
 
