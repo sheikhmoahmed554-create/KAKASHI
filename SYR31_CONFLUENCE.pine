@@ -3028,8 +3028,74 @@ sch12Rsi = ta.rsi(close, sch12Len)
 sch12B = sch12Use and schVol2OK and ta.crossover(sch12Rsi, sch12OS) and schBull
 sch12S = sch12Use and schVol2OK and ta.crossunder(sch12Rsi, sch12OB) and schBear
 
-sch2Buy = sch5rB or sch6rB or sch7B or sch8B or sch9B or sch10B or sch11B or sch12B
-sch2Sell = sch5rS or sch6rS or sch7S or sch8S or sch9S or sch10S or sch11S or sch12S
+// ══════════════════════════════════════════════════════════════════
+// الدفعة الثالثة — مدارس مستخرجة من نسخ المستخدم الأقدم ومن SY248
+//   13-16: كانت موجودة في V37/R33/R16 وحُذفت في SYR30. نعيد قياسها
+//          هذه المرّة تحت بوابة الفوليوم.
+//   17   : RMI من SY248 (مؤشر مختلف) — غير موجود في SYR30 إطلاقاً.
+// ══════════════════════════════════════════════════════════════════
+G_SCH3 = "27 ■ مدارس مستخرجة من نسخك القديمة"
+
+// ── 13) سحب Donchian 200 (كان في V37) ──
+sch13Use = input.bool(false, "13 · سحب Donchian 200", group = G_SCH3)
+sch13Len = input.int(200, "13 · طول Donchian", minval = 20, maxval = 500, group = G_SCH3)
+sch13Stretch = input.float(1.50, "13 · أقل تمدّد عن EMA20 (×ATR)", minval = 0.3, maxval = 5.0, step = 0.1, group = G_SCH3)
+sch13Lo = ta.lowest(low, sch13Len)[1]
+sch13Hi = ta.highest(high, sch13Len)[1]
+sch13B = sch13Use and schVol2OK and low < sch13Lo and close > sch13Lo and chStretch < -sch13Stretch and chRsi3 < 18.0 and chBig
+sch13S = sch13Use and schVol2OK and high > sch13Hi and close < sch13Hi and chStretch > sch13Stretch and chRsi3 > 82.0 and chBig
+
+// ── 14) ارتداد لمنتصف Donchian 70 (كان في V37) ──
+sch14Use = input.bool(false, "14 · ارتداد منتصف Donchian 70", group = G_SCH3)
+sch14Len = input.int(70, "14 · طول النطاق", minval = 20, maxval = 300, group = G_SCH3)
+sch14K = input.float(1.50, "14 · بُعد عن المنتصف (×ATR)", minval = 0.3, maxval = 5.0, step = 0.1, group = G_SCH3)
+sch14Mid = (ta.highest(high, sch14Len) + ta.lowest(low, sch14Len)) / 2.0
+sch14B = sch14Use and schVol2OK and low < sch14Mid - sch14K * chAtrV and chRsi3 < 18.0 and chBig
+sch14S = sch14Use and schVol2OK and high > sch14Mid + sch14K * chAtrV and chRsi3 > 82.0 and chBig
+
+// ── 15) مدرسة الاستوكاستك (حُذفت في SYR30) ──
+sch15Use = input.bool(false, "15 · استوكاستك في السوق الهادئ", group = G_SCH3)
+sch15Len = input.int(14, "15 · طول الاستوكاستك", minval = 3, maxval = 60, group = G_SCH3)
+sch15Lvl = input.float(20.0, "15 · حد التشبّع", minval = 5.0, maxval = 45.0, step = 1.0, group = G_SCH3)
+sch15Adx = input.float(20.0, "15 · أقصى ADX (سوق هادئ)", minval = 5.0, maxval = 40.0, step = 0.5, group = G_SCH3)
+sch15Hi = ta.highest(high, sch15Len)
+sch15Lo = ta.lowest(low, sch15Len)
+sch15K = (sch15Hi - sch15Lo) > 0 ? 100.0 * (close - sch15Lo) / (sch15Hi - sch15Lo) : 50.0
+sch15D = ta.sma(sch15K, 3)
+sch15B = sch15Use and schVol2OK and adx < sch15Adx and ta.crossover(sch15K, sch15D) and sch15K < sch15Lvl
+sch15S = sch15Use and schVol2OK and adx < sch15Adx and ta.crossunder(sch15K, sch15D) and sch15K > (100.0 - sch15Lvl)
+
+// ── 16) مدرسة النظام: كسر في الترند / ارتداد بولنجر في العرضي ──
+sch16Use = input.bool(false, "16 · مدرسة النظام (كسر أو ارتداد حسب ADX)", group = G_SCH3)
+sch16Adx = input.float(20.0, "16 · عتبة الترند", minval = 5.0, maxval = 40.0, step = 0.5, group = G_SCH3)
+sch16Ma = ta.sma(close, 20)
+sch16Sd = ta.stdev(close, 20)
+sch16Tr = adx > sch16Adx
+sch16B = sch16Use and schVol2OK and ((sch16Tr and close >= ta.highest(high, 20)[1]) or (not sch16Tr and low <= sch16Ma - 2.0 * sch16Sd and schBull))
+sch16S = sch16Use and schVol2OK and ((sch16Tr and close <= ta.lowest(low, 20)[1]) or (not sch16Tr and high >= sch16Ma + 2.0 * sch16Sd and schBear))
+
+// ── 17) RMI — مستخرج من SY248 (مؤشر مختلف) ──
+sch17Use = input.bool(false, "17 · RMI — ارتداد الزخم النسبي", group = G_SCH3)
+sch17Len = input.int(14, "17 · طول RMI", minval = 3, maxval = 60, group = G_SCH3)
+sch17Mom = input.int(5, "17 · إزاحة الزخم", minval = 1, maxval = 30, group = G_SCH3)
+sch17Lower = input.float(30.0, "17 · الحد السفلي", minval = 5.0, maxval = 45.0, step = 1.0, group = G_SCH3)
+sch17Upper = input.float(70.0, "17 · الحد العلوي", minval = 55.0, maxval = 95.0, step = 1.0, group = G_SCH3)
+sch17Chg = close - close[sch17Mom]
+sch17Up = ta.rma(math.max(sch17Chg, 0.0), sch17Len)
+sch17Dn = ta.rma(math.max(-sch17Chg, 0.0), sch17Len)
+sch17Val = sch17Dn == 0.0 ? 100.0 : sch17Up == 0.0 ? 0.0 : 100.0 - (100.0 / (1.0 + sch17Up / sch17Dn))
+sch17DnWick = (math.min(open, close) - low) / schRange * 100.0
+sch17UpWick = (high - math.max(open, close)) / schRange * 100.0
+sch17BullReact = schBull and sch17DnWick >= 40.0 and schClosePos >= 0.55
+sch17BearReact = schBear and sch17UpWick >= 40.0 and schClosePos <= 0.45
+sch17B = sch17Use and schVol2OK and ((sch17Val[1] <= sch17Lower and sch17Val > sch17Val[1] and sch17BullReact) or ta.crossover(sch17Val, sch17Lower))
+sch17S = sch17Use and schVol2OK and ((sch17Val[1] >= sch17Upper and sch17Val < sch17Val[1] and sch17BearReact) or ta.crossunder(sch17Val, sch17Upper))
+
+sch3Buy = sch13B or sch14B or sch15B or sch16B or sch17B
+sch3Sell = sch13S or sch14S or sch15S or sch16S or sch17S
+
+sch2Buy = sch5rB or sch6rB or sch7B or sch8B or sch9B or sch10B or sch11B or sch12B or sch3Buy
+sch2Sell = sch5rS or sch6rS or sch7S or sch8S or sch9S or sch10S or sch11S or sch12S or sch3Sell
 
 schBuy = sch1B or sch2B or sch3B or sch4B or sch5B or sch6B or sch2Buy
 schSell = sch1S or sch2S or sch3S or sch4S or sch5S or sch6S or sch2Sell
