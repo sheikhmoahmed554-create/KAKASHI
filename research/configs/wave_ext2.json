@@ -1,0 +1,8 @@
+{
+ "بلا شيء": {},
+ "فخ الارتداد": { "kkUseTrap": true },
+ "قرب المتوسط": { "kkUsePullbackNear": true },
+ "حارس القمم المؤكدة": { "kkUsePivotGuard": true },
+ "ارتداد من الطرف فقط": { "kkUseCounterLoc": true },
+ "منع الملاحقة 10 نقاط": { "kkUseLateChase": true, "kkLateMaxPts": 10 }
+}
