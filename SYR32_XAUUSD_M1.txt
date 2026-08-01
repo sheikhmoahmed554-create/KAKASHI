@@ -3401,7 +3401,7 @@ if b2AlertFire
     alert(b2Json, alert.freq_once_per_bar_close)
 
 // ── stats panel ──
-var table b2T = table.new(position.bottom_right, 2, 8, border_width=0)
+var table b2T = table.new(position.bottom_right, 2, 10, border_width=0)
 if b2ShowTable and barstate.islast
     b2WR  = b2Trades > 0 ? 100.0 * b2Wins / b2Trades : 0.0
     b2PF  = b2GrossLos > 0 ? b2GrossWin / b2GrossLos : na
@@ -3424,6 +3424,15 @@ if b2ShowTable and barstate.islast
     table.cell(b2T, 1, 6, str.tostring(b2LongN) + " / " + str.tostring(b2ShortN), text_color=color.white, text_size=size.small)
     table.cell(b2T, 0, 7, "BOTH BOOKS", text_color=color.black, bgcolor=EN_C, text_size=size.small)
     table.cell(b2T, 1, 7, str.tostring(b2AllN) + " tr  " + str.tostring(b2AllN > 0 ? 100.0 * b2AllW / b2AllN : 0.0, "#.#") + "%  " + str.tostring(b2Tot, "#"), text_color=color.black, bgcolor=EN_C, text_size=size.small)
+
+    // Diagnostics. If the clock line does not match the market hour you expect,
+    // the session windows are misaligned and every school is firing at the wrong
+    // time of day — which costs roughly half the book's result.
+    b2ClockTxt = str.tostring(math.floor(b2MinOfDay / 60), "00") + ":" + str.tostring(b2MinOfDay % 60, "00")
+    table.cell(b2T, 0, 8, "Clock (" + b2Tz + ")", text_color=color.white, text_size=size.small)
+    table.cell(b2T, 1, 8, b2ClockTxt + (b2SessOK ? "  IN" : "  OUT"), text_color=b2SessOK ? BUY_C : color.gray, text_size=size.small)
+    table.cell(b2T, 0, 9, "Build", text_color=color.white, text_size=size.small)
+    table.cell(b2T, 1, 9, "SYR32 tz-fix", text_color=color.white, text_size=size.small)
 
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SYR32 — BOOK 3: FAILED BREAK OF THE 120-BAR HIGH  (OFF by default)
