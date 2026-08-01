@@ -1,0 +1,102 @@
+{
+ "2025": {
+  "bars": 177002,
+  "first": "2025-01-01T23:00:00.000Z",
+  "last": "2025-12-31T21:56:00.000Z",
+  "internal": {
+   "trades": 1289,
+   "wins": 459,
+   "losses": 830,
+   "net_points": 1570,
+   "win_rate": 35.60899922420481,
+   "buy": [
+    236,
+    375
+   ],
+   "sell": [
+    223,
+    455
+   ],
+   "max_win_streak": 5,
+   "max_loss_streak": 13,
+   "buy_zones": 3138,
+   "sell_zones": 3511
+  },
+  "signal_count": 1291
+ },
+ "2026": {
+  "bars": 96109,
+  "first": "2026-01-02T01:00:00.000Z",
+  "last": "2026-07-17T23:56:00.000Z",
+  "internal": {
+   "trades": 1132,
+   "wins": 398,
+   "losses": 734,
+   "net_points": 360,
+   "win_rate": 35.159010600706715,
+   "buy": [
+    180,
+    387
+   ],
+   "sell": [
+    218,
+    347
+   ],
+   "max_win_streak": 7,
+   "max_loss_streak": 13,
+   "buy_zones": 1851,
+   "sell_zones": 1807
+  },
+  "signal_count": 1137
+ },
+ "2021": {
+  "bars": 176711,
+  "first": "2021-01-03T23:00:00.000Z",
+  "last": "2021-12-31T21:58:00.000Z",
+  "internal": {
+   "trades": 422,
+   "wins": 153,
+   "losses": 269,
+   "net_points": 1060,
+   "win_rate": 36.25592417061611,
+   "buy": [
+    78,
+    132
+   ],
+   "sell": [
+    75,
+    137
+   ],
+   "max_win_streak": 3,
+   "max_loss_streak": 11,
+   "buy_zones": 3347,
+   "sell_zones": 3342
+  },
+  "signal_count": 423
+ },
+ "2023": {
+  "bars": 154468,
+  "first": "2023-01-02T23:00:00.000Z",
+  "last": "2023-12-29T21:56:00.000Z",
+  "internal": {
+   "trades": 365,
+   "wins": 128,
+   "losses": 237,
+   "net_points": 50,
+   "win_rate": 35.06849315068493,
+   "buy": [
+    67,
+    115
+   ],
+   "sell": [
+    61,
+    122
+   ],
+   "max_win_streak": 5,
+   "max_loss_streak": 9,
+   "buy_zones": 2928,
+   "sell_zones": 2899
+  },
+  "signal_count": 366
+ }
+}
