@@ -3230,8 +3230,9 @@ b2EntryGap    = input.int(3,      "Book 2  Wait N bars after the main engine ope
 b2UseATRGate  = input.bool(true,  "Book 2  ATR regime gate", group=G_B2, tooltip="Skips dead and shock volatility. Range taken from the tested band, not fitted here.")
 b2AtrMin      = input.float(0.18, "Book 2  Min ATR ratio", step=0.01, group=G_B2)
 b2AtrMax      = input.float(3.60, "Book 2  Max ATR ratio", step=0.10, group=G_B2)
-b2SessStart   = input.int(300,  "Book 2  Session start (minutes UTC)", minval=0, maxval=1439, group=G_B2, tooltip="300 = 05:00 UTC. The tested window is 05:00-18:59 UTC.")
-b2SessEnd     = input.int(1139, "Book 2  Session end (minutes UTC)",   minval=0, maxval=1439, group=G_B2)
+b2Tz          = input.string("Europe/Athens", "Book 2  Session clock", options=["Europe/Athens", "UTC", "Europe/London", "America/New_York", "Asia/Tokyo"], group=G_B2, tooltip="The clock the session windows are read on. This is NOT cosmetic.\n\nThe three schools were fitted on an MT4 broker feed whose timestamps are EET/EEST — UTC+2 in winter, UTC+3 in summer. The giveaway is the daily halt, which sits at 00:00 on that feed's clock in every month of the year; a fixed local halt across a DST boundary can only mean a DST-following server clock.\n\nReading the windows on plain UTC therefore runs every school two to three hours early, and that costs 40-57% of the book:\n  correct clock   2026 +7,360   2021 +2,836\n  2 hours early   2026 +4,320   2021 +1,771\n  3 hours early   2026 +3,260   2021 +1,230\n\nEurope/Athens is EET/EEST and tracks the same DST rule as the feed, so it stays aligned all year. Change it only if your data provider is on a different clock.")
+b2SessStart   = input.int(300,  "Book 2  Session start (minutes from midnight)", minval=0, maxval=1439, group=G_B2, tooltip="300 = 05:00 on the session clock above.")
+b2SessEnd     = input.int(1139, "Book 2  Session end (minutes from midnight)",   minval=0, maxval=1439, group=G_B2)
 b2UseRngEdge  = input.bool(true,  "Book 2  School: Range-30 Edge (BUY + SELL)", group=G_B2)
 b2UseDon30    = input.bool(true,  "Book 2  School: Donchian-30 False Break (SELL)", group=G_B2)
 b2UseSessFake = input.bool(true,  "Book 2  School: Session False Break (SELL)", group=G_B2)
@@ -3239,9 +3240,9 @@ b2ShowMarks   = input.bool(true,  "Book 2  Show entry / exit marks", group=G_B2)
 b2ShowTable   = input.bool(true,  "Book 2  Show stats panel", group=G_B2)
 b2UseAlerts   = input.bool(true,  "Book 2  Send webhook alerts", group=G_B2)
 
-// Sessions are expressed as minutes from UTC midnight rather than session strings,
-// so the windows mean exactly the same thing on every chart timezone setting.
-b2MinOfDay = hour(time, "UTC") * 60 + minute(time, "UTC")
+// Sessions are minutes from midnight on the session clock, not session strings, so
+// the windows mean the same thing whatever timezone the chart is displayed in.
+b2MinOfDay = hour(time, b2Tz) * 60 + minute(time, b2Tz)
 b2SessOK = b2MinOfDay >= b2SessStart and b2MinOfDay < b2SessEnd
 b2Bull   = close > open
 b2Bear   = close < open
@@ -3271,11 +3272,13 @@ b2Don30Sell = b2UseDon30 and b2SessOK and not na(b2Don30Hi) and high > b2Don30Hi
 // ── School 3: Session False Break. The New York opening range high is swept
 //    and rejected later in the session; or the London opening range low breaks
 //    on a retest from just above it.
-b2NewDay   = dayofmonth(time) != dayofmonth(time[1])
-b2NYIn     = b2MinOfDay >= 690 and b2MinOfDay < 720    // 11:30-12:00 UTC — the NY opening range
-b2NYAfter  = b2MinOfDay >= 720 and b2MinOfDay < 930    // 12:00-15:30 UTC — where the sweep is traded
-b2LONIn    = b2MinOfDay >= 360 and b2MinOfDay < 390    // 06:00-06:30 UTC — the London opening range
-b2LONAfter = b2MinOfDay >= 390 and b2MinOfDay < 660    // 06:30-11:00 UTC
+// Window times are on the session clock (EET/EEST by default). In UTC terms the
+// second window runs into the US data release, which is where the sweeps happen.
+b2NewDay   = dayofmonth(time, b2Tz) != dayofmonth(time[1], b2Tz)
+b2NYIn     = b2MinOfDay >= 690 and b2MinOfDay < 720    // 11:30-12:00 — opening range A
+b2NYAfter  = b2MinOfDay >= 720 and b2MinOfDay < 930    // 12:00-15:30 — where A's sweep is traded
+b2LONIn    = b2MinOfDay >= 360 and b2MinOfDay < 390    // 06:00-06:30 — opening range B
+b2LONAfter = b2MinOfDay >= 390 and b2MinOfDay < 660    // 06:30-11:00 — where B's break is traded
 var float b2NYHi  = na
 var float b2LONLo = na
 if b2NewDay
