@@ -11,9 +11,10 @@
 // v6 and added on top as a source of its own — it fires on the reaction inside an exhaustion zone
 // and is the only source permitted to ignore the cooldown clocks. Reversal hold, the three extra
 // reaction conditions and the zone filter all ship at 0 / off.
-// SCHOOL VETO BUILD: every source now faces every filter instead of being OR-ed in downstream of
-// them, and nine schools that could previously only vote yes or stay quiet may now vote no when
-// the location is wrong for the side on the table.
+// SCHOOL VETO BUILD: adds two things behind their own switches — nine schools that may now vote no
+// instead of only yes or nothing, and a unified gate where every source faces every filter rather
+// than being OR-ed in downstream of them. Both paths are kept, so rmiUseModule, useSchoolVeto and
+// useUnifiedGate all switched off reproduce the stock engine exactly.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
 // Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
 
@@ -2350,20 +2351,26 @@ taOppSell = (k3CacheHTFScore >= 2 ? 1 : 0) + (tf15Dir == 1 ? 1 : 0) + (tf60Dir =
 taOppNow = syFinalSelectedSide == 1 ? taOppBuy : taOppSell
 taIsSweep = syFinalSelectedSide == 1 ? longTypeNow == 2 : shortTypeNow == -2
 taPass = trendAlignFilter == "Off" ? true : trendAlignFilter == "Light (max 4 oppose)" ? taOppNow <= 4 : trendAlignFilter == "Medium (max 3 oppose) — R10" ? taOppNow <= 3 : trendAlignFilter == "Balanced (max 2 + Sweep)" ? taOppNow <= 2 or taIsSweep : taOppNow <= 2
-// Judged per side rather than only for the side the K3 router happened to
-// select, because at the unified gate both sides are still on the table.
+buySignal := buySignal and taPass
+sellSignal := sellSignal and taPass
+// The same filter judged per side, for the unified gate where both sides are
+// still on the table rather than only the one the K3 router selected.
 taBuyIsSweep = longTypeNow == 2
 taSellIsSweep = shortTypeNow == -2
 taPassBuy = trendAlignFilter == "Off" ? true : trendAlignFilter == "Light (max 4 oppose)" ? taOppBuy <= 4 : trendAlignFilter == "Medium (max 3 oppose) — R10" ? taOppBuy <= 3 : trendAlignFilter == "Balanced (max 2 + Sweep)" ? taOppBuy <= 2 or taBuyIsSweep : taOppBuy <= 2
 taPassSell = trendAlignFilter == "Off" ? true : trendAlignFilter == "Light (max 4 oppose)" ? taOppSell <= 4 : trendAlignFilter == "Medium (max 3 oppose) — R10" ? taOppSell <= 3 : trendAlignFilter == "Balanced (max 2 + Sweep)" ? taOppSell <= 2 or taSellIsSweep : taOppSell <= 2
-// R4 and R6 are applied at the unified gate now, not here where the sources
-// added below would have missed them.
+// R6: منع البيع داخل أوردر بلوك هابط (والشراء داخل صاعد اختياري)
+sellSignal := sellSignal and (not r6UseObSellFilter or not r6InBearOB)
+buySignal := buySignal and (not r6UseObBuyFilter or not r6InBullOB)
 
-// Every source from here down used to be OR-ed straight into the live signal,
-// which is exactly how it slipped past the filters above. They now gather in a
-// pool that is merged at the unified gate and gated together with everything else.
-bool chPoolBuy = false
-bool chPoolSell = false
+// Sources are collected instead of being written straight into the live signal,
+// so the final gate can merge them where the chosen mode wants them. The pre
+// pool is what the stock engine merged ahead of the arbiter; the post pool is
+// the Lab Champion family it merged behind the arbiter, past every filter.
+bool chPoolPreBuy = false
+bool chPoolPreSell = false
+bool chPoolPostBuy = false
+bool chPoolPostSell = false
 
 // ── R8: Extra Signal Sources (مصادر إضافية — اختياري، مطفي افتراضياً) ──
 // UT Bot Alerts (ATR trailing flip)
@@ -2396,8 +2403,8 @@ r8SigRate = math.sum((buySignal or sellSignal) ? 1.0 : 0.0, r8DensityWin) / r8De
 r8ExtraOK = r8UseExtraSources and (atr / pointUnit) >= r8ExtraAtrMin and r8SigRate < r8MaxSigDensity
 r8XBuy = r8ExtraOK and (r8UtBuy or r8WtBuy or r8BbBuy)
 r8XSell = r8ExtraOK and (r8UtSell or r8WtSell or r8BbSell)
-chPoolBuy := chPoolBuy or r8XBuy
-chPoolSell := chPoolSell or r8XSell
+chPoolPreBuy := chPoolPreBuy or r8XBuy
+chPoolPreSell := chPoolPreSell or r8XSell
 // ━━━ R9 اختياري: مصدر QQE-RSI28 ━━━
 r9rsi28 = ta.rsi(close, 28)
 r9r28sm = ta.ema(r9rsi28, 5)
@@ -2414,8 +2421,8 @@ if r11ConnB
     r11LastConnB := bar_index
 if r11ConnS
     r11LastConnS := bar_index
-chPoolBuy := chPoolBuy or r11ConnB
-chPoolSell := chPoolSell or r11ConnS
+chPoolPreBuy := chPoolPreBuy or r11ConnB
+chPoolPreSell := chPoolPreSell or r11ConnS
 
 // ═════════════════════════════════════════════════════════════════
 // 24 ■ RMI — Relative Momentum Index (TheLark, 2014)
@@ -2438,6 +2445,7 @@ chPoolSell := chPoolSell or r11ConnS
 // ═════════════════════════════════════════════════════════════════
 G_RMI = "24 ■ RMI (TheLark)"
 
+rmiUseModule = input.bool(true, "RMI Module — master ON/OFF", group=G_RMI)
 rmiLen = input.int(20, "RMI Length", minval=1, group=G_RMI)
 rmiMom = input.int(4, "RMI Momentum", minval=0, group=G_RMI)
 rmiOb = input.float(80.0, "Overbought — SELL zone", minval=50.0, maxval=99.0, step=1.0, group=G_RMI)
@@ -2477,8 +2485,8 @@ rmiInMiddle = not rmiInOverbought and not rmiInOversold
 // over its objection if the rest of the evidence carries it. Weight 0 mutes it.
 // It only reaches candidates that pass through the arbiter — the Lab Champion
 // sources are OR-ed in after R17 has run and never hear it.
-rmiAdviceBuy = rmiVoiceWeight * (rmiInOversold ? 1.0 : rmiInOverbought ? -2.0 : -1.0)
-rmiAdviceSell = rmiVoiceWeight * (rmiInOverbought ? 1.0 : rmiInOversold ? -2.0 : -1.0)
+rmiAdviceBuy = rmiUseModule ? rmiVoiceWeight * (rmiInOversold ? 1.0 : rmiInOverbought ? -2.0 : -1.0) : 0.0
+rmiAdviceSell = rmiUseModule ? rmiVoiceWeight * (rmiInOverbought ? 1.0 : rmiInOversold ? -2.0 : -1.0) : 0.0
 
 // -- optional conditions on the reaction, all off by default --
 // The sweep and the Fibonacci zone are the engine's existing readings rather
@@ -2500,8 +2508,8 @@ rmiFibSellOK = not rmiNeedFib or hiddenFibSellOK or hiddenFibInSellZone
 rmiWasRising = rmiRising[1]
 rmiTurnUp = rmiRising and not rmiWasRising
 rmiTurnDown = not rmiRising and rmiWasRising
-rmiReactionBuy = rmiUseSource and tradeableBase and rmiInOversold and rmiTurnUp and rmiPriorBuyOK and rmiSweepBuyOK and rmiFibBuyOK
-rmiReactionSell = rmiUseSource and tradeableBase and rmiInOverbought and rmiTurnDown and rmiPriorSellOK and rmiSweepSellOK and rmiFibSellOK
+rmiReactionBuy = rmiUseModule and rmiUseSource and tradeableBase and rmiInOversold and rmiTurnUp and rmiPriorBuyOK and rmiSweepBuyOK and rmiFibBuyOK
+rmiReactionSell = rmiUseModule and rmiUseSource and tradeableBase and rmiInOverbought and rmiTurnDown and rmiPriorSellOK and rmiSweepSellOK and rmiFibSellOK
 
 // -- holding the reversal --
 // A reaction arms a counter instead of firing straight away. Every bar the RMI
@@ -2541,8 +2549,8 @@ if rmiPendSell >= rmiConfirmBars
 // The RMI's own entry passes because its reaction started inside the zone --
 // with a hold of several bars the oscillator may already have climbed out of it
 // by the time the entry fires, and that is the reversal working, not a leak.
-rmiBuyZoneOK = not rmiUseFilter or rmiInOversold or rmiEntryBuy
-rmiSellZoneOK = not rmiUseFilter or rmiInOverbought or rmiEntrySell
+rmiBuyZoneOK = not (rmiUseModule and rmiUseFilter) or rmiInOversold or rmiEntryBuy
+rmiSellZoneOK = not (rmiUseModule and rmiUseFilter) or rmiInOverbought or rmiEntrySell
 
 rmiZoneText = rmiInOverbought ? "OB - SELL" : rmiInOversold ? "OS - BUY" : "MID - NOT ADVISED"
 
@@ -2558,15 +2566,13 @@ plotshape(rmiShowMarks and rmiEntrySell, title="RMI Source SELL", style=shape.tr
 
 // Fed in at the same point as the R11 Connors source, so the RMI reaches the
 // R17 arbiter as a scored candidate instead of slipping in behind it.
-chPoolBuy := chPoolBuy or rmiEntryBuy
-chPoolSell := chPoolSell or rmiEntrySell
+chPoolPreBuy := chPoolPreBuy or rmiEntryBuy
+chPoolPreSell := chPoolPreSell or rmiEntrySell
 
-// The R17 arbiter used to sit here. It now runs at the unified gate further
-// down, once every source has been collected, so the Lab Champion family is
-// scored by it instead of walking straight past it.
-// The Trade Side filter also moved to the unified gate. Left here it was
-// applied before the Lab Champions were OR-ed in, so a Trade Side of LONG
-// still let champion SELL signals through.
+// The R17 arbiter body now lives at the final gate further down, where it can
+// be handed either the legacy candidate set or the unified one.
+// Trade Side is applied at the final gate. On the legacy path it lands in the
+// same place it always did, before the Lab Champions are OR-ed in.
 longLastStopForType = longTypeNow == 1 ? lastBuyRangeStopBar : longTypeNow == 2 ? lastBuySweepStopBar : lastBuyTrendStopBar
 shortLastStopForType = shortTypeNow == -1 ? lastSellRangeStopBar : shortTypeNow == -2 ? lastSellSweepStopBar : lastSellTrendStopBar
 longLossCooldownForType = buyLossCooldownBars
@@ -2611,8 +2617,8 @@ sfAtrAvg = ta.sma(sfAtr14, 240)
 sfAtrRatio = sfAtrAvg > 0 ? sfAtr14 / sfAtrAvg : 1.0
 sfBlockedAtr = sfUseAtrFilter and sfAtrRatio > sfAtrMaxRatio
 sfBlock = sfBlockedHour or sfBlockedAtr
-// Applied at the unified gate so the Lab Champions below cannot walk past
-// the dead-hour and extreme-volatility blocks.
+// Applied at the final gate, in its original position on the legacy path and
+// over the whole union on the unified one.
 
 // ━━━ أبطال المختبر 2026 — TRIPLE + SNIPER + ULSWEEP + متحقق الترند ━━━
 G_CH = "23 ■ Lab Champions (TRIPLE/SNIPER/ULS/Verifier)"
@@ -2660,8 +2666,8 @@ chLw = math.min(open, close) - low
 chUw = high - math.max(open, close)
 chSprB = chSprUse and low < chSprLo[1] and close > chSprLo[1] and chLw > chSprWickK * math.abs(close - open) and not chTrDn
 chSprS = chSprUse and high > chSprHi[1] and close < chSprHi[1] and chUw > chSprWickK * math.abs(close - open) and not chTrUp
-chPoolBuy := chPoolBuy or chSprB
-chPoolSell := chPoolSell or chSprS
+chPoolPostBuy := chPoolPostBuy or chSprB
+chPoolPostSell := chPoolPostSell or chSprS
 chUoUse = input.bool(true, "ULTIMATE OSC — ON", group=G_MOM_NEW)
 chUoAdx = input.float(25.0, "UO: max ADX", minval=10, maxval=40, step=1, group=G_MOM_NEW)
 chUoTh = input.float(30.0, "UO: extreme level", minval=10, maxval=40, step=1, group=G_MOM_NEW)
@@ -2673,14 +2679,14 @@ chA28 = ta.sma(chBp, 28) * 28 / (ta.sma(chTr2, 28) * 28 + 0.00001)
 chUo = 100 * (4 * chA7 + 7 * chA14 + chA28) / 18
 chUoB = chUoUse and adx < chUoAdx and chUo < chUoTh and close > open
 chUoS = chUoUse and adx < chUoAdx and chUo > 100 - chUoTh and close < open
-chPoolBuy := chPoolBuy or chUoB
-chPoolSell := chPoolSell or chUoS
+chPoolPostBuy := chPoolPostBuy or chUoB
+chPoolPostSell := chPoolPostSell or chUoS
 chRibUse = input.bool(true, "EMA RIBBON pullback (بديل VWAP Pull) — ON", group=G_PULLBACK_NEW)
 chE100 = ta.ema(close, 100)
 chRibB = chRibUse and chEma > ta.ema(close, 50) and ta.ema(close, 50) > chE100 and low <= ta.ema(close, 50) and close > ta.ema(close, 50) and close > open
 chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 and high >= ta.ema(close, 50) and close < ta.ema(close, 50) and close < open
-chPoolBuy := chPoolBuy or chRibB
-chPoolSell := chPoolSell or chRibS
+chPoolPostBuy := chPoolPostBuy or chRibB
+chPoolPostSell := chPoolPostSell or chRibS
 // ━━━ المدارس المنقذة (بحث + اختراع مثبت) ━━━
 chWtUse = input.bool(true, "WAVETREND v2 (WT + chassis) — ON", group=G_CH)
 chWtTp3 = (high + low + close) / 3
@@ -2690,8 +2696,8 @@ chWtCi = (chWtTp3 - chWtEsa) / (0.015 * chWtDe + 0.00001)
 chWt1 = ta.ema(chWtCi, 21)
 chWtB = chWtUse and chWt1 < -60 and chRsi3 < 18.0 and chBig
 chWtS = chWtUse and chWt1 > 60 and chRsi3 > 82.0 and chBig
-chPoolBuy := chPoolBuy or chWtB
-chPoolSell := chPoolSell or chWtS
+chPoolPostBuy := chPoolPostBuy or chWtB
+chPoolPostSell := chPoolPostSell or chWtS
 chUls2B = chUlsUse and low < ta.lowest(low, chUlsLen)[1] and close > ta.lowest(low, chUlsLen)[1] and chStretch < -chUlsStr and chRsi3 < chUlsRsi
 chUls2S = chUlsUse and high > ta.highest(high, chUlsLen)[1] and close < ta.highest(high, chUlsLen)[1] and chStretch > chUlsStr and chRsi3 > 100 - chUlsRsi
 chVzUse = input.bool(true, "VWAP Absorption Fade — ON", group=G_PULLBACK_NEW)
@@ -2712,8 +2718,8 @@ chDn = math.max(close[1] - close, 0)
 chCmo = 100 * (ta.sma(chUp, chCmoLen) * chCmoLen - ta.sma(chDn, chCmoLen) * chCmoLen) / (ta.sma(chUp, chCmoLen) * chCmoLen + ta.sma(chDn, chCmoLen) * chCmoLen + 0.00001)
 chCmoB = chCmoUse and chCmo < -chCmoLvl and chRsi3 < 18.0 and chBig
 chCmoS = chCmoUse and chCmo > chCmoLvl and chRsi3 > 82.0 and chBig
-chPoolBuy := chPoolBuy or chUls2B or chVzB or chCrevB or chCmoB
-chPoolSell := chPoolSell or chUls2S or chVzS or chCrevS or chCmoS
+chPoolPostBuy := chPoolPostBuy or chUls2B or chVzB or chCrevB or chCmoB
+chPoolPostSell := chPoolPostSell or chUls2S or chVzS or chCrevS or chCmoS
 // ━━━ الأربعة العنيدة — بدائل مخترعة مثبتة ━━━
 chKeltUse = input.bool(true, "KELTNER v2 — ON", group=G_PULLBACK_NEW)
 chKeltK = input.float(2.0, "Keltner mult", minval=0.5, maxval=5.0, step=0.1, group=G_PULLBACK_NEW)
@@ -2730,8 +2736,8 @@ chR14Use = input.bool(true, "RSI14 TURN — ON", group=G_MOM_NEW)
 chR14Str = input.float(1.0, "R14 stretch filter", minval=0.5, maxval=4.0, step=0.1, group=G_MOM_NEW)
 chR14B = chR14Use and chRsi14v < 30 and chRsi14v > chRsi14v[1] and chStretch < -chR14Str
 chR14S = chR14Use and chRsi14v > 70 and chRsi14v < chRsi14v[1] and chStretch > chR14Str
-chPoolBuy := chPoolBuy or chKeltB or chQuadB or chR14B
-chPoolSell := chPoolSell or chKeltS or chQuadS or chR14S
+chPoolPostBuy := chPoolPostBuy or chKeltB or chQuadB or chR14B
+chPoolPostSell := chPoolPostSell or chKeltS or chQuadS or chR14S
 // ━━━ CLOUD (بديل Ichimoku+BBKC) + UT v2 ━━━
 chCldUse = input.bool(true, "EMA CLOUD break — ON", group=G_SCHOOLS_NEW)
 chCldLen = input.int(55, "Cloud slow EMA", minval=20, maxval=200, group=G_SCHOOLS_NEW)
@@ -2746,8 +2752,8 @@ chUtLen = input.int(7, "UT supertrend ATR len", minval=2, maxval=60, group=G_RIS
 [chCldUT, chUtDir] = ta.supertrend(chUtMult, chUtLen)
 chUtB = chUtUse and chUtDir == -1 and chRsi3 < 18.0 and chBig
 chUtS = chUtUse and chUtDir == 1 and chRsi3 > 82.0 and chBig
-chPoolBuy := chPoolBuy or chCldB or chUtB
-chPoolSell := chPoolSell or chCldS or chUtS
+chPoolPostBuy := chPoolPostBuy or chCldB or chUtB
+chPoolPostSell := chPoolPostSell or chCldS or chUtS
 // ━━━ باقي البدائل الخضراء ━━━
 chTsiUse = input.bool(false, "TSI fade — ON", group=G_MOM_NEW)
 chTsiLvl = input.float(15.0, "TSI extreme level", minval=5, maxval=30, step=1, group=G_MOM_NEW)
@@ -2768,8 +2774,8 @@ chBbM = ta.sma(close, 20)
 chBbS = ta.stdev(close, 20)
 chPsB = chPsUse and chRsi14v < chPsRsi and low <= chBbM - 2 * chBbS and (math.min(open, close) - low > math.abs(close - open) or close > high[1]) and adx < chPsAdx
 chPsS = chPsUse and chRsi14v > 100 - chPsRsi and high >= chBbM + 2 * chBbS and (high - math.max(open, close) > math.abs(close - open) or close < low[1]) and adx < chPsAdx
-chPoolBuy := chPoolBuy or chTsiB or chDixB or chPsB
-chPoolSell := chPoolSell or chTsiS or chDixS or chPsS
+chPoolPostBuy := chPoolPostBuy or chTsiB or chDixB or chPsB
+chPoolPostSell := chPoolPostSell or chTsiS or chDixS or chPsS
 
 // ━━━ CVD + REG35 (تكملة الـ38) ━━━
 chCvdUse = input.bool(true, "CVD divergence — ON", group=G_MOM_NEW)
@@ -2779,20 +2785,19 @@ chCvdRng = math.max(high - low, syminfo.mintick)
 chCvdFast = ta.sma((2 * close - high - low) / chCvdRng * nz(volume, 0.0), chCvdLen) * chCvdLen
 chCvdB = chCvdUse and low <= ta.lowest(low, chCvdLen) and chCvdFast > chCvdFast[chCvdShift] and close > open
 chCvdS = chCvdUse and high >= ta.highest(high, chCvdLen) and chCvdFast < chCvdFast[chCvdShift] and close < open
-chPoolBuy := chPoolBuy or chCvdB
-chPoolSell := chPoolSell or chCvdS
-chPoolBuy := chPoolBuy or chTriB or chSniB
-chPoolSell := chPoolSell or chTriS or chSniS
+chPoolPostBuy := chPoolPostBuy or chCvdB
+chPoolPostSell := chPoolPostSell or chCvdS
+chPoolPostBuy := chPoolPostBuy or chTriB or chSniB
+chPoolPostSell := chPoolPostSell or chTriS or chSniS
 
 // ═════════════════════════════════════════════════════════════════
 // 25 ■ SCHOOL VETO PANEL
-//   Until now a school could only vote yes or stay quiet. None of them could
-//   object. Here nine readings the engine already computes are each allowed a
-//   verdict on the side being proposed: yes when the location supports it, no
-//   when it argues against it, silence otherwise.
-//   The no votes do two things — they cost the candidate score at the arbiter,
-//   and once enough of them pile up they block the entry outright. Set the
-//   block threshold to 0 to keep them advisory only.
+//   Until now a school could only vote yes or stay quiet; none of them could
+//   object. Here nine readings the engine already computes each get a verdict
+//   on the side being proposed: yes when the location supports it, no when it
+//   argues against it, silence otherwise.
+//   A no costs the candidate score at the arbiter, and once enough of them pile
+//   up it blocks the entry. Set the block threshold to 0 to keep it advisory.
 // ═════════════════════════════════════════════════════════════════
 G_VETO = "25 ■ School Veto Panel"
 
@@ -2800,12 +2805,13 @@ useSchoolVeto = input.bool(true, "Schools May Say No", group=G_VETO)
 vetoBlockAt = input.int(3, "Block When This Many Schools Say No — 0 = advisory only", minval=0, maxval=9, group=G_VETO)
 vetoScoreWeight = input.float(0.35, "R17 Penalty Per No", minval=0.0, maxval=2.0, step=0.05, group=G_VETO)
 vetoValueATR = input.float(2.00, "Value School — chase distance from VWAP in ATR", minval=0.5, maxval=6.0, step=0.1, group=G_VETO)
+useUnifiedGate = input.bool(true, "Unified Gate — every source faces every filter", group=G_VETO)
 
 // Each school returns 1 for yes, -1 for no, 0 for no opinion.
 vRangeBuy = rangePos >= premiumLevel ? -1 : rangePos <= discountLevel ? 1 : 0
 vRangeSell = rangePos <= discountLevel ? -1 : rangePos >= premiumLevel ? 1 : 0
-vRmiBuy = rmiInOverbought ? -1 : rmiInOversold ? 1 : 0
-vRmiSell = rmiInOversold ? -1 : rmiInOverbought ? 1 : 0
+vRmiBuy = not rmiUseModule ? 0 : rmiInOverbought ? -1 : rmiInOversold ? 1 : 0
+vRmiSell = not rmiUseModule ? 0 : rmiInOversold ? -1 : rmiInOverbought ? 1 : 0
 vMapBuy = htfScore <= -2.0 ? -1 : htfScore >= 2.0 ? 1 : 0
 vMapSell = htfScore >= 2.0 ? -1 : htfScore <= -2.0 ? 1 : 0
 vTrendBuy = (tf5Dir == -1 and tf15Dir == -1) ? -1 : (tf5Dir == 1 and tf15Dir == 1) ? 1 : 0
@@ -2833,31 +2839,28 @@ vetoSellOK = not useSchoolVeto or vetoBlockAt == 0 or vetoSellNo < vetoBlockAt
 vetoText = "B " + str.tostring(vetoBuyYes) + "/" + str.tostring(vetoBuyNo) + "  S " + str.tostring(vetoSellYes) + "/" + str.tostring(vetoSellNo)
 
 // ═════════════════════════════════════════════════════════════════
-// UNIFIED FINAL GATE
-//   One place, one pass, every source. The pool merges in first and then the
-//   whole filter chain runs over the union, in the order the engine intends:
-//   trend alignment, order block, dead hours and volatility, the quality
-//   arbiter, the veto panel, the RMI zone filter, and finally Trade Side.
+// FINAL GATE — legacy path and unified path, side by side
+//   Legacy is the stock wiring reproduced exactly: the pre-arbiter pool merges,
+//   the arbiter rules, Trade Side and the smart filters apply, and only then
+//   the Lab Champion family is OR-ed on top of the result, past all of it.
+//   Unified merges every source first and runs the whole chain over the union,
+//   so nothing reaches an entry without having been filtered and scored.
+//   With the RMI module, the veto panel and the unified gate all switched off,
+//   the legacy path is the original engine, unchanged.
 // ═════════════════════════════════════════════════════════════════
-buySignal := buySignal or chPoolBuy
-sellSignal := sellSignal or chPoolSell
+legacyRawBuy = buySignal or chPoolPreBuy
+legacyRawSell = sellSignal or chPoolPreSell
 
-buySignal := buySignal and taPassBuy
-sellSignal := sellSignal and taPassSell
+unifiedEligibleBuy = (legacyRawBuy or chPoolPostBuy) and taPassBuy and (not r6UseObBuyFilter or not r6InBullOB) and not sfBlock and vetoBuyOK and rmiBuyZoneOK and allowLong
+unifiedEligibleSell = (legacyRawSell or chPoolPostSell) and taPassSell and (not r6UseObSellFilter or not r6InBearOB) and not sfBlock and vetoSellOK and rmiSellZoneOK and allowShort
 
-sellSignal := sellSignal and (not r6UseObSellFilter or not r6InBearOB)
-buySignal := buySignal and (not r6UseObBuyFilter or not r6InBullOB)
-
-buySignal := buySignal and not sfBlock
-sellSignal := sellSignal and not sfBlock
+qaRawBuy = useUnifiedGate ? unifiedEligibleBuy : legacyRawBuy
+qaRawSell = useUnifiedGate ? unifiedEligibleSell : legacyRawSell
 
 // ━━━ R17 FINAL QUALITY ARBITER ━━━
-// K3 is a candidate generator. This gate now genuinely receives every source:
-// the pooled R8 / R11 / RMI / Lab Champion family has been merged into
-// buySignal and sellSignal a few lines above, so nothing reaches an entry
-// without having been scored here.
-qaRawBuy = buySignal
-qaRawSell = sellSignal
+// K3 is a candidate generator. Which candidates reach this scoring depends on
+// the gate mode chosen above: the legacy set, or the unified set that includes
+// the Lab Champion family instead of letting it walk past.
 qaBuyReversal = qaAllowStrongReversal and (realRevBuy or sy338TrueCounterBuy or syr30DeadAuctionBuy or (sweepLow and (bullReject or bullMomentum)))
 qaSellReversal = qaAllowStrongReversal and (realRevSell or sy338TrueCounterSell or syr30DeadAuctionSell or (sweepHigh and (bearReject or bearMomentum)))
 qaBuyRoomOK = not qaRequireRoom or roomBuy or qaBuyReversal
@@ -2865,8 +2868,8 @@ qaSellRoomOK = not qaRequireRoom or roomSell or qaSellReversal
 qaBuyLate = sy337UpMovePts > qaMaxLatePts and not qaBuyReversal
 qaSellLate = sy337DownMovePts > qaMaxLatePts and not qaSellReversal
 
-qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0) + (rmiEntryBuy ? 1.20 : 0.0) + (chPoolBuy ? 0.30 : 0.0)
-qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0) + (rmiEntrySell ? 1.20 : 0.0) + (chPoolSell ? 0.30 : 0.0)
+qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0) + (rmiEntryBuy ? 1.20 : 0.0) + (useUnifiedGate and chPoolPostBuy ? 0.30 : 0.0)
+qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0) + (rmiEntrySell ? 1.20 : 0.0) + (useUnifiedGate and chPoolPostSell ? 0.30 : 0.0)
 
 qaBuyTrendScore = (htfScore >= 2.0 ? 1.10 : htfScore > 0 ? 0.45 : htfScore <= -2.0 ? -1.15 : -0.35) + (tf5Dir == 1 ? 0.40 : tf5Dir == -1 ? -0.40 : 0.0) + (tf15Dir == 1 ? 0.55 : tf15Dir == -1 ? -0.55 : 0.0) + (sy389BiasUp ? 0.55 : sy389BiasDown ? -0.55 : 0.0) + (pDI > mDI ? 0.35 : -0.20) + (sy325EmaSlope >= 0.10 ? 0.35 : sy325EmaSlope < -0.10 ? -0.35 : 0.0)
 qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 2.0 ? -1.15 : -0.35) + (tf5Dir == -1 ? 0.40 : tf5Dir == 1 ? -0.40 : 0.0) + (tf15Dir == -1 ? 0.55 : tf15Dir == 1 ? -0.55 : 0.0) + (sy389BiasDown ? 0.55 : sy389BiasUp ? -0.55 : 0.0) + (mDI > pDI ? 0.35 : -0.20) + (sy325EmaSlope <= -0.10 ? 0.35 : sy325EmaSlope > 0.10 ? -0.35 : 0.0)
@@ -2881,19 +2884,17 @@ qaSellPass = qaRawSell and qaSellRoomOK and not qaSellLate and qaSellScore >= qa
 qaBuyWinsCollision = qaBuyPass and (not qaSellPass or qaBuyScore >= qaSellScore + qaMinEdge)
 qaSellWinsCollision = qaSellPass and (not qaBuyPass or qaSellScore >= qaBuyScore + qaMinEdge)
 
-if useFinalQualityArbiter
-    buySignal := qaBuyWinsCollision
-    sellSignal := qaSellWinsCollision
 
+qaBuyDecided = useFinalQualityArbiter ? qaBuyWinsCollision : qaRawBuy
+qaSellDecided = useFinalQualityArbiter ? qaSellWinsCollision : qaRawSell
 
-buySignal := buySignal and vetoBuyOK
-sellSignal := sellSignal and vetoSellOK
+buySignal := useUnifiedGate ? qaBuyDecided : ((qaBuyDecided and allowLong and not sfBlock) or chPoolPostBuy)
+sellSignal := useUnifiedGate ? qaSellDecided : ((qaSellDecided and allowShort and not sfBlock) or chPoolPostSell)
 
-buySignal := buySignal and rmiBuyZoneOK
-sellSignal := sellSignal and rmiSellZoneOK
-
-buySignal := buySignal and allowLong
-sellSignal := sellSignal and allowShort
+// Both switched off these are no-ops, which is what keeps the legacy path
+// identical to the original engine.
+buySignal := buySignal and vetoBuyOK and rmiBuyZoneOK
+sellSignal := sellSignal and vetoSellOK and rmiSellZoneOK
 
 // The RMI reaction is the one source allowed to ignore the cooldown clocks -
 // an exhaustion print is worth taking whether or not the last trade just
@@ -3334,10 +3335,10 @@ if showTable and barstate.islast
     table.cell(t, 1, 17, str.tostring(rmiVal, "#.#") + " / " + str.tostring(rmiSignalLine, "#.#"), text_color=rmiRising ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
     table.cell(t, 0, 18, "RMI Zone", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 18, rmiZoneText + (active ? " | SAID " + rmiTradeVoice : "") + (rmiUseFilter ? " | FILTER ON" : ""), text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 18, (rmiUseModule ? rmiZoneText : "MODULE OFF") + (active and rmiUseModule ? " | SAID " + rmiTradeVoice : "") + (rmiUseModule and rmiUseFilter ? " | FILTER ON" : ""), text_color=not rmiUseModule ? WAIT_C : rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
     table.cell(t, 0, 19, "Veto Y/N", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(t, 1, 19, useSchoolVeto ? vetoText : "OFF", text_color=useSchoolVeto ? (math.min(vetoBuyNo, vetoSellNo) >= vetoBlockAt and vetoBlockAt > 0 ? SELL_C : EN_C) : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 19, (useSchoolVeto ? vetoText : "VETO OFF") + (useUnifiedGate ? "  | GATE" : ""), text_color=useSchoolVeto ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 else if not showTable and barstate.islast
     table.clear(t, 0, 0, 1, 19)
 
