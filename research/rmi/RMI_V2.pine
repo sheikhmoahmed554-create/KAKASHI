@@ -128,6 +128,10 @@ mcSrRight = input.int(20, "S/R Right Bars", minval=1, group=G_SRC)
 mcSrMethod = input.string("Wick", "S/R Detection Method", options=["Wick", "Body"], group=G_SRC)
 mcSrMaxAge = input.int(1000, "S/R Level Max Age", minval=50, group=G_SRC)
 
+mcStrMode = input.string("Off", "Strong Reversal (Liquidity Sweep)", options=["Off", "Source", "Filter"], group=G_SRC)
+mcStrPivLen = input.int(20, "Sweep Pivot Length", minval=3, maxval=100, group=G_SRC)
+mcStrWick = input.float(20.0, "Min Reversal Wick %", minval=1.0, maxval=100.0, group=G_SRC)
+
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 
 // ══════════════════════════════════════════════════════════════════
@@ -647,6 +651,52 @@ mcSrF1LB0 := mcSrNewLo ? bar_index - mcSrRight : mcSrF1LB0
 mcSrBuyOK = not na(mcSrF2HP0) and close > mcSrF2HP0
 mcSrSellOK = not na(mcSrF2LP0) and close < mcSrF2LP0
 
+// Strong Reversal — كنس سيولة فوق قمة أو تحت قاع بذيل رفض، ثم انتظار توقّف
+// الطرف عن التمدد، وعندها الدخول عكس الكنس.
+// وضع Macro Pivots فقط: أوضاع الجلسات والفريم الأعلى تحتاج time() وهي غير متاحة
+// في محرك الاختبار. ونظام النجوم مؤجَّل لأن percentrank يحتاج حلقة مئة تكرار
+// لكل شمعة، وهذا يخنق السرعة قبل أن نعرف إن كان الدخول يستحق أصلاً.
+mcStrL = mcStrPivLen % 2 == 0 ? mcStrPivLen + 1 : mcStrPivLen
+mcStrPv = int(mcStrL / 2)
+mcStrPh = ta.pivothigh(high, mcStrPv, mcStrPv)
+mcStrPl = ta.pivotlow(low, mcStrPv, mcStrPv)
+
+mcStrRng = high - low == 0 ? syminfo.mintick : high - low
+mcStrUpWick = (high - math.max(open, close)) / mcStrRng
+mcStrDnWick = (math.min(open, close) - low) / mcStrRng
+
+var float mcStrTop = na
+var bool mcStrTopBrk = true
+var float mcStrBtm = na
+var bool mcStrBtmBrk = true
+var int mcStrState = 0
+var float mcStrExt = na
+
+mcStrTop := na(mcStrPh) ? mcStrTop : mcStrPh
+mcStrTopBrk := na(mcStrPh) ? mcStrTopBrk : false
+mcStrBtm := na(mcStrPl) ? mcStrBtm : mcStrPl
+mcStrBtmBrk := na(mcStrPl) ? mcStrBtmBrk : false
+
+// الكنس: إغلاق فوق المستوى مع ذيل رفض بالحجم المطلوب
+mcStrSweepUp = not mcStrTopBrk and not na(mcStrTop) and close > mcStrTop and mcStrUpWick * 100 >= mcStrWick
+mcStrSweepDn = not mcStrBtmBrk and not na(mcStrBtm) and close < mcStrBtm and mcStrDnWick * 100 >= mcStrWick
+mcStrTopBrk := mcStrSweepUp ? true : mcStrTopBrk
+mcStrBtmBrk := mcStrSweepDn ? true : mcStrBtmBrk
+mcStrState := mcStrSweepUp ? 1 : mcStrSweepDn ? -1 : mcStrState
+mcStrExt := mcStrSweepUp ? high : mcStrSweepDn ? low : mcStrExt
+
+// الطرف يتمدد ما دام يُسجَّل قمة أعلى (أو قاع أدنى)؛ أول شمعة تفشل تُطلق العكس
+mcStrGoUp = mcStrState == 1 and high >= mcStrExt
+mcStrGoDn = mcStrState == -1 and low <= mcStrExt
+mcStrSell = mcStrState == 1 and not mcStrGoUp
+mcStrBuy = mcStrState == -1 and not mcStrGoDn
+mcStrExt := mcStrGoUp ? high : mcStrGoDn ? low : mcStrExt
+mcStrState := mcStrSell or mcStrBuy ? 0 : mcStrState
+
+// كفلتر: الشراء ممنوع بينما كنسٌ صاعد ما زال يتمدد، والعكس
+mcStrBuyOK = mcStrState != 1
+mcStrSellOK = mcStrState != -1
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -657,27 +707,27 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0)
 
 // ══════════════════════════════════════════════════════════════════
 // REACTION ENGINE
