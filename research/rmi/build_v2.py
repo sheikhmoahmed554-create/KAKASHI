@@ -64,6 +64,12 @@ mcMaMode = input.string("Off", "Moving Average", options=["Off", "Source", "Filt
 mcMaType = input.string("EMA", "MA Type", options=["EMA", "SMA"], group=G_SRC)
 mcMaLen = input.int(200, "MA Length", minval=2, group=G_SRC)
 
+mcBrtMode = input.string("Off", "Breakout & Retest", options=["Off", "Source", "Filter"], group=G_SRC)
+mcBrtPeriod = input.int(7, "BRT Pivot Period", minval=1, group=G_SRC)
+mcBrtConfirmDiv = input.int(2, "BRT Confirmation Divider", minval=1, maxval=10, group=G_SRC)
+mcBrtAtrLen = input.int(40, "BRT ATR Length", minval=1, group=G_SRC)
+mcBrtAtrMult = input.float(2.0, "BRT ATR Multiplier", minval=0.1, step=0.1, group=G_SRC)
+
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 '''
 
@@ -182,6 +188,64 @@ mcMaSell = ta.crossunder(close, mcMa)
 mcMaBuyOK = close > mcMa
 mcMaSellOK = close < mcMa
 
+// Breakout & Retest — قمة محورية تتشكّل قرب قاعٍ سبق كسره تعني بيعاً، والعكس شراء.
+// الأصل يحفظ آخر ثلاث نقاط محورية في قائمة؛ القوائم غير متاحة في محرك الاختبار
+// فكُتبت الفتحات الثلاث صراحةً، والسلوك واحد.
+mcBrtConfirm = math.max(1, mcBrtPeriod / mcBrtConfirmDiv)
+mcBrtTol = ta.atr(mcBrtAtrLen) * mcBrtAtrMult
+mcBrtPh = ta.pivothigh(high, mcBrtPeriod, mcBrtConfirm)
+mcBrtPl = ta.pivotlow(low, mcBrtPeriod, mcBrtConfirm)
+
+var float mcBrtH0 = na
+var float mcBrtH1 = na
+var float mcBrtH2 = na
+var float mcBrtL0 = na
+var float mcBrtL1 = na
+var float mcBrtL2 = na
+
+// المسافة إلى كل فتحة، وna تعني فتحة فارغة تُستبعد
+mcBrtDL0 = na(mcBrtL0) or na(mcBrtPh) ? 1e18 : math.abs(mcBrtL0 - mcBrtPh)
+mcBrtDL1 = na(mcBrtL1) or na(mcBrtPh) ? 1e18 : math.abs(mcBrtL1 - mcBrtPh)
+mcBrtDL2 = na(mcBrtL2) or na(mcBrtPh) ? 1e18 : math.abs(mcBrtL2 - mcBrtPh)
+mcBrtMinL = math.min(mcBrtDL0, math.min(mcBrtDL1, mcBrtDL2))
+mcBrtPickL = mcBrtDL0 <= mcBrtMinL ? mcBrtL0 : mcBrtDL1 <= mcBrtMinL ? mcBrtL1 : mcBrtL2
+
+mcBrtDH0 = na(mcBrtH0) or na(mcBrtPl) ? 1e18 : math.abs(mcBrtH0 - mcBrtPl)
+mcBrtDH1 = na(mcBrtH1) or na(mcBrtPl) ? 1e18 : math.abs(mcBrtH1 - mcBrtPl)
+mcBrtDH2 = na(mcBrtH2) or na(mcBrtPl) ? 1e18 : math.abs(mcBrtH2 - mcBrtPl)
+mcBrtMinH = math.min(mcBrtDH0, math.min(mcBrtDH1, mcBrtDH2))
+mcBrtPickH = mcBrtDH0 <= mcBrtMinH ? mcBrtH0 : mcBrtDH1 <= mcBrtMinH ? mcBrtH1 : mcBrtH2
+
+// الإشارة: المستوى قريب ضمن التسامح، وقد كُسر فعلاً عند شمعة النقطة المحورية
+mcBrtSell = not na(mcBrtPh) and mcBrtMinL < mcBrtTol and low[mcBrtConfirm] < mcBrtPickL
+mcBrtBuy = not na(mcBrtPl) and mcBrtMinH < mcBrtTol and high[mcBrtConfirm] > mcBrtPickH
+
+// الأصل يستهلك أقرب نقطة عند كل تشكّل، سواء أطلقت إشارة أم لا
+mcBrtDropL0 = not na(mcBrtPh) and mcBrtDL0 <= mcBrtMinL
+mcBrtDropL1 = not na(mcBrtPh) and not mcBrtDropL0 and mcBrtDL1 <= mcBrtMinL
+mcBrtDropL2 = not na(mcBrtPh) and not mcBrtDropL0 and not mcBrtDropL1
+mcBrtL0 := mcBrtDropL0 ? mcBrtL1 : mcBrtL0
+mcBrtL1 := mcBrtDropL0 ? mcBrtL2 : mcBrtDropL1 ? mcBrtL2 : mcBrtL1
+mcBrtL2 := not na(mcBrtPh) ? na : mcBrtL2
+
+mcBrtDropH0 = not na(mcBrtPl) and mcBrtDH0 <= mcBrtMinH
+mcBrtDropH1 = not na(mcBrtPl) and not mcBrtDropH0 and mcBrtDH1 <= mcBrtMinH
+mcBrtDropH2 = not na(mcBrtPl) and not mcBrtDropH0 and not mcBrtDropH1
+mcBrtH0 := mcBrtDropH0 ? mcBrtH1 : mcBrtH0
+mcBrtH1 := mcBrtDropH0 ? mcBrtH2 : mcBrtDropH1 ? mcBrtH2 : mcBrtH1
+mcBrtH2 := not na(mcBrtPl) ? na : mcBrtH2
+
+// ثم تُدفع النقطة الجديدة إلى مقدمة الذاكرة
+mcBrtH2 := not na(mcBrtPh) ? mcBrtH1 : mcBrtH2
+mcBrtH1 := not na(mcBrtPh) ? mcBrtH0 : mcBrtH1
+mcBrtH0 := not na(mcBrtPh) ? mcBrtPh : mcBrtH0
+mcBrtL2 := not na(mcBrtPl) ? mcBrtL1 : mcBrtL2
+mcBrtL1 := not na(mcBrtPl) ? mcBrtL0 : mcBrtL1
+mcBrtL0 := not na(mcBrtPl) ? mcBrtPl : mcBrtL0
+
+mcBrtBuyOK = not na(mcBrtL0) and close > mcBrtL0
+mcBrtSellOK = not na(mcBrtH0) and close < mcBrtH0
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -192,27 +256,27 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0)
 '''
 
 
