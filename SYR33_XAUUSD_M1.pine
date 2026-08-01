@@ -3087,7 +3087,7 @@ color TBL_BG_HEAD = color.rgb(22, 24, 34)
 color TBL_BG_ROW = color.rgb(18, 20, 30)
 color TBL_BG_ROW2 = color.rgb(20, 22, 32)
 
-var table t = table.new(position.top_right, 2, 22, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+var table t = table.new(position.top_right, 2, 18, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 if showTable and barstate.islast
     table.cell(t, 0, 0, "SYXAUUSD", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 1, 0, "FINAL K3 CACHE | F>TV>B", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
@@ -3142,28 +3142,14 @@ if showTable and barstate.islast
     table.cell(t, 0, 16, "M1 W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
     table.cell(t, 1, 16, str.tostring(m1LiveM1Wins) + "/" + str.tostring(m1LiveM1Losses), text_color=m1LiveM1Wins >= m1LiveM1Losses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    rmiZoneTxt = rmiVal >= rmiOB ? "OVERBOUGHT" : rmiVal <= rmiOS ? "OVERSOLD" : "middle"
-    rmiZoneCol = rmiVal >= rmiOB ? SELL_C : rmiVal <= rmiOS ? BUY_C : WAIT_C
-    rmiBlkTxt  = not rmiFUse ? "gate off" : rmiBlockBuy and rmiBlockSell ? "BUY + SELL" : rmiBlockBuy ? "BUY" : rmiBlockSell ? "SELL" : "nothing"
-    rmiBlkCol  = not rmiFUse ? WAIT_C : (rmiBlockBuy or rmiBlockSell) ? SELL_C : BUY_C
-
-    table.cell(t, 0, 17, "RMI " + str.tostring(rmiLen) + "/" + str.tostring(rmiMom), text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
-    table.cell(t, 1, 17, str.tostring(rmiVal, "#.#") + (rmiBlue ? "  ▲" : "  ▼"), text_color=rmiBlue ? color.rgb(0, 148, 255) : color.rgb(255, 0, 110), bgcolor=TBL_BG_HEAD, text_size=size.small)
-
-    table.cell(t, 0, 18, "Signal", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(t, 1, 18, str.tostring(rmiSig, "#.#"), text_color=color.rgb(216, 122, 104), bgcolor=TBL_BG_ROW, text_size=size.small)
-
-    table.cell(t, 0, 19, "Zone", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 19, rmiZoneTxt, text_color=rmiZoneCol, bgcolor=TBL_BG_ROW2, text_size=size.small)
-
-    table.cell(t, 0, 20, "Gate", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(t, 1, 20, rmiFUse ? (str.tostring(rmiFDeadLo, "#") + "-" + str.tostring(rmiFDeadHi, "#") + " blocked") : "OFF", text_color=rmiFUse ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
-
-    table.cell(t, 0, 21, "Blocking now", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 21, rmiBlkTxt, text_color=rmiBlkCol, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    rmiZoneTxt = rmiVal >= rmiOB ? "OB" : rmiVal <= rmiOS ? "OS" : "mid"
+    rmiBlkTxt  = not rmiFUse ? "off" : rmiBlockBuy and rmiBlockSell ? "blocks B+S" : rmiBlockBuy ? "blocks BUY" : rmiBlockSell ? "blocks SELL" : "open"
+    rmiCellCol = not rmiFUse ? WAIT_C : (rmiBlockBuy or rmiBlockSell) ? SELL_C : BUY_C
+    table.cell(t, 0, 17, "RMI", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 1, 17, str.tostring(rmiVal, "#") + (rmiBlue ? "▲" : "▼") + " " + rmiZoneTxt + " · " + rmiBlkTxt, text_color=rmiCellCol, bgcolor=TBL_BG_HEAD, text_size=size.small)
 
 else if not showTable and barstate.islast
-    table.clear(t, 0, 0, 1, 21)
+    table.clear(t, 0, 0, 1, 17)
 
 alertcondition(canEnterLong, "SYR30 BUY", "SYR30 BUY | FINAL K3 CACHE")
 alertcondition(canEnterShort, "SYR30 SELL", "SYR30 SELL | FINAL K3 CACHE")
