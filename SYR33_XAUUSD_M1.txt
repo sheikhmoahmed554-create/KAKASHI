@@ -2712,6 +2712,30 @@ rmiFCapSellLv = input.float(30.0, "   ...level", minval=0, maxval=100, step=1, g
 
 rmiFNeedTurn  = input.bool(false, "Only enter while the line is turning your way", group=G_RMI, tooltip="A SELL needs the line to have just gone red, a BUY to have just gone blue.")
 
+
+// ── RMI as an entry source, merged into the engine itself ──
+// Not a second book and not a second position. These raise the engine's own
+// buySignal / sellSignal, so an RMI entry queues behind whatever the engine is
+// already holding, uses the engine's own adaptive target and stop, lands in the
+// engine's own statistics, and fires the engine's own alerts. One position, as
+// it has always been.
+rmiEUse      = input.bool(true,  "Also ENTER on RMI saturation", group=G_RMI, tooltip="The gate above only ever removes entries. This is what adds them: when RMI reaches the zone the engine takes the trade itself, even with none of its own schools speaking.")
+rmiEZoneS    = input.float(75.0, "   ...SELL when RMI is at or above", minval=50, maxval=99, step=1, group=G_RMI)
+rmiEZoneB    = input.float(25.0, "   ...BUY when RMI is at or below",  minval=1,  maxval=50, step=1, group=G_RMI)
+rmiENeedFlip = input.bool(true,  "   ...only as the line flips colour", group=G_RMI, tooltip="Blue turning red for a sell, red turning blue for a buy — the oscillator has topped or bottomed rather than merely being high or low. Without this the same rule reads about 50% instead of 54%.")
+rmiENeedWick = input.bool(true,  "   ...only on a rejection wick", group=G_RMI, tooltip="The wick beyond the body, as a share of the bar's range. The candle's COLOUR is deliberately not checked: a green bar with a long upper wick is rejection too, and often the stronger kind. On 15 July the 07:42 bar was green with a 51% upper wick, and demanding a red close made the entry two bars late and 30 points worse.")
+rmiEWick     = input.float(0.30, "   ...wick share of the bar range", minval=0.0, maxval=0.9, step=0.05, group=G_RMI)
+
+rmiBarRange = math.max(high - low, syminfo.mintick)
+rmiUpWick   = (high - math.max(close, open)) / rmiBarRange
+rmiDnWick   = (math.min(close, open) - low) / rmiBarRange
+
+rmiEntrySell = rmiEUse and rmiVal >= rmiEZoneS and (not rmiENeedFlip or rmiTurnDn) and (not rmiENeedWick or rmiUpWick >= rmiEWick)
+rmiEntryBuy  = rmiEUse and rmiVal <= rmiEZoneB and (not rmiENeedFlip or rmiTurnUp) and (not rmiENeedWick or rmiDnWick >= rmiEWick)
+
+buySignal  := buySignal  or rmiEntryBuy
+sellSignal := sellSignal or rmiEntrySell
+
 // ── decide ──
 rmiInDead    = rmiVal > rmiFDeadLo and rmiVal < rmiFDeadHi
 rmiPassB     = rmiFDeadPass and qaBuyScore  >= rmiFPassScore
@@ -3143,8 +3167,8 @@ if showTable and barstate.islast
     table.cell(t, 1, 16, str.tostring(m1LiveM1Wins) + "/" + str.tostring(m1LiveM1Losses), text_color=m1LiveM1Wins >= m1LiveM1Losses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
     rmiZoneTxt = rmiVal >= rmiOB ? "OB" : rmiVal <= rmiOS ? "OS" : "mid"
-    rmiBlkTxt  = not rmiFUse ? "off" : rmiBlockBuy and rmiBlockSell ? "blocks B+S" : rmiBlockBuy ? "blocks BUY" : rmiBlockSell ? "blocks SELL" : "open"
-    rmiCellCol = not rmiFUse ? WAIT_C : (rmiBlockBuy or rmiBlockSell) ? SELL_C : BUY_C
+    rmiBlkTxt  = rmiEntryBuy and not rmiBlockBuy ? "ENTER BUY" : rmiEntrySell and not rmiBlockSell ? "ENTER SELL" : not rmiFUse ? "off" : rmiBlockBuy and rmiBlockSell ? "blocks B+S" : rmiBlockBuy ? "blocks BUY" : rmiBlockSell ? "blocks SELL" : "open"
+    rmiCellCol = (rmiEntryBuy and not rmiBlockBuy) or (rmiEntrySell and not rmiBlockSell) ? EN_C : not rmiFUse ? WAIT_C : (rmiBlockBuy or rmiBlockSell) ? SELL_C : BUY_C
     table.cell(t, 0, 17, "RMI", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 1, 17, str.tostring(rmiVal, "#") + (rmiBlue ? "▲" : "▼") + " " + rmiZoneTxt + " · " + rmiBlkTxt, text_color=rmiCellCol, bgcolor=TBL_BG_HEAD, text_size=size.small)
 
