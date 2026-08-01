@@ -123,10 +123,12 @@ for (const m of months) {
     // المجاميع تُشتقّ من الشهور لا من عدّادات جارية، فالاستئناف لا يضاعف ولا ينقص
     e.months[m] = { trades: t.length, wins: w, losses: t.length - w,
                     net: Math.round(net), days: days.size };
+    // الحفظ بعد كل تكوين لا بعد الشهر: عمر الحاوية أقصر من الشهر الكامل،
+    // فالحفظ المتأخّر كان يضيّع كل ما حُسب قبل الإعادة.
+    fs.writeFileSync(out, JSON.stringify(res, null, 1));
     console.error(`${m} ${name.padEnd(24)} ${t.length} صفقة  ${w}ر/${t.length - w}خ  `
       + `${t.length ? (100 * w / t.length).toFixed(2) : '0'}%  ${Math.round(net)} نقطة`);
   }
-  fs.writeFileSync(out, JSON.stringify(res, null, 1));
 }
 
 for (const [name, e] of Object.entries(res)) {
