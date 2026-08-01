@@ -2787,9 +2787,99 @@ kkEngGapPts = input.float(20.0, "فارق الستوب فوق الهدف", minva
 // «داخل صفقة» إلى الأبد ولا يفتح واحدة أخرى — قيمة مفقودة واحدة تقتل التشغيل كله.
 kkEngTargetPts = math.min(math.max(nz(kkAtrPts, 20.0) * kkEngTgtATR, 30.0), 60.0)
 
+// ══════════════════════════════════════════════════════════════════════════
+// ٢٦ ■ مدارس مستخرَجة من مؤشرات صاحب المشروع الأخرى
+// ══════════════════════════════════════════════════════════════════════════
+// خمسة مؤشرات، ١٧٤٩ مدخلاً. أُخذ منها ما ليس في مؤشرنا فقط، وأُعيدت صياغته
+// بمضاعف ATR لا برقم مطلق. وكلها مطفأة حتى يحكم القياس.
+G_EXT = "24 ■ مدارس مستخرَجة"
+
+// ── ١ منع مطاردة الشمعة الكبيرة (SY963: Anti-Chase). الدخول بعد شمعة ضخمة
+// يعني الشراء ممّن اشترى قبلك بنقاط، فالمسافة إلى الهدف تقصر والستوب يبعد.
+kkUseAntiChase = input.bool(false, "امنع مطاردة الشمعة الكبيرة", group=G_EXT)
+kkChaseMaxATR  = input.float(1.55, "أقصى مدى شمعة × ATR", minval=0.5, step=0.05, group=G_EXT)
+kkAntiChaseOK = not kkUseAntiChase or kkBarRange <= kkChaseMaxATR * atr
+
+// ── ٢ القرب من المتوسط (SY963: Prefer Pullback). الدخول قرب القيمة لا بعيداً عنها.
+kkUsePullbackNear = input.bool(false, "اشترط القرب من المتوسط", group=G_EXT)
+kkPbLen  = input.int(12, "طول متوسط الارتداد", minval=2, group=G_EXT)
+kkPbMaxATR = input.float(0.85, "أقصى بعد عن المتوسط × ATR", minval=0.1, step=0.05, group=G_EXT)
+kkPbEma = ta.ema(close, kkPbLen)
+kkPullbackOK = not kkUsePullbackNear or math.abs(close - kkPbEma) <= kkPbMaxATR * atr
+
+// ── ٣ فخ الارتداد (SY963: Anti Bounce Trap). بعد حركة عميقة ثم تعافٍ جزئي،
+// الجهة المعاكسة تكون مطاردةً لحركة انتهت.
+kkUseTrap   = input.bool(false, "امنع فخ الارتداد", group=G_EXT)
+kkTrapLen   = input.int(28, "نافذة الفخ", minval=5, group=G_EXT)
+kkTrapMoveATR = input.float(2.0, "عمق الحركة × ATR", minval=0.5, step=0.1, group=G_EXT)
+kkTrapRecover = input.float(0.35, "نسبة التعافي", minval=0.05, maxval=0.95, step=0.05, group=G_EXT)
+kkTrapHi = ta.highest(high, kkTrapLen)
+kkTrapLo = ta.lowest(low, kkTrapLen)
+kkTrapSpan = math.max(kkTrapHi - kkTrapLo, syminfo.mintick)
+kkTrapDeep = kkTrapSpan >= kkTrapMoveATR * atr
+kkTrapUpRec = (kkTrapHi - close) / kkTrapSpan     // كم تعافى السعر هبوطاً من القمة
+kkTrapDnRec = (close - kkTrapLo) / kkTrapSpan
+kkTrapBuyOK  = not kkUseTrap or not (kkTrapDeep and kkTrapDnRec >= kkTrapRecover)
+kkTrapSellOK = not kkUseTrap or not (kkTrapDeep and kkTrapUpRec >= kkTrapRecover)
+
+// ── ٤ منع وسط النطاق (SY963: Block Mid-Range). الوسط بلا مرجع قريب.
+kkUseMidBlock = input.bool(false, "امنع وسط النطاق", group=G_EXT)
+kkMidLo = input.float(32.0, "بداية الوسط ٪", minval=0, maxval=50, step=1, group=G_EXT)
+kkMidHi = input.float(62.0, "نهاية الوسط ٪", minval=50, maxval=100, step=1, group=G_EXT)
+kkMidOK = not kkUseMidBlock or not (kkPosPct >= kkMidLo and kkPosPct <= kkMidHi)
+
+// ── ٥ حارس القمم والقيعان المؤكدة (SY963: Swing Pivots). القمة المؤكدة مرجع
+// حقيقي، بخلاف أعلى نافذة متدحرجة التي تتغيّر مع كل شمعة.
+kkUsePivotGuard = input.bool(false, "حارس القمم المؤكدة", group=G_EXT)
+kkPivWing = input.int(4, "جناح القمة", minval=2, maxval=10, group=G_EXT)
+kkPivBufATR = input.float(0.30, "هامش القرب × ATR", minval=0.02, step=0.02, group=G_EXT)
+kkPivWin = kkPivWing * 2 + 1
+kkIsSwingHi = high[kkPivWing] >= ta.highest(high, kkPivWin)
+kkIsSwingLo = low[kkPivWing]  <= ta.lowest(low, kkPivWin)
+var float kkLastSwingHi = na
+var float kkLastSwingLo = na
+if kkIsSwingHi
+    kkLastSwingHi := high[kkPivWing]
+if kkIsSwingLo
+    kkLastSwingLo := low[kkPivWing]
+kkPivBuyOK  = not kkUsePivotGuard or na(kkLastSwingHi) or close <= kkLastSwingHi - kkPivBufATR * atr
+kkPivSellOK = not kkUsePivotGuard or na(kkLastSwingLo) or close >= kkLastSwingLo + kkPivBufATR * atr
+
+// ── ٦ الارتداد المعاكس من الطرف فقط (SY338). عكس اتجاه قوي لا يُقبل إلا من
+// الطرف البعيد، لا من منتصف الحركة.
+kkUseCounterLoc = input.bool(false, "الارتداد المعاكس من الطرف فقط", group=G_EXT)
+kkCounterBuyMax = input.float(18.0, "شراء عكسي تحت ٪", minval=1, maxval=50, step=1, group=G_EXT)
+kkCounterSellMin= input.float(82.0, "بيع عكسي فوق ٪", minval=50, maxval=99, step=1, group=G_EXT)
+kkCounterBuyOK  = not kkUseCounterLoc or kkEngTrend != -1 or kkPosPct <= kkCounterBuyMax
+kkCounterSellOK = not kkUseCounterLoc or kkEngTrend != 1  or kkPosPct >= kkCounterSellMin
+
+// ── ٧ منع الملاحقة المتأخرة (VTZ: Late Chase). بعد كسر الطرف بمسافة، الفرصة
+// صارت خلفنا والهدف صار أبعد من الستوب.
+kkUseLateChase = input.bool(false, "امنع الملاحقة المتأخرة", group=G_EXT)
+kkLateLen = input.int(45, "نافذة الكسر", minval=10, group=G_EXT)
+kkLateMaxPts = input.float(30.0, "أقصى بعد عن الكسر بالنقاط", minval=5, step=1, group=G_EXT)
+kkLateHi = ta.highest(high, kkLateLen)[1]
+kkLateLo = ta.lowest(low, kkLateLen)[1]
+kkLateBuyOK  = not kkUseLateChase or na(kkLateHi) or (close - kkLateHi) / pointUnit <= kkLateMaxPts
+kkLateSellOK = not kkUseLateChase or na(kkLateLo) or (kkLateLo - close) / pointUnit <= kkLateMaxPts
+
+// ── ٨ أرضية الجسم وذيل الرفض (SY963: Min Body / Min Wick). شمعة بلا جسم ولا
+// ذيل رفض ليست حدثاً، بل ضجيجاً.
+kkUseBodyFloor = input.bool(false, "أرضية الجسم وذيل الرفض", group=G_EXT)
+kkMinBodyATR = input.float(0.02, "أدنى جسم × ATR", minval=0.0, step=0.01, group=G_EXT)
+kkMinWickATR = input.float(0.04, "أدنى ذيل رفض × ATR", minval=0.0, step=0.01, group=G_EXT)
+kkBodyAbs = math.abs(close - open)
+kkUpWickAbs = high - math.max(open, close)
+kkDnWickAbs = math.min(open, close) - low
+kkBodyBuyOK  = not kkUseBodyFloor or (kkBodyAbs >= kkMinBodyATR * atr and kkDnWickAbs >= kkMinWickATR * atr)
+kkBodySellOK = not kkUseBodyFloor or (kkBodyAbs >= kkMinBodyATR * atr and kkUpWickAbs >= kkMinWickATR * atr)
+
+kkExtBuyOK  = kkAntiChaseOK and kkPullbackOK and kkTrapBuyOK  and kkMidOK and kkPivBuyOK  and kkCounterBuyOK  and kkLateBuyOK  and kkBodyBuyOK
+kkExtSellOK = kkAntiChaseOK and kkPullbackOK and kkTrapSellOK and kkMidOK and kkPivSellOK and kkCounterSellOK and kkLateSellOK and kkBodySellOK
+
 // ── تجميع المرشّحات
-kkBuyOK  = kkSpeedOK and kkCloseBuyOK  and kkRunBuyOK  and kkPathBuyOK  and kkPoolBuyOK  and kkSweepBuyOK  and kkEROK and kkRsiBuyOK  and kkBandOK and kkRegBuyOK  and kkVolBuyOK  and kkPosBuyOK  and kkPDBuyOK  and kkFailBuyOK  and kkFvgBuyOK  and kkRoundOK and kkPdBuyOK  and kkDoBuyOK  and kkORBuyOK  and kkVwapBuyOK  and kkEffortOK and kkDivBuyOK  and kkEngBuyOK
-kkSellOK = kkSpeedOK and kkCloseSellOK and kkRunSellOK and kkPathSellOK and kkPoolSellOK and kkSweepSellOK and kkEROK and kkRsiSellOK and kkBandOK and kkRegSellOK and kkVolSellOK and kkPosSellOK and kkPDSellOK and kkFailSellOK and kkFvgSellOK and kkRoundOK and kkPdSellOK and kkDoSellOK and kkORSellOK and kkVwapSellOK and kkEffortOK and kkDivSellOK and kkEngSellOK
+kkBuyOK  = kkExtBuyOK and kkSpeedOK and kkCloseBuyOK  and kkRunBuyOK  and kkPathBuyOK  and kkPoolBuyOK  and kkSweepBuyOK  and kkEROK and kkRsiBuyOK  and kkBandOK and kkRegBuyOK  and kkVolBuyOK  and kkPosBuyOK  and kkPDBuyOK  and kkFailBuyOK  and kkFvgBuyOK  and kkRoundOK and kkPdBuyOK  and kkDoBuyOK  and kkORBuyOK  and kkVwapBuyOK  and kkEffortOK and kkDivBuyOK  and kkEngBuyOK
+kkSellOK = kkExtSellOK and kkSpeedOK and kkCloseSellOK and kkRunSellOK and kkPathSellOK and kkPoolSellOK and kkSweepSellOK and kkEROK and kkRsiSellOK and kkBandOK and kkRegSellOK and kkVolSellOK and kkPosSellOK and kkPDSellOK and kkFailSellOK and kkFvgSellOK and kkRoundOK and kkPdSellOK and kkDoSellOK and kkORSellOK and kkVwapSellOK and kkEffortOK and kkDivSellOK and kkEngSellOK
 
 canEnterLongRaw = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and kkBuyOK
 canEnterShortRaw = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and kkSellOK

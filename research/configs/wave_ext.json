@@ -1,0 +1,8 @@
+{
+ "بلا شيء": {},
+ "منع المطاردة": { "kkUseAntiChase": true },
+ "منع وسط النطاق": { "kkUseMidBlock": true },
+ "أرضية الجسم": { "kkUseBodyFloor": true },
+ "مطاردة + وسط": { "kkUseAntiChase": true, "kkUseMidBlock": true },
+ "مطاردة + وسط + مسار": { "kkUseAntiChase": true, "kkUseMidBlock": true, "kkUsePath": true }
+}
