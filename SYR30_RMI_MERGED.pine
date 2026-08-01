@@ -8,7 +8,8 @@
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
 // RMI MERGE: the Relative Momentum Index by TheLark (2014, Pine v1) is transcribed unchanged into v6
-// and wired in as (a) a hard overbought/oversold zone gate on every entry and (b) an R17 score term.
+// and wired in as an unbypassable gate — BUY out of overbought, SELL out of oversold, middle blocked —
+// plus an in-zone score term for the R17 arbiter.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
 // Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
 
@@ -2399,37 +2400,28 @@ sellSignal := sellSignal or r11ConnS
 
 // ══════════════════════════════════════════════════════════════════
 // 24 ■ RMI ZONE FILTER — Relative Momentum Index (TheLark, 2014)
-//   Roger Altman's RMI counts up/down days from the close relative to a close
-//   `mom` bars ago instead of the previous close. The original Pine v1 study
-//   is transcribed here with the formula untouched:
+//   Roger Altman's RMI, transcribed from the original Pine v1 study with the
+//   formula left exactly as published:
 //       up     = ema(max(close - close[mom], 0), len)
 //       dn     = ema(max(close[mom] - close, 0), len)
 //       rmi    = dn == 0 ? 0 : 100 - 100 / (1 + up / dn)
 //       signal = sma(rmi, sig)
-//   Everything added below sits on top of that value and never changes it:
-//     • Hard zone gate — BUY only inside the oversold zone, SELL only inside
-//       the overbought zone, and the middle band blocked for both sides.
-//     • Zone score     — fed into the R17 Final Quality Arbiter.
-//   The gate itself is applied at the very end of the signal chain, after the
-//   Lab Champion sources, so no source can bypass it.
+//   Wired in as a filter no source is allowed to bypass:
+//       BUY  only out of the overbought zone
+//       SELL only out of the oversold zone
+//       middle band closed to both sides
+//   A signal standing inside its zone also carries a score into R17.
 // ══════════════════════════════════════════════════════════════════
 G_RMI = "24 ■ RMI Zone Filter (TheLark)"
 
-rmiUseFilter = input.bool(true, "Enable RMI Zone Gate (hard block)", group=G_RMI)
-rmiUseScore = input.bool(true, "Feed RMI Zone Score Into R17 Arbiter", group=G_RMI)
 rmiLen = input.int(20, "RMI Length", minval=1, group=G_RMI)
 rmiMom = input.int(4, "RMI Momentum", minval=0, group=G_RMI)
-rmiOb = input.float(70.0, "Overbought", minval=50.0, maxval=99.0, step=1.0, group=G_RMI)
-rmiOs = input.float(30.0, "Oversold", minval=1.0, maxval=50.0, step=1.0, group=G_RMI)
+rmiOb = input.float(70.0, "Overbought — BUY zone", minval=50.0, maxval=99.0, step=1.0, group=G_RMI)
+rmiOs = input.float(30.0, "Oversold — SELL zone", minval=1.0, maxval=50.0, step=1.0, group=G_RMI)
 rmiSigLen = input.int(6, "Signal Length", minval=1, group=G_RMI)
-rmiZoneMode = input.string("Reversion — BUY Oversold / SELL Overbought", "Zone Direction", options=["Reversion — BUY Oversold / SELL Overbought", "Momentum — BUY Overbought / SELL Oversold"], group=G_RMI)
-rmiBlockMiddle = input.bool(true, "Block Middle Band For Both Sides", group=G_RMI)
-rmiAllowStrongReversal = input.bool(false, "Confirmed Sweep Reversal Bypasses The Gate", group=G_RMI)
 rmiDeepOffset = input.float(10.0, "Deep Zone Extra Distance", minval=0.0, maxval=30.0, step=1.0, group=G_RMI)
 rmiZoneScore = input.float(0.90, "R17 Score — In Zone", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
 rmiDeepScore = input.float(0.60, "R17 Score — Deep Zone Extra", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
-rmiTurnScore = input.float(0.35, "R17 Score — Turning Out Of Zone", minval=0.0, maxval=5.0, step=0.05, group=G_RMI)
-rmiMiddlePenalty = input.float(1.50, "R17 Score — Middle Band Penalty", minval=0.0, maxval=10.0, step=0.05, group=G_RMI)
 rmiShowMarks = input.bool(false, "Show RMI Zone Marks", group=G_RMI)
 
 // ── original RMI calculation, unchanged ──
@@ -2437,10 +2429,9 @@ rmiUpAvg = ta.ema(math.max(close - close[rmiMom], 0.0), rmiLen)
 rmiDnAvg = ta.ema(math.max(close[rmiMom] - close, 0.0), rmiLen)
 rmiVal = rmiDnAvg == 0 ? 0.0 : 100.0 - 100.0 / (1.0 + rmiUpAvg / rmiDnAvg)
 rmiSignalLine = ta.sma(rmiVal, rmiSigLen)
-rmiHist = rmiVal - rmiSignalLine
 rmiRising = rmiVal > rmiVal[1]
 
-// ── zone map ──
+// ── zones ──
 rmiObLevel = math.max(rmiOb, rmiOs)
 rmiOsLevel = math.min(rmiOb, rmiOs)
 rmiInOverbought = rmiVal >= rmiObLevel
@@ -2449,38 +2440,18 @@ rmiInMiddle = not rmiInOverbought and not rmiInOversold
 rmiDeepOverbought = rmiVal >= math.min(99.0, rmiObLevel + rmiDeepOffset)
 rmiDeepOversold = rmiVal <= math.max(1.0, rmiOsLevel - rmiDeepOffset)
 
-rmiReversionMode = rmiZoneMode == "Reversion — BUY Oversold / SELL Overbought"
-rmiBuyZone = rmiReversionMode ? rmiInOversold : rmiInOverbought
-rmiSellZone = rmiReversionMode ? rmiInOverbought : rmiInOversold
-rmiBuyDeep = rmiReversionMode ? rmiDeepOversold : rmiDeepOverbought
-rmiSellDeep = rmiReversionMode ? rmiDeepOverbought : rmiDeepOversold
+// BUY out of overbought, SELL out of oversold, nothing at all in the middle.
+// There is no bypass path here on purpose — this is the last word on both sides.
+rmiBuyZoneOK = rmiInOverbought
+rmiSellZoneOK = rmiInOversold
 
-// Turning back out of the zone is the classic confirmation: RMI ticking up
-// while the BUY zone is live, ticking down while the SELL zone is live.
-rmiBuyTurn = rmiBuyZone and rmiRising
-rmiSellTurn = rmiSellZone and not rmiRising
+rmiBuyScore = (rmiInOverbought ? rmiZoneScore : 0.0) + (rmiDeepOverbought ? rmiDeepScore : 0.0)
+rmiSellScore = (rmiInOversold ? rmiZoneScore : 0.0) + (rmiDeepOversold ? rmiDeepScore : 0.0)
 
-rmiBuyBypass = rmiAllowStrongReversal and (realRevBuy or sy338TrueCounterBuy or (sweepLow and (bullReject or bullMomentum)))
-rmiSellBypass = rmiAllowStrongReversal and (realRevSell or sy338TrueCounterSell or (sweepHigh and (bearReject or bearMomentum)))
+rmiZoneText = rmiInOverbought ? "OB — BUY" : rmiInOversold ? "OS — SELL" : "MID — BLOCKED"
 
-// Hard gate. With "Block Middle Band" disabled the middle becomes tradable
-// again and only the opposite zone blocks the side.
-rmiBuyZoneOK = not rmiUseFilter or rmiBuyBypass or rmiBuyZone or (not rmiBlockMiddle and rmiInMiddle)
-rmiSellZoneOK = not rmiUseFilter or rmiSellBypass or rmiSellZone or (not rmiBlockMiddle and rmiInMiddle)
-
-// R17 contribution. The middle penalty only bites when the gate is relaxed,
-// because a blocked middle never reaches the arbiter in the first place — with
-// the gate off and the score on, the RMI acts as a soft filter instead of a wall.
-// Both switches off restores the pre-merge behaviour byte for byte.
-rmiBuyScoreRaw = (rmiBuyZone ? rmiZoneScore : 0.0) + (rmiBuyDeep ? rmiDeepScore : 0.0) + (rmiBuyTurn ? rmiTurnScore : 0.0) - (rmiInMiddle ? rmiMiddlePenalty : 0.0)
-rmiSellScoreRaw = (rmiSellZone ? rmiZoneScore : 0.0) + (rmiSellDeep ? rmiDeepScore : 0.0) + (rmiSellTurn ? rmiTurnScore : 0.0) - (rmiInMiddle ? rmiMiddlePenalty : 0.0)
-rmiBuyScore = rmiUseScore ? rmiBuyScoreRaw : 0.0
-rmiSellScore = rmiUseScore ? rmiSellScoreRaw : 0.0
-
-rmiZoneText = rmiInOverbought ? "OB" : rmiInOversold ? "OS" : "MID"
-
-plotshape(rmiShowMarks and rmiInOversold, title="RMI Oversold", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 25), size=size.tiny, text="RMI OS")
-plotshape(rmiShowMarks and rmiInOverbought, title="RMI Overbought", style=shape.circle, location=location.top, color=color.new(SELL_C, 25), size=size.tiny, text="RMI OB")
+plotshape(rmiShowMarks and rmiInOverbought, title="RMI Overbought", style=shape.circle, location=location.bottom, color=color.new(BUY_C, 25), size=size.tiny, text="RMI OB")
+plotshape(rmiShowMarks and rmiInOversold, title="RMI Oversold", style=shape.circle, location=location.top, color=color.new(SELL_C, 25), size=size.tiny, text="RMI OS")
 
 // ━━━ R17 FINAL QUALITY ARBITER ━━━
 // K3 becomes a candidate generator. This last gate receives every source,
@@ -2739,7 +2710,7 @@ sellSignal := sellSignal or chTriS or chSniS
 // Champion source above is OR-ed into buySignal/sellSignal after the arbiter
 // has run, so a gate applied any earlier would never see them. At this point
 // the gate covers all of them, plus the shadow learning engine and the alerts,
-// which read the same two variables further down.
+// which read the same two variables further down. Nothing gets past it.
 buySignal := buySignal and rmiBuyZoneOK
 sellSignal := sellSignal and rmiSellZoneOK
 
@@ -3162,7 +3133,7 @@ if showTable and barstate.islast
     table.cell(t, 1, 17, str.tostring(rmiVal, "#.#") + " / " + str.tostring(rmiSignalLine, "#.#"), text_color=rmiRising ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
     table.cell(t, 0, 18, "RMI Zone", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(t, 1, 18, rmiUseFilter ? rmiZoneText : rmiZoneText + " (OFF)", text_color=rmiInOversold ? BUY_C : rmiInOverbought ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 18, rmiZoneText, text_color=rmiInOverbought ? BUY_C : rmiInOversold ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 else if not showTable and barstate.islast
     table.clear(t, 0, 0, 1, 18)
 
