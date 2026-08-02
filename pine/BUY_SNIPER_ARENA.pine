@@ -18,7 +18,7 @@ G_RISK = "02 ■ Trade / TP / SL"
 G_EXEC = "03 ■ Execution"
 G_VIS  = "04 ■ Statistics / Visuals"
 
-candidateMode = input.string("FALSE_BREAK", "Candidate", options=["FALSE_BREAK", "DEEP_RMI", "BAND_SNAP", "MOMO_DIV"], group=G_CAND)
+candidateMode = input.string("FALSE_BREAK", "Candidate", options=["FALSE_BREAK", "DEEP_RMI", "BAND_SNAP", "MOMO_DIV", "VZ_ABSORB", "KELTNER", "CONNORS", "CMO_SNAP", "UT_V2", "ELITE_ANY"], group=G_CAND)
 
 // FALSE_BREAK params
 fbLookback = input.int(60, "FB: Prior Low Lookback", minval=10, maxval=500, group=G_CAND)
@@ -110,10 +110,45 @@ mdRsiFloor = ta.lowest(mdRsi, mdWindow)
 mdDiverging = mdRsi >= mdRsiFloor + mdMinGap
 mdEntry = mdNewLow and mdDiverging and close > open
 
+
+// ══════════════════════════════════════════════════════════════════
+// R30 ELITE BUY SCHOOLS — faithful extraction of the inner-court
+// champions (chVzB +4400 7/7, chKeltB +3650 7/7, r11ConnB +3150 7/7,
+// chCmoB +2800 6/7, chUtB +1500 5/7) with their exact SYR30 defaults.
+// Shared chassis: RSI3 deep + big candle (range > 1.5 x ATR14).
+// ══════════════════════════════════════════════════════════════════
+elAtr = ta.atr(14)
+elEma = ta.ema(close, 20)
+elRsi3 = ta.rsi(close, 3)
+elBig = (high - low) > 1.5 * elAtr
+
+elTp3 = (high + low + close) / 3
+elVw = ta.sma(elTp3 * nz(volume, 0.0), 20) / (ta.sma(nz(volume, 0.0), 20) + 0.00001)
+elSdv = ta.stdev(elTp3 - elVw, 50)
+vzEntry = low < elVw - 2.0 * elSdv and elRsi3 < 18.0 and elBig
+
+keltEntry = low < elEma - 2.0 * elAtr and elRsi3 < 18.0 and elBig
+
+var int connLastBar = -100000
+connWarm = bar_index > 260
+connEntry = connWarm and elRsi3 < 18.0 and bar_index - connLastBar > 5
+if connEntry
+    connLastBar := bar_index
+
+elUp = math.max(close - close[1], 0)
+elDn = math.max(close[1] - close, 0)
+elCmo = 100 * (ta.sma(elUp, 9) * 9 - ta.sma(elDn, 9) * 9) / (ta.sma(elUp, 9) * 9 + ta.sma(elDn, 9) * 9 + 0.00001)
+cmoEntry = elCmo < -60.0 and elRsi3 < 18.0 and elBig
+
+[elUtLine, elUtDir] = ta.supertrend(6.0, 7)
+utEntry = elUtDir == -1 and elRsi3 < 18.0 and elBig
+
+eliteAnyEntry = vzEntry or keltEntry or connEntry or cmoEntry
+
 // ══════════════════════════════════════════════════════════════════
 // SELECTED CANDIDATE
 // ══════════════════════════════════════════════════════════════════
-rawBuyEntry = candidateMode == "FALSE_BREAK" ? fbEntry : candidateMode == "DEEP_RMI" ? drEntry : candidateMode == "BAND_SNAP" ? bsEntry : mdEntry
+rawBuyEntry = candidateMode == "FALSE_BREAK" ? fbEntry : candidateMode == "DEEP_RMI" ? drEntry : candidateMode == "BAND_SNAP" ? bsEntry : candidateMode == "MOMO_DIV" ? mdEntry : candidateMode == "VZ_ABSORB" ? vzEntry : candidateMode == "KELTNER" ? keltEntry : candidateMode == "CONNORS" ? connEntry : candidateMode == "CMO_SNAP" ? cmoEntry : candidateMode == "UT_V2" ? utEntry : eliteAnyEntry
 
 if rawBuyEntry
     drArmed := false
