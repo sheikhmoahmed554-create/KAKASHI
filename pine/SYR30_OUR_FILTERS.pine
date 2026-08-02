@@ -437,8 +437,9 @@ tvSellImpulseClosePos = 0.76
 
 // 13 ■ Risk / TP / SL
 pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK_NEW)
-stopPoints = input.int(65, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
+stopPoints = input.int(50, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
 targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
+useMainFixedRisk = input.bool(true, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
 sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK_NEW)
 trendAlignFilter = input.string("Off", "R4 Trend Alignment Filter", options=["Off", "Light (max 4 oppose)", "Medium (max 3 oppose) — R10", "Balanced (max 2 + Sweep)", "Strict (max 2 oppose)"], group=G_RISK_NEW)
 useDirectionalAdaptiveExit = input.bool(true, "Use M1 Directional Adaptive Exit", group=G_RISK_NEW)
@@ -2802,6 +2803,11 @@ if canEnterLong or canEnterShort
         trendVoteLiveTrades += 1
     else if tradeEntrySourceCode == 6
         finalFusionLiveTrades += 1
+    if useMainFixedRisk
+        tradeTargetPts := targetPoints
+        tradeStopPts := stopPoints
+        tradeRiskState := "FIXED 1:1 HARD"
+        tradeTargetSource := "MAIN ③"
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
