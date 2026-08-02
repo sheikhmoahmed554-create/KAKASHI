@@ -1,0 +1,675 @@
+//@version=6
+// Relative Momentum Index (RMI) based on the original concept by Roger Altman.
+// Standalone RMI trade engine with the SYR30-style statistics table and
+// chart-side BUY/SELL, Entry, TP and SL visuals.
+indicator("TWO WINGS — SELL SNIPER + BUY CHAIR", shorttitle="TWO WINGS", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
+
+// ══════════════════════════════════════════════════════════════════
+// COLORS — copied from the SYR30 visual system
+// ══════════════════════════════════════════════════════════════════
+color BUY_C  = color.rgb(0, 170, 90)
+color SELL_C = color.rgb(230, 45, 55)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color EN_C   = color.rgb(255, 210, 0)
+color TXT_C  = color.white
+color WAIT_C = color.rgb(150, 150, 150)
+
+color TBL_BG      = color.rgb(16, 18, 26)
+color TBL_BG_HEAD = color.rgb(22, 24, 34)
+color TBL_BG_ROW  = color.rgb(18, 20, 30)
+color TBL_BG_ROW2 = color.rgb(20, 22, 32)
+
+// ══════════════════════════════════════════════════════════════════
+// GROUPS
+// ══════════════════════════════════════════════════════════════════
+G_RMI   = "01 ■ RMI"
+G_ENTRY = "02 ■ RMI Reaction Entry"
+G_RISK  = "03 ■ Trade / TP / SL"
+G_EXEC  = "04 ■ Execution"
+G_VIS   = "05 ■ Statistics / Visuals"
+G_ALERT = "06 ■ Alerts / Bot"
+G_WING = "07 ■ BUY Wing (الكرسي — فاضي افتراضياً)"
+
+// ══════════════════════════════════════════════════════════════════
+// 01 ■ RMI
+// ══════════════════════════════════════════════════════════════════
+rmiLength = input.int(18, "Length", minval=1, group=G_RMI)
+rmiMomentum = input.int(6, "Momentum", minval=1, group=G_RMI)
+rmiOverbought = input.float(78.0, "Overbought / SELL Zone", minval=50.0, maxval=100.0, step=1.0, group=G_RMI)
+rmiOversold = input.float(20.0, "Oversold / BUY Zone", minval=0.0, maxval=50.0, step=1.0, group=G_RMI)
+rmiSignalLength = input.int(6, "Signal Length", minval=1, group=G_RMI)
+rmiChangeColor = input.bool(true, "Change RMI Color", group=G_RMI)
+rmiShowSignal = input.bool(true, "Show Signal Line", group=G_RMI)
+rmiShowHistogram = input.bool(false, "Show Histogram", group=G_RMI)
+
+// ══════════════════════════════════════════════════════════════════
+// 02 ■ RMI Reaction Entry
+// The zone arms a setup. It never opens immediately on the saturation bar.
+// ══════════════════════════════════════════════════════════════════
+enableRMIEntries = input.bool(true, "Enable RMI Trades", group=G_ENTRY)
+enableBuy = input.bool(true, "Enable BUY", group=G_ENTRY, inline="SIDE")
+enableSell = input.bool(true, "Enable SELL", group=G_ENTRY, inline="SIDE")
+reactionBars = input.int(2, "Consecutive Reaction Candles", minval=1, maxval=10, group=G_ENTRY)
+maxReactionWaitBars = input.int(12, "Maximum Bars After Zone", minval=1, maxval=50, group=G_ENTRY)
+requirePriceReaction = input.bool(true, "Require Price Reaction", group=G_ENTRY)
+requireRMISignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_ENTRY)
+
+// ── Guardian: macro trend teacher (H1 EMA50/200) ──
+// Personality map (6.5 months, 716 trades): the engine is a rally-fader.
+// SELL in macro-UP was its only strong cell (+1453 after costs); every
+// BUY cell was negative. Defaults reflect that verdict — all reversible.
+G_GUARD = "02b ■ Trend Teacher (معلم الترند)"
+useTrendTeacher = input.bool(true, "Use Trend Teacher", group=G_GUARD)
+teacherTF = input.timeframe("30", "Teacher Timeframe", group=G_GUARD)
+teacherMode = input.string("LINREG", "Teacher System", options=["EMA", "SUPERTREND", "LINREG", "DONCHIAN", "DMI"], group=G_GUARD)
+teacherSuperFactor = input.float(3.0, "Supertrend Factor", minval=0.5, maxval=10.0, step=0.5, group=G_GUARD)
+teacherSuperATR = input.int(10, "Supertrend ATR Length", minval=1, maxval=100, group=G_GUARD)
+teacherLinLen = input.int(100, "LinReg Length", minval=10, maxval=500, group=G_GUARD)
+teacherDonLen = input.int(100, "Donchian Length", minval=10, maxval=500, group=G_GUARD)
+teacherDmiADX = input.float(20.0, "DMI Min ADX", minval=5.0, maxval=50.0, step=1.0, group=G_GUARD)
+teacherFastLen = input.int(50, "Teacher Fast EMA", minval=5, maxval=400, group=G_GUARD)
+teacherSlowLen = input.int(200, "Teacher Slow EMA", minval=10, maxval=800, group=G_GUARD)
+buyInUp = input.bool(false, "BUY In Uptrend", group=G_GUARD, inline="BUYR")
+buyInDown = input.bool(false, "BUY In Downtrend", group=G_GUARD, inline="BUYR")
+buyInFlat = input.bool(false, "BUY In Flat", group=G_GUARD, inline="BUYR")
+sellInUp = input.bool(true, "SELL In Uptrend", group=G_GUARD, inline="SELLR")
+sellInDown = input.bool(true, "SELL In Downtrend", group=G_GUARD, inline="SELLR")
+sellInFlat = input.bool(true, "SELL In Flat", group=G_GUARD, inline="SELLR")
+
+// Optional context checks. Zero means disabled.
+previousExtremeLookback = input.int(40, "Previous High/Low Lookback (0 = Off)", minval=0, maxval=500, group=G_ENTRY)
+liquiditySweepLookback = input.int(0, "Liquidity Sweep Lookback (0 = Off)", minval=0, maxval=500, group=G_ENTRY)
+
+// ══════════════════════════════════════════════════════════════════
+// 03 ■ Trade / TP / SL
+// ══════════════════════════════════════════════════════════════════
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK)
+targetPoints = input.float(130.0, "Target Points", minval=1.0, step=1.0, group=G_RISK)
+stopPoints = input.float(70.0, "Stop Points", minval=1.0, step=1.0, group=G_RISK)
+sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK)
+
+// ══════════════════════════════════════════════════════════════════
+// 04 ■ Execution
+// One open trade is always enforced.
+// ══════════════════════════════════════════════════════════════════
+cooldownBars = input.int(0, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_EXEC)
+buyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_EXEC)
+sellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_EXEC)
+
+// ══════════════════════════════════════════════════════════════════
+// 05 ■ Statistics / Visuals
+// ══════════════════════════════════════════════════════════════════
+showSignals = input.bool(true, "Show BUY / SELL / TP / SL", group=G_VIS)
+showTradeLines = input.bool(true, "Show Entry / TP / SL Lines", group=G_VIS)
+showLineTags = input.bool(true, "Show Entry / TP / SL Tags", group=G_VIS)
+showTable = input.bool(true, "Show Stats Table", group=G_VIS)
+lineBars = input.int(70, "Active Line Bars", minval=5, maxval=500, group=G_VIS)
+statsMode = input.string("All Loaded History", "Stats Count", options=["All Loaded History", "From Custom Time"], group=G_VIS)
+statsStartTime = input.time(1784512800000, "Start Stats From (UTC)", group=G_VIS)
+manualResetKey = input.int(0, "Manual Reset Number", minval=0, group=G_VIS)
+
+// ══════════════════════════════════════════════════════════════════
+// 06 ■ Alerts / Bot
+// Dynamic alert() payload contains the same TP/SL shown on the chart.
+// ══════════════════════════════════════════════════════════════════
+buyWingMode = input.string("OFF", "BUY Wing Candidate", options=["OFF", "FALSE_BREAK", "DEEP_RMI", "BAND_SNAP", "MOMO_DIV", "VZ_ABSORB", "KELTNER", "CONNORS", "CMO_SNAP", "UT_V2", "ELITE_ANY"], group=G_WING)
+buyWingTarget = input.float(50.0, "BUY Wing Target Points", minval=1.0, step=1.0, group=G_WING)
+buyWingStop = input.float(50.0, "BUY Wing Stop Points", minval=1.0, step=1.0, group=G_WING)
+useAlertFunction = input.bool(false, "Send BOT Message alert()", group=G_ALERT)
+webhookKey = input.string("SECRET_135", "BOT Secret Key", group=G_ALERT)
+botSymbol = input.string("XAUUSD", "BOT Symbol - Message Only", group=G_ALERT)
+lotSize = input.float(0.02, "BOT Lot Size - Message Only", minval=0.01, step=0.01, group=G_ALERT)
+alertFormat = input.string("JSON", "alert() Message Format", options=["JSON", "Simple"], group=G_ALERT)
+
+// ══════════════════════════════════════════════════════════════════
+// RMI CALCULATION
+// ══════════════════════════════════════════════════════════════════
+pointUnit = math.max(pointUnitInput, syminfo.mintick)
+rmiUp = ta.ema(math.max(close - close[rmiMomentum], 0.0), rmiLength)
+rmiDown = ta.ema(math.max(close[rmiMomentum] - close, 0.0), rmiLength)
+rmi = rmiDown == 0.0 ? (rmiUp == 0.0 ? 50.0 : 100.0) : 100.0 - 100.0 / (1.0 + rmiUp / rmiDown)
+rmiSignal = ta.sma(rmi, rmiSignalLength)
+
+// RMI remains fully calculated for entries and table statistics.
+// Its oscillator, signal, histogram and guide lines are intentionally not plotted,
+// so the script creates no lower RMI panel. Entry / TP / SL price lines remain active.
+rmiColor = rmiChangeColor ? (rmi > rmi[1] ? color.rgb(0, 148, 255) : color.rgb(255, 0, 110)) : color.rgb(0, 148, 255)
+
+// ══════════════════════════════════════════════════════════════════
+// REACTION ENGINE
+// ══════════════════════════════════════════════════════════════════
+inBuyZone = rmi <= rmiOversold
+inSellZone = rmi >= rmiOverbought
+buyZoneEntered = inBuyZone and not inBuyZone[1]
+sellZoneEntered = inSellZone and not inSellZone[1]
+
+var bool buyArmed = false
+var bool sellArmed = false
+var int buyArmBar = na
+var int sellArmBar = na
+var int buyReactionCount = 0
+var int sellReactionCount = 0
+var bool buyExtremeSeen = false
+var bool sellExtremeSeen = false
+var bool buySweepSeen = false
+var bool sellSweepSeen = false
+var int buyZoneCount = 0
+var int sellZoneCount = 0
+
+extremeLen = math.max(previousExtremeLookback, 1)
+sweepLen = math.max(liquiditySweepLookback, 1)
+previousLow = ta.lowest(low[1], extremeLen)
+previousHigh = ta.highest(high[1], extremeLen)
+sweepLow = ta.lowest(low[1], sweepLen)
+sweepHigh = ta.highest(high[1], sweepLen)
+
+buyExtremeNow = previousExtremeLookback > 0 and low <= previousLow
+sellExtremeNow = previousExtremeLookback > 0 and high >= previousHigh
+buySweepNow = liquiditySweepLookback > 0 and low < sweepLow and close > sweepLow
+sellSweepNow = liquiditySweepLookback > 0 and high > sweepHigh and close < sweepHigh
+
+if buyZoneEntered
+    buyZoneCount += 1
+    buyArmed := true
+    sellArmed := false
+    buyArmBar := bar_index
+    buyReactionCount := 0
+    sellReactionCount := 0
+    buyExtremeSeen := buyExtremeNow
+    buySweepSeen := buySweepNow
+
+if sellZoneEntered
+    sellZoneCount += 1
+    sellArmed := true
+    buyArmed := false
+    sellArmBar := bar_index
+    sellReactionCount := 0
+    buyReactionCount := 0
+    sellExtremeSeen := sellExtremeNow
+    sellSweepSeen := sellSweepNow
+
+if buyArmed
+    buyExtremeSeen := buyExtremeSeen or buyExtremeNow
+    buySweepSeen := buySweepSeen or buySweepNow
+
+if sellArmed
+    sellExtremeSeen := sellExtremeSeen or sellExtremeNow
+    sellSweepSeen := sellSweepSeen or sellSweepNow
+
+if buyArmed and bar_index - buyArmBar > maxReactionWaitBars
+    buyArmed := false
+    buyReactionCount := 0
+
+if sellArmed and bar_index - sellArmBar > maxReactionWaitBars
+    sellArmed := false
+    sellReactionCount := 0
+
+buyPriceReaction = not requirePriceReaction or close > close[1]
+sellPriceReaction = not requirePriceReaction or close < close[1]
+buySignalCrossOK = not requireRMISignalCross or ta.crossover(rmi, rmiSignal)
+sellSignalCrossOK = not requireRMISignalCross or ta.crossunder(rmi, rmiSignal)
+
+buyReactionBar = buyArmed and bar_index > buyArmBar and rmi > rmi[1] and buyPriceReaction
+sellReactionBar = sellArmed and bar_index > sellArmBar and rmi < rmi[1] and sellPriceReaction
+
+if buyArmed
+    buyReactionCount := buyReactionBar ? buyReactionCount + 1 : 0
+if sellArmed
+    sellReactionCount := sellReactionBar ? sellReactionCount + 1 : 0
+
+buyOptionalOK = (previousExtremeLookback == 0 or buyExtremeSeen) and (liquiditySweepLookback == 0 or buySweepSeen)
+sellOptionalOK = (previousExtremeLookback == 0 or sellExtremeSeen) and (liquiditySweepLookback == 0 or sellSweepSeen)
+
+f_h1_trend() =>
+    _eF = ta.ema(close, teacherFastLen)
+    _eS = ta.ema(close, teacherSlowLen)
+    _emaUp = close > _eF and _eF > _eS
+    _emaDn = close < _eF and _eF < _eS
+    [_stLine, _stDir] = ta.supertrend(teacherSuperFactor, teacherSuperATR)
+    _stUp = _stDir < 0
+    _stDn = _stDir > 0
+    _lr = ta.linreg(close, teacherLinLen, 0)
+    _lrUp = close > _lr and _lr > _lr[2]
+    _lrDn = close < _lr and _lr < _lr[2]
+    _dHi = ta.highest(high, teacherDonLen)
+    _dLo = ta.lowest(low, teacherDonLen)
+    _dRng = math.max(_dHi - _dLo, syminfo.mintick)
+    _donUp = close >= _dHi - _dRng * 0.30
+    _donDn = close <= _dLo + _dRng * 0.30
+    [_dmiP, _dmiM, _dmiADX] = ta.dmi(14, 14)
+    _dmiUp = _dmiP > _dmiM and _dmiADX >= teacherDmiADX
+    _dmiDn = _dmiM > _dmiP and _dmiADX >= teacherDmiADX
+    _up = teacherMode == "SUPERTREND" ? _stUp : teacherMode == "LINREG" ? _lrUp : teacherMode == "DONCHIAN" ? _donUp : teacherMode == "DMI" ? _dmiUp : _emaUp
+    _dn = teacherMode == "SUPERTREND" ? _stDn : teacherMode == "LINREG" ? _lrDn : teacherMode == "DONCHIAN" ? _donDn : teacherMode == "DMI" ? _dmiDn : _emaDn
+    [_up[1], _dn[1]]
+
+[macroUpRaw, macroDownRaw] = request.security(syminfo.tickerid, teacherTF, f_h1_trend(), barmerge.gaps_off, barmerge.lookahead_off)
+macroUp = macroUpRaw
+macroDown = macroDownRaw and not macroUpRaw
+macroFlat = not macroUp and not macroDown
+
+buyRegimeOK = not useTrendTeacher or (macroUp and buyInUp) or (macroDown and buyInDown) or (macroFlat and buyInFlat)
+sellRegimeOK = not useTrendTeacher or (macroUp and sellInUp) or (macroDown and sellInDown) or (macroFlat and sellInFlat)
+
+rawBuyEntry = enableRMIEntries and enableBuy and buyRegimeOK and buyArmed and buyReactionCount >= reactionBars and buyOptionalOK and buySignalCrossOK
+rawSellEntry = enableRMIEntries and enableSell and sellRegimeOK and sellArmed and sellReactionCount >= reactionBars and sellOptionalOK and sellSignalCrossOK
+
+// ══════════════════════════════════════════════════════════════════
+// BUY WING — installed candidates (chair currently vacant: OFF)
+// ══════════════════════════════════════════════════════════════════
+// FALSE_BREAK params
+fbLookback = input.int(60, "FB: Prior Low Lookback", minval=10, maxval=500, group=G_WING)
+fbReclaimBars = input.int(3, "FB: Reclaim Within Bars", minval=1, maxval=20, group=G_WING)
+
+// DEEP_RMI params
+drLength = input.int(18, "DR: RMI Length", minval=1, group=G_WING)
+drMomentum = input.int(6, "DR: RMI Momentum", minval=1, group=G_WING)
+drZone = input.float(15.0, "DR: Deep Oversold Zone", minval=1.0, maxval=40.0, step=1.0, group=G_WING)
+drReactionBars = input.int(2, "DR: Consecutive Reaction Candles", minval=1, maxval=10, group=G_WING)
+drMaxWait = input.int(6, "DR: Maximum Bars After Zone", minval=1, maxval=50, group=G_WING)
+
+// BAND_SNAP params
+bsLength = input.int(20, "BS: Band Length", minval=5, maxval=200, group=G_WING)
+bsDev = input.float(2.5, "BS: Band Deviation", minval=1.0, maxval=5.0, step=0.1, group=G_WING)
+bsClosePos = input.float(0.60, "BS: Min Close Position", minval=0.5, maxval=0.95, step=0.05, group=G_WING)
+
+// MOMO_DIV params
+mdWindow = input.int(60, "MD: Low Window", minval=10, maxval=500, group=G_WING)
+mdRsiLen = input.int(14, "MD: RSI Length", minval=2, maxval=100, group=G_WING)
+mdMinGap = input.float(5.0, "MD: Min RSI Gap Above Window Low", minval=1.0, maxval=30.0, step=0.5, group=G_WING)
+
+// CANDIDATE 1 — FALSE_BREAK: sweep of a prior low + fast close reclaim
+// ══════════════════════════════════════════════════════════════════
+fbPriorLow = ta.lowest(low[1], fbLookback)
+fbSweepNow = low < fbPriorLow
+var int fbSweepBar = na
+var float fbSweepLevel = na
+if fbSweepNow
+    fbSweepBar := bar_index
+    fbSweepLevel := fbPriorLow
+fbFresh = not na(fbSweepBar) and bar_index - fbSweepBar <= fbReclaimBars
+fbEntry = fbFresh and not na(fbSweepLevel) and close > fbSweepLevel and close > open
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 2 — DEEP_RMI: deep oversold arm + consecutive recovery
+// ══════════════════════════════════════════════════════════════════
+drUp = ta.ema(math.max(close - close[drMomentum], 0.0), drLength)
+drDown = ta.ema(math.max(close[drMomentum] - close, 0.0), drLength)
+drRmi = drDown == 0.0 ? (drUp == 0.0 ? 50.0 : 100.0) : 100.0 - 100.0 / (1.0 + drUp / drDown)
+drInZone = drRmi <= drZone
+drZoneEntered = drInZone and not drInZone[1]
+var bool drArmed = false
+var int drArmBar = na
+var int drCount = 0
+if drZoneEntered
+    drArmed := true
+    drArmBar := bar_index
+    drCount := 0
+if drArmed and bar_index - drArmBar > drMaxWait
+    drArmed := false
+    drCount := 0
+drReactionBar = drArmed and bar_index > drArmBar and drRmi > drRmi[1] and close > close[1]
+if drArmed
+    drCount := drReactionBar ? drCount + 1 : 0
+drEntry = drArmed and drCount >= drReactionBars
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 3 — BAND_SNAP: deep stretch below band + reversal candle
+// ══════════════════════════════════════════════════════════════════
+bsBasis = ta.sma(close, bsLength)
+bsSnapLevel = bsBasis - ta.stdev(close, bsLength) * bsDev
+bsStretched = low < bsSnapLevel
+bsRange = math.max(high - low, syminfo.mintick)
+bsRevCandle = close > open and (close - low) / bsRange >= bsClosePos
+bsEntry = bsStretched and bsRevCandle
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 4 — MOMO_DIV: new window low, RSI refuses to confirm
+// ══════════════════════════════════════════════════════════════════
+mdRsi = ta.rsi(close, mdRsiLen)
+mdNewLow = low <= ta.lowest(low, mdWindow)
+mdRsiFloor = ta.lowest(mdRsi, mdWindow)
+mdDiverging = mdRsi >= mdRsiFloor + mdMinGap
+mdEntry = mdNewLow and mdDiverging and close > open
+
+
+// ══════════════════════════════════════════════════════════════════
+// R30 ELITE BUY SCHOOLS — faithful extraction of the inner-court
+// champions (chVzB +4400 7/7, chKeltB +3650 7/7, r11ConnB +3150 7/7,
+// chCmoB +2800 6/7, chUtB +1500 5/7) with their exact SYR30 defaults.
+// Shared chassis: RSI3 deep + big candle (range > 1.5 x ATR14).
+// ══════════════════════════════════════════════════════════════════
+elAtr = ta.atr(14)
+elEma = ta.ema(close, 20)
+elRsi3 = ta.rsi(close, 3)
+elBig = (high - low) > 1.5 * elAtr
+
+elTp3 = (high + low + close) / 3
+elVw = ta.sma(elTp3 * nz(volume, 0.0), 20) / (ta.sma(nz(volume, 0.0), 20) + 0.00001)
+elSdv = ta.stdev(elTp3 - elVw, 50)
+vzEntry = low < elVw - 2.0 * elSdv and elRsi3 < 18.0 and elBig
+
+keltEntry = low < elEma - 2.0 * elAtr and elRsi3 < 18.0 and elBig
+
+var int connLastBar = -100000
+connWarm = bar_index > 260
+connEntry = connWarm and elRsi3 < 18.0 and bar_index - connLastBar > 5
+if connEntry
+    connLastBar := bar_index
+
+elUp = math.max(close - close[1], 0)
+elDn = math.max(close[1] - close, 0)
+elCmo = 100 * (ta.sma(elUp, 9) * 9 - ta.sma(elDn, 9) * 9) / (ta.sma(elUp, 9) * 9 + ta.sma(elDn, 9) * 9 + 0.00001)
+cmoEntry = elCmo < -60.0 and elRsi3 < 18.0 and elBig
+
+[elUtLine, elUtDir] = ta.supertrend(6.0, 7)
+utEntry = elUtDir == -1 and elRsi3 < 18.0 and elBig
+
+eliteAnyEntry = vzEntry or keltEntry or connEntry or cmoEntry
+
+
+wingBuyEntry = buyWingMode == "OFF" ? false : buyWingMode == "FALSE_BREAK" ? fbEntry : buyWingMode == "DEEP_RMI" ? drEntry : buyWingMode == "BAND_SNAP" ? bsEntry : buyWingMode == "MOMO_DIV" ? mdEntry : buyWingMode == "VZ_ABSORB" ? vzEntry : buyWingMode == "KELTNER" ? keltEntry : buyWingMode == "CONNORS" ? connEntry : buyWingMode == "CMO_SNAP" ? cmoEntry : buyWingMode == "UT_V2" ? utEntry : eliteAnyEntry
+
+// ══════════════════════════════════════════════════════════════════
+// TRADE STATE / STATISTICS
+// ══════════════════════════════════════════════════════════════════
+statsActive = statsMode == "All Loaded History" or time >= statsStartTime
+
+var bool active = false
+var int side = 0
+var float entryPrice = na
+var float tpPrice = na
+var float slPrice = na
+var int entryBar = na
+var int lastTradeBar = na
+var float tradeTgt = na
+var float tradeStp = na
+var int lastBuyLossBar = na
+var int lastSellLossBar = na
+
+var int wins = 0
+var int losses = 0
+var int trades = 0
+var int buyTrades = 0
+var int sellTrades = 0
+var int buyWins = 0
+var int buyLosses = 0
+var int sellWins = 0
+var int sellLosses = 0
+var int curWin = 0
+var int maxWin = 0
+var int curLoss = 0
+var int maxLoss = 0
+var float netPts = 0.0
+var float sumWinPts = 0.0
+var float sumLossPts = 0.0
+var float lastClosedPts = 0.0
+
+var line entryLine = na
+var line tpLine = na
+var line slLine = na
+var label entryTag = na
+var label tpTag = na
+var label slTag = na
+
+var bool entryBuyPlot = false
+var bool entrySellPlot = false
+var bool exitTPPlot = false
+var bool exitSLPlot = false
+var int lastResetKey = manualResetKey
+var int lastAlertBar = na
+
+entryBuyPlot := false
+entrySellPlot := false
+exitTPPlot := false
+exitSLPlot := false
+
+f_delete_trade_visuals() =>
+    if not na(entryLine)
+        line.delete(entryLine)
+    if not na(tpLine)
+        line.delete(tpLine)
+    if not na(slLine)
+        line.delete(slLine)
+    if not na(entryTag)
+        label.delete(entryTag)
+    if not na(tpTag)
+        label.delete(tpTag)
+    if not na(slTag)
+        label.delete(slTag)
+
+if manualResetKey != lastResetKey
+    f_delete_trade_visuals()
+    active := false
+    side := 0
+    entryPrice := na
+    tpPrice := na
+    slPrice := na
+    entryBar := na
+    lastTradeBar := na
+    lastBuyLossBar := na
+    lastSellLossBar := na
+    wins := 0
+    losses := 0
+    trades := 0
+    buyTrades := 0
+    sellTrades := 0
+    buyWins := 0
+    buyLosses := 0
+    sellWins := 0
+    sellLosses := 0
+    curWin := 0
+    maxWin := 0
+    curLoss := 0
+    maxLoss := 0
+    netPts := 0.0
+    sumWinPts := 0.0
+    sumLossPts := 0.0
+    lastClosedPts := 0.0
+    buyArmed := false
+    sellArmed := false
+    buyReactionCount := 0
+    sellReactionCount := 0
+    buyZoneCount := 0
+    sellZoneCount := 0
+    entryLine := na
+    tpLine := na
+    slLine := na
+    entryTag := na
+    tpTag := na
+    slTag := na
+    lastResetKey := manualResetKey
+
+globalCooldownOK = na(lastTradeBar) or bar_index - lastTradeBar >= cooldownBars
+buyCooldownOK = na(lastBuyLossBar) or bar_index - lastBuyLossBar >= buyCooldownBars
+sellCooldownOK = na(lastSellLossBar) or bar_index - lastSellLossBar >= sellCooldownBars
+
+canEnterLong = barstate.isconfirmed and not active and globalCooldownOK and buyCooldownOK and wingBuyEntry
+canEnterShort = barstate.isconfirmed and not active and globalCooldownOK and sellCooldownOK and rawSellEntry
+
+// A completed RMI setup is consumed immediately. It is never queued behind
+// an already open trade.
+if rawBuyEntry or rawSellEntry
+    buyArmed := false
+    sellArmed := false
+    buyReactionCount := 0
+    sellReactionCount := 0
+
+if canEnterLong or canEnterShort
+    active := true
+    side := canEnterLong ? 1 : -1
+    entryPrice := close
+    tradeTgt := side == 1 ? buyWingTarget : targetPoints
+    tradeStp := side == 1 ? buyWingStop : stopPoints
+    tpPrice := side == 1 ? entryPrice + tradeTgt * pointUnit : entryPrice - tradeTgt * pointUnit
+    slPrice := side == 1 ? entryPrice - tradeStp * pointUnit : entryPrice + tradeStp * pointUnit
+    entryBar := bar_index
+    lastTradeBar := bar_index
+
+    if statsActive
+        if side == 1
+            buyTrades += 1
+        else
+            sellTrades += 1
+
+    entryBuyPlot := side == 1
+    entrySellPlot := side == -1
+
+    if showTradeLines
+        f_delete_trade_visuals()
+        entryLine := line.new(bar_index, entryPrice, bar_index + lineBars, entryPrice, xloc=xloc.bar_index, extend=extend.none, color=EN_C, width=1, force_overlay=true)
+        tpLine := line.new(bar_index, tpPrice, bar_index + lineBars, tpPrice, xloc=xloc.bar_index, extend=extend.none, color=TP_C, width=1, force_overlay=true)
+        slLine := line.new(bar_index, slPrice, bar_index + lineBars, slPrice, xloc=xloc.bar_index, extend=extend.none, color=SL_C, width=1, force_overlay=true)
+
+        if showLineTags
+            entryTag := label.new(bar_index + lineBars, entryPrice, "ENTRY", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=EN_C, textcolor=color.black, size=size.tiny, force_overlay=true)
+            tpTag := label.new(bar_index + lineBars, tpPrice, "TP " + str.tostring(targetPoints, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=TP_C, textcolor=TXT_C, size=size.tiny, force_overlay=true)
+            slTag := label.new(bar_index + lineBars, slPrice, "SL " + str.tostring(stopPoints, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=SL_C, textcolor=TXT_C, size=size.tiny, force_overlay=true)
+
+if active and bar_index > entryBar
+    hitTP = side == 1 ? high >= tpPrice : low <= tpPrice
+    hitSL = side == 1 ? low <= slPrice : high >= slPrice
+    both = hitTP and hitSL
+    skipTrade = both and sameCandleRule == "Skip"
+    isWin = both ? (not skipTrade and sameCandleRule == "Target First") : hitTP
+    isLoss = both ? (not skipTrade and sameCandleRule == "Stop First") : hitSL
+
+    if isWin or isLoss or skipTrade
+        exitPts = skipTrade ? 0.0 : isWin ? tradeTgt : -tradeStp
+        statsCounted = statsActive and not skipTrade
+
+        if statsCounted
+            trades += 1
+            netPts += exitPts
+            lastClosedPts := exitPts
+
+            if exitPts > 0
+                wins += 1
+                sumWinPts += exitPts
+                curWin += 1
+                curLoss := 0
+                maxWin := math.max(maxWin, curWin)
+                if side == 1
+                    buyWins += 1
+                else
+                    sellWins += 1
+                exitTPPlot := true
+            else
+                losses += 1
+                sumLossPts += math.abs(exitPts)
+                curLoss += 1
+                curWin := 0
+                maxLoss := math.max(maxLoss, curLoss)
+                if side == 1
+                    buyLosses += 1
+                    lastBuyLossBar := bar_index
+                else
+                    sellLosses += 1
+                    lastSellLossBar := bar_index
+                exitSLPlot := true
+
+        if showSignals and statsCounted
+            if isWin
+                label.new(bar_index, tpPrice, "TP " + str.tostring(tradeTgt, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=TP_C, textcolor=TXT_C, size=size.tiny, force_overlay=true)
+            else
+                label.new(bar_index, slPrice, "SL " + str.tostring(tradeStp, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_up, color=SL_C, textcolor=TXT_C, size=size.tiny, force_overlay=true)
+
+        f_delete_trade_visuals()
+        entryLine := na
+        tpLine := na
+        slLine := na
+        entryTag := na
+        tpTag := na
+        slTag := na
+        active := false
+        side := 0
+        entryPrice := na
+        tpPrice := na
+        slPrice := na
+        entryBar := na
+
+// ══════════════════════════════════════════════════════════════════
+// BOT ALERT — uses the exact active entry/TP/SL plan.
+// ══════════════════════════════════════════════════════════════════
+alertFire = useAlertFunction and barstate.isconfirmed and (canEnterLong or canEnterShort) and (na(lastAlertBar) or lastAlertBar != bar_index)
+if alertFire
+    lastAlertBar := bar_index
+    sideText = side == 1 ? "BUY" : "SELL"
+    jsonMessage = '{"key":"' + webhookKey + '","action":"' + sideText + '","side":"' + sideText + '","symbol":"' + botSymbol + '","lot":' + str.tostring(lotSize) + ',"tp_points":' + str.tostring(targetPoints, "#.##") + ',"sl_points":' + str.tostring(stopPoints, "#.##") + ',"target_points":' + str.tostring(targetPoints, "#.##") + ',"stop_points":' + str.tostring(stopPoints, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice, format.mintick) + ',"tp_price":' + str.tostring(tpPrice, format.mintick) + ',"sl_price":' + str.tostring(slPrice, format.mintick) + ',"entry_model":"RMI_REACTION","indicator":"RMI TRADER","time":"' + str.tostring(time) + '"}'
+    simpleMessage = webhookKey + " " + sideText + " " + botSymbol + " MODEL RMI_REACTION LOT " + str.tostring(lotSize) + " TP " + str.tostring(targetPoints, "#.##") + " SL " + str.tostring(stopPoints, "#.##")
+    alert(alertFormat == "JSON" ? jsonMessage : simpleMessage, alert.freq_once_per_bar_close)
+
+// ══════════════════════════════════════════════════════════════════
+// CHART VISUALS — same visual language as SYR30
+// ══════════════════════════════════════════════════════════════════
+plotshape(showSignals and statsActive and entryBuyPlot, title="RMI BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small, force_overlay=true)
+plotshape(showSignals and statsActive and entrySellPlot, title="RMI SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small, force_overlay=true)
+plotshape(showSignals and exitTPPlot, title="RMI TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny, force_overlay=true)
+plotshape(showSignals and exitSLPlot, title="RMI SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny, force_overlay=true)
+
+// ══════════════════════════════════════════════════════════════════
+// SYR30-STYLE TABLE — displayed on the main price chart.
+// ══════════════════════════════════════════════════════════════════
+wr = trades > 0 ? wins * 100.0 / trades : 0.0
+avgWinPts = wins > 0 ? sumWinPts / wins : 0.0
+avgLossPts = losses > 0 ? sumLossPts / losses : 0.0
+
+var table t = table.new(position.top_right, 2, 17, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+
+if showTable and barstate.islast
+    table.cell(t, 0, 0, "RMI", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 1, 0, "TWO WINGS | BUY: " + buyWingMode, text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+
+    table.cell(t, 0, 1, "Win", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 2, "Loss", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 3, "WR", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(wr, "#.##") + "%", text_color=wr >= 60 ? BUY_C : wr >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 4, "Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 5, "Max W", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 6, "Max L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 6, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 7, "Avg TP", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 7, str.tostring(avgWinPts, "#.##"), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 8, "Avg SL", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 8, str.tostring(avgLossPts, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 9, "Last", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 9, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#.##"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 10, "From", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 10, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm 'UTC'", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 11, "Manager", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 11, "RMI REACTION HARD", text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 12, "BUY W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 12, str.tostring(buyWins) + "/" + str.tostring(buyLosses), text_color=buyWins >= buyLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 13, "SELL W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 13, str.tostring(sellWins) + "/" + str.tostring(sellLosses), text_color=sellWins >= sellLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 14, "Open", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 14, active ? (side == 1 ? "BUY" : "SELL") : "-", text_color=active ? (side == 1 ? BUY_C : SELL_C) : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 15, "Zone B/S", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 15, str.tostring(buyZoneCount) + "/" + str.tostring(sellZoneCount), text_color=(buyZoneCount + sellZoneCount) > 0 ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 16, "RMI / Sig", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 16, str.tostring(rmi, "#.##") + " / " + str.tostring(rmiSignal, "#.##"), text_color=rmi >= rmiOverbought ? SELL_C : rmi <= rmiOversold ? BUY_C : EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+else if not showTable and barstate.islast
+    table.clear(t, 0, 0, 1, 16)
+
+alertcondition(canEnterLong, "RMI BUY", "RMI BUY | REACTION | HARD TP/SL")
+alertcondition(canEnterShort, "RMI SELL", "RMI SELL | REACTION | HARD TP/SL")
