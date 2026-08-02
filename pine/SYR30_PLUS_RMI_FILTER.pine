@@ -2658,6 +2658,9 @@ sellSignal := sellSignal or chTriS or chSniS
 //    (falling / signal-line cross), never while still climbing.
 // ③ Strong Trend Guard: counter-trend fades are fully blocked
 //    while ADX + HTF map confirm a strong trend.
+// ④ Zone-Only Mode: BUY only from low RMI, SELL only from high RMI,
+//    middle blocked. With-trend continuation passes only while RMI
+//    momentum agrees with the trade direction.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_RMIF = "18 ■ RMI Filter (المؤشر الثاني + الحماية)"
 useRmiFilter = input.bool(true, "Use RMI Filter", group=G_RMIF)
@@ -2671,6 +2674,9 @@ rmiFBlockSellOS = input.bool(true, "① Block SELL In Oversold", group=G_RMIF)
 rmiFStrict = input.bool(true, "② Strict Reversal Confirm", group=G_RMIF)
 rmiFTrendGuard = input.bool(true, "③ Strong Trend Guard", group=G_RMIF)
 rmiFTrendADX = input.float(28.0, "③ Strong Trend Min ADX", minval=5.0, maxval=60.0, step=1.0, group=G_RMIF)
+rmiFZoneOnly = input.bool(true, "④ Zone-Only Mode: BUY Low / SELL High", group=G_RMIF)
+rmiFBuyMax = input.float(45.0, "④ BUY Only Below RMI", minval=10.0, maxval=90.0, step=1.0, group=G_RMIF)
+rmiFSellMin = input.float(60.0, "④ SELL Only Above RMI", minval=10.0, maxval=90.0, step=1.0, group=G_RMIF)
 rmiFShowBlocked = input.bool(true, "Show Blocked X Marks", group=G_RMIF)
 
 // Exact TheLark RMI formula (EMA smoothing, dn==0 -> 0 guard)
@@ -2692,15 +2698,17 @@ rmiFCrossDn = ta.crossunder(rmiFVal, rmiFSigLine)
 rmiFStrongUp = adx >= rmiFTrendADX and (htfScore >= 2.0 or (tf5Dir == 1 and tf15Dir == 1)) and ema20 > ema50 and close > ema20
 rmiFStrongDown = adx >= rmiFTrendADX and (htfScore <= -2.0 or (tf5Dir == -1 and tf15Dir == -1)) and ema20 < ema50 and close < ema20
 
-rmiFBuyZoneOK = not rmiFBlockBuyOB or not rmiFOB or rmiFStrongUp
-rmiFSellZoneOK = not rmiFBlockSellOS or not rmiFOS or rmiFStrongDown
+rmiFBuyZoneOK = not rmiFBlockBuyOB or not rmiFOB or (rmiFStrongUp and rmiFRising)
+rmiFSellZoneOK = not rmiFBlockSellOS or not rmiFOS or (rmiFStrongDown and rmiFFalling)
 rmiFBuyStrictOK = not rmiFStrict or not rmiFOS or rmiFRising or rmiFCrossUp
 rmiFSellStrictOK = not rmiFStrict or not rmiFOB or rmiFFalling or rmiFCrossDn
 rmiFBuyTrendOK = not rmiFTrendGuard or not rmiFStrongDown
 rmiFSellTrendOK = not rmiFTrendGuard or not rmiFStrongUp
+rmiFZoneOnlyBuyOK = not rmiFZoneOnly or rmiFVal <= rmiFBuyMax or (rmiFStrongUp and rmiFRising)
+rmiFZoneOnlySellOK = not rmiFZoneOnly or rmiFVal >= rmiFSellMin or (rmiFStrongDown and rmiFFalling)
 
-rmiFBuyOK = not useRmiFilter or (rmiFBuyZoneOK and rmiFBuyStrictOK and rmiFBuyTrendOK)
-rmiFSellOK = not useRmiFilter or (rmiFSellZoneOK and rmiFSellStrictOK and rmiFSellTrendOK)
+rmiFBuyOK = not useRmiFilter or (rmiFBuyZoneOK and rmiFBuyStrictOK and rmiFBuyTrendOK and rmiFZoneOnlyBuyOK)
+rmiFSellOK = not useRmiFilter or (rmiFSellZoneOK and rmiFSellStrictOK and rmiFSellTrendOK and rmiFZoneOnlySellOK)
 
 rmiFBlockedBuy = rmiFShowBlocked and useRmiFilter and barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and not rmiFBuyOK
 rmiFBlockedSell = rmiFShowBlocked and useRmiFilter and barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and not rmiFSellOK
