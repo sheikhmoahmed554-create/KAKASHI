@@ -2086,6 +2086,17 @@ var int maxLoss = 0
 var int curWin = 0
 var int maxWin = 0
 var float netPts = 0.0
+var int baseSrcWins = 0
+var int baseSrcLosses = 0
+var float baseSrcNet = 0.0
+var float m1SrcNet = 0.0
+var float pocSrcNet = 0.0
+var float tvSrcNet = 0.0
+var float fusionSrcNet = 0.0
+var int longLossN = 0
+var int shortLossN = 0
+var float longNetPts = 0.0
+var float shortNetPts = 0.0
 var float sumWinPts = 0.0
 var float sumLossPts = 0.0
 var float lastClosedPts = 0.0
@@ -2196,6 +2207,17 @@ if manualResetKey != lastResetKey   // date is display-only filter; engine runs 
     curWin := 0
     maxWin := 0
     netPts := 0.0
+    baseSrcWins := 0
+    baseSrcLosses := 0
+    baseSrcNet := 0.0
+    m1SrcNet := 0.0
+    pocSrcNet := 0.0
+    tvSrcNet := 0.0
+    fusionSrcNet := 0.0
+    longLossN := 0
+    shortLossN := 0
+    longNetPts := 0.0
+    shortNetPts := 0.0
     sumWinPts := 0.0
     sumLossPts := 0.0
     lastClosedPts := 0.0
@@ -2856,8 +2878,21 @@ if active and bar_index > entryBar
                 maxWin := math.max(maxWin, curWin)
                 if side == 1
                     longWins += 1
+                    longNetPts += exitPts
                 else
                     shortWins += 1
+                    shortNetPts += exitPts
+                if tradeEntrySourceCode == 0
+                    baseSrcWins += 1
+                    baseSrcNet += exitPts
+                else if tradeEntrySourceCode <= 3
+                    m1SrcNet += exitPts
+                else if tradeEntrySourceCode == 4
+                    pocSrcNet += exitPts
+                else if tradeEntrySourceCode == 5
+                    tvSrcNet += exitPts
+                else
+                    fusionSrcNet += exitPts
             if not earlyExit and statsCounted
                 sy348ExitTPPlot := true
         else if not skipTrade
@@ -2869,6 +2904,23 @@ if active and bar_index > entryBar
                 curLoss += 1
                 curWin := 0
                 maxLoss := math.max(maxLoss, curLoss)
+                if side == 1
+                    longLossN += 1
+                    longNetPts += exitPts
+                else
+                    shortLossN += 1
+                    shortNetPts += exitPts
+                if tradeEntrySourceCode == 0
+                    baseSrcLosses += 1
+                    baseSrcNet += exitPts
+                else if tradeEntrySourceCode <= 3
+                    m1SrcNet += exitPts
+                else if tradeEntrySourceCode == 4
+                    pocSrcNet += exitPts
+                else if tradeEntrySourceCode == 5
+                    tvSrcNet += exitPts
+                else
+                    fusionSrcNet += exitPts
             if side == 1
                 lastLongStopBar := bar_index
                 if tradeKind == 1
@@ -3075,7 +3127,7 @@ color TBL_BG_HEAD = color.rgb(22, 24, 34)
 color TBL_BG_ROW = color.rgb(18, 20, 30)
 color TBL_BG_ROW2 = color.rgb(20, 22, 32)
 
-var table t = table.new(position.top_right, 2, 17, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+var table t = table.new(position.top_right, 2, 22, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 if showTable and barstate.islast
     table.cell(t, 0, 0, "SYXAUUSD", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 1, 0, "FINAL K3 CACHE | F>TV>B", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
@@ -3129,8 +3181,23 @@ if showTable and barstate.islast
 
     table.cell(t, 0, 16, "M1 W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
     table.cell(t, 1, 16, str.tostring(m1LiveM1Wins) + "/" + str.tostring(m1LiveM1Losses), text_color=m1LiveM1Wins >= m1LiveM1Losses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 17, "BASE W/L Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 17, str.tostring(baseSrcWins) + "/" + str.tostring(baseSrcLosses) + "  " + (baseSrcNet >= 0 ? "+" : "") + str.tostring(baseSrcNet, "#"), text_color=baseSrcNet >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 18, "Net TV | FUSN", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 18, (tvSrcNet >= 0 ? "+" : "") + str.tostring(tvSrcNet, "#") + " | " + (fusionSrcNet >= 0 ? "+" : "") + str.tostring(fusionSrcNet, "#"), text_color=(tvSrcNet + fusionSrcNet) >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 19, "Net M1 | POC", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 19, (m1SrcNet >= 0 ? "+" : "") + str.tostring(m1SrcNet, "#") + " | " + (pocSrcNet >= 0 ? "+" : "") + str.tostring(pocSrcNet, "#"), text_color=(m1SrcNet + pocSrcNet) >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 20, "BUY W/L Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 20, str.tostring(longWins) + "/" + str.tostring(longLossN) + "  " + (longNetPts >= 0 ? "+" : "") + str.tostring(longNetPts, "#"), text_color=longNetPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 21, "SELL W/L Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 21, str.tostring(shortWins) + "/" + str.tostring(shortLossN) + "  " + (shortNetPts >= 0 ? "+" : "") + str.tostring(shortNetPts, "#"), text_color=shortNetPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 else if not showTable and barstate.islast
-    table.clear(t, 0, 0, 1, 16)
+    table.clear(t, 0, 0, 1, 21)
 
 alertcondition(canEnterLong, "SYR30 BUY", "SYR30 BUY | FINAL K3 CACHE")
 alertcondition(canEnterShort, "SYR30 SELL", "SYR30 SELL | FINAL K3 CACHE")
