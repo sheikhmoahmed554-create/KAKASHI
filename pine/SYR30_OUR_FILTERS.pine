@@ -3030,7 +3030,7 @@ if active and bar_index > entryBar
         sy999TradeMAE := 0.0
         sy999TradeRegime := 1
 
-if statsActive
+if statsActive and not useMainFixedRisk
     learnLongTypeNow = sy334BuySweep ? 2 : sy334BuyRange ? 1 : 3
     learnShortTypeNow = sy334SellSweep ? -2 : sy334SellRange ? -1 : -3
 
