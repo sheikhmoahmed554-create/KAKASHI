@@ -395,7 +395,9 @@ mcFibBuyOK = mcFibRange > 0 and close >= mcFibBot + mcFibRange * 0.236
 mcFibSellOK = mcFibRange > 0 and close <= mcFibTop - mcFibRange * 0.236
 
 // Moving average — عبور المتوسط أو الوقوف في جهته
-mcMa = mcMaType == "EMA" ? ta.ema(close, mcMaLen) : ta.sma(close, mcMaLen)
+mcMaEmaV = ta.ema(close, mcMaLen)
+mcMaSmaV = ta.sma(close, mcMaLen)
+mcMa = mcMaType == "EMA" ? mcMaEmaV : mcMaSmaV
 mcMaBuy = ta.crossover(close, mcMa)
 mcMaSell = ta.crossunder(close, mcMa)
 mcMaBuyOK = close > mcMa
@@ -404,7 +406,7 @@ mcMaSellOK = close < mcMa
 // Breakout & Retest — قمة محورية تتشكّل قرب قاعٍ سبق كسره تعني بيعاً، والعكس شراء.
 // الأصل يحفظ آخر ثلاث نقاط محورية في قائمة؛ القوائم غير متاحة في محرك الاختبار
 // فكُتبت الفتحات الثلاث صراحةً، والسلوك واحد.
-mcBrtConfirm = math.max(1, mcBrtPeriod / mcBrtConfirmDiv)
+mcBrtConfirm = int(math.max(1, mcBrtPeriod / mcBrtConfirmDiv))
 mcBrtTol = ta.atr(mcBrtAtrLen) * mcBrtAtrMult
 mcBrtPh = ta.pivothigh(high, mcBrtPeriod, mcBrtConfirm)
 mcBrtPl = ta.pivotlow(low, mcBrtPeriod, mcBrtConfirm)
@@ -952,8 +954,10 @@ mcQqeDnCross = ta.crossunder(mcQqeIdx, mcQqeLbPrev)
 mcQqeTrend := mcQqeUpCross ? 1 : mcQqeDnCross ? -1 : nz(mcQqeTrend[1], 1)
 mcQqeTl = mcQqeTrend == 1 ? mcQqeLo : mcQqeSh
 mcQqeAbove = mcQqeTl < mcQqeIdx
-mcQqeBuy = mcQqeAbove and not nz(mcQqeAbove[1], false)
-mcQqeSell = not mcQqeAbove and nz(mcQqeAbove[1], false)
+var bool mcQqeAbovePrev = false
+mcQqeBuy = mcQqeAbove and not mcQqeAbovePrev
+mcQqeSell = not mcQqeAbove and mcQqeAbovePrev
+mcQqeAbovePrev := mcQqeAbove
 mcQqeBuyOK = mcQqeAbove
 mcQqeSellOK = not mcQqeAbove
 
@@ -976,8 +980,10 @@ mcSqzMom = ta.linreg(close - mcSqzMid, mcSqzMomLen, 0)
 mcSqzSig = ta.sma(mcSqzMom, mcSqzSigLen)
 mcSqzCrossBuy = ta.crossover(mcSqzMom, mcSqzSig)
 mcSqzCrossSell = ta.crossunder(mcSqzMom, mcSqzSig)
-mcSqzRelBuy = mcSqzOff and not nz(mcSqzOff[1], false) and mcSqzMom >= mcSqzSig
-mcSqzRelSell = mcSqzOff and not nz(mcSqzOff[1], false) and mcSqzMom < mcSqzSig
+var bool mcSqzOffPrev = false
+mcSqzRelBuy = mcSqzOff and not mcSqzOffPrev and mcSqzMom >= mcSqzSig
+mcSqzRelSell = mcSqzOff and not mcSqzOffPrev and mcSqzMom < mcSqzSig
+mcSqzOffPrev := mcSqzOff
 mcSqzBuy = mcSqzTrigger == "Signal Cross" ? mcSqzCrossBuy : mcSqzRelBuy
 mcSqzSell = mcSqzTrigger == "Signal Cross" ? mcSqzCrossSell : mcSqzRelSell
 mcSqzBuyOK = mcSqzMom >= mcSqzSig
