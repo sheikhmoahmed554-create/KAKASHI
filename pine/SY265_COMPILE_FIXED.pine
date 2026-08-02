@@ -1,0 +1,3393 @@
+//@version=6
+indicator("SY265", shorttitle="SY265", overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=200, max_bars_back=5000, dynamic_requests=true)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SY265 YOUR SETTINGS LOCKED
+// Defaults copied from your screenshots: Smart / 1m XAUUSD / UT Entry + Our Filters / Sell Balance More Sell.
+// Fixes from SY183:
+// 1) Table counts closed STOP/TP trades clearly.
+// 2) More logical trades: trend pullback, continuation, sweep, retest, FVG, OB, fib, range edge.
+// 3) Map is not only trend. It reads HTF trend, fib, premium/discount, liquidity, structure, value, momentum, room and veto.
+// 4) Signals are confirmed after candle close only.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+color BUY_C  = color.rgb(0, 170, 90)
+color SELL_C = color.rgb(230, 45, 55)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color EN_C   = color.rgb(255, 210, 0)
+color TXT_C  = color.white
+color BG_C   = color.rgb(20, 20, 20)
+color WAIT_C = color.rgb(150, 150, 150)
+color WARN_C = color.rgb(255, 170, 0)
+
+G_MAIN = "■ SY265 Real Market Map"
+mode = input.string("Smart", "Mode", options=["Fast", "Smart", "Strict"], group=G_MAIN)
+tradeSide = input.string("BOTH", "Trade Side", options=["BOTH", "LONG", "SHORT"], group=G_MAIN)
+tfFast = input.timeframe("10", "HTF Fast Trend", group=G_MAIN)
+tfZone = input.timeframe("60", "HTF Zone Map", group=G_MAIN)
+tfBig = input.timeframe("240", "HTF Big Map", group=G_MAIN)
+cooldownBars = input.int(6, "Cooldown Candles Between Trades", minval=0, maxval=500, group=G_MAIN)
+lossCooldownBars = input.int(13, "Block Same Direction After STOP Candles", minval=0, maxval=500, group=G_MAIN)
+maxTradesPerDay = input.int(200, "Max Trades Per Day", minval=1, maxval=500, group=G_MAIN)
+minScoreFast = input.float(10, "Min Score Fast", minval=1, maxval=150, step=0.5, group=G_MAIN)
+minScoreSmart = input.float(10, "Min Score Smart", minval=1, maxval=150, step=0.5, group=G_MAIN)
+minScoreStrict = input.float(19, "Min Score Strict", minval=1, maxval=150, step=0.5, group=G_MAIN)
+maxRiskFast = input.float(9, "Max Risk Fast", minval=0, maxval=100, step=0.5, group=G_MAIN)
+maxRiskSmart = input.float(6.5, "Max Risk Smart", minval=0, maxval=100, step=0.5, group=G_MAIN)
+maxRiskStrict = input.float(4.5, "Max Risk Strict", minval=0, maxval=100, step=0.5, group=G_MAIN)
+minQFast = input.int(8, "Min Confirmed Map Questions Fast", minval=1, maxval=250, group=G_MAIN)
+minQSmart = input.int(1, "Min Confirmed Map Questions Smart", minval=1, maxval=250, group=G_MAIN)
+minQStrict = input.int(18, "Min Confirmed Map Questions Strict", minval=1, maxval=250, group=G_MAIN)
+scoreGapFast = input.float(0.8, "Direction Gap Fast", minval=0, maxval=50, step=0.5, group=G_MAIN)
+scoreGapSmart = input.float(1.3, "Direction Gap Smart", minval=0, maxval=50, step=0.5, group=G_MAIN)
+scoreGapStrict = input.float(2.5, "Direction Gap Strict", minval=0, maxval=50, step=0.5, group=G_MAIN)
+
+G_SCHOOL_TF = "■ School Timeframes"
+useSchoolTF = input.bool(true, "Use Separate TF Per School", group=G_SCHOOL_TF)
+trendSchoolTF = input.timeframe("15", "Trend Pullback School TF", group=G_SCHOOL_TF)
+continuationSchoolTF = input.timeframe("15", "Continuation / Breakout School TF", group=G_SCHOOL_TF)
+liquiditySchoolTF = input.timeframe("15", "Liquidity Sweep School TF", group=G_SCHOOL_TF)
+structureSchoolTF = input.timeframe("30", "Structure MSS School TF", group=G_SCHOOL_TF)
+retestSchoolTF = input.timeframe("10", "Break Retest School TF", group=G_SCHOOL_TF)
+obSchoolTF = input.timeframe("10", "Order Block School TF", group=G_SCHOOL_TF)
+fvgSchoolTF = input.timeframe("15", "FVG School TF", group=G_SCHOOL_TF)
+fibSchoolTF = input.timeframe("15", "Fibo / OTE School TF", group=G_SCHOOL_TF)
+rangeSchoolTF = input.timeframe("60", "Range Edge School TF", group=G_SCHOOL_TF)
+valueSchoolTF = input.timeframe("180", "VWAP / Value School TF", group=G_SCHOOL_TF)
+momentumSchoolTF = input.timeframe("1", "Momentum / Candle School TF", group=G_SCHOOL_TF)
+confirmSchoolTF = input.bool(true, "Use Closed School TF Candle", group=G_SCHOOL_TF)
+
+G_UT = "■ UT Bot Optional Engine"
+useUTBot = input.bool(true, "Use UT Bot Logic", group=G_UT)
+utBotMode = input.string("UT Entry + Our Filters", "UT Bot Role", options=["Assist","Confirm","UT Entry + Our Filters"], group=G_UT)
+utUseCurrentTF = input.bool(true, "UT Bot Use Chart TF", group=G_UT)
+utBotTF = input.timeframe("60", "UT Bot TF If Not Chart TF", group=G_UT)
+utKey = input.float(6, "UT Key Sensitivity", minval=0.1, maxval=10.0, step=0.1, group=G_UT)
+utAtrLen = input.int(15, "UT ATR Period", minval=1, maxval=200, group=G_UT)
+utUseHA = input.bool(true, "UT Source Heikin Ashi", group=G_UT)
+utAssistWeight = input.float(0.8, "UT Helps Our Score", minval=0, maxval=5, step=0.05, group=G_UT)
+utOppositePenalty = input.float(1.4, "UT Opposite Risk Penalty", minval=0, maxval=5, step=0.05, group=G_UT)
+utEntryNeedsStory = input.bool(true, "UT Entry Needs Our Story / Zone", group=G_UT)
+utEntryMinQDrop = input.int(4, "UT Entry Can Reduce Min Q By", minval=0, maxval=10, group=G_UT)
+showUTLine = input.bool(false, "Show UT Trailing Stop", group=G_UT)
+showUTRawLabels = input.bool(false, "Show Raw UT Signals", group=G_UT)
+
+G_SELL_BAL = "■ Sell Balance"
+useSellBalance = input.bool(true, "Use Sell Balance Mode", group=G_SELL_BAL)
+sellBalanceMode = input.string("Balanced", "Sell Balance Mode", options=["Off","Balanced","More Sell"], group=G_SELL_BAL)
+sellBalanceWeight = input.float(0.95, "Sell Balance Score Boost", minval=0, maxval=6, step=0.05, group=G_SELL_BAL)
+sellBalanceRiskRelief = input.float(1.10, "Reduce Sell Risk On Valid Top", minval=0, maxval=8, step=0.05, group=G_SELL_BAL)
+sellBalanceGapRelax = input.float(0.35, "Relax Sell Score Gap", minval=0, maxval=10, step=0.05, group=G_SELL_BAL)
+sellBalanceQDrop = input.int(1, "Reduce Sell Min Q By", minval=0, maxval=10, group=G_SELL_BAL)
+sellBalanceNeedsZone = input.bool(true, "Sell Needs Premium / Resistance Zone", group=G_SELL_BAL)
+sellBalanceNeedsPulse = input.bool(true, "Sell Needs Fresh Bearish Pulse", group=G_SELL_BAL)
+sellBalanceCounterHTF = input.bool(false, "Allow Strong Reversal Sell Against HTF", group=G_SELL_BAL)
+smartSideGuard = input.bool(true, "Smart Side Guard: No One-Side Stuck", group=G_SELL_BAL)
+blockSellInStrongUp = input.bool(true, "Block SELL In Strong Uptrend Unless Real Top", group=G_SELL_BAL)
+blockBuyInStrongDown = input.bool(true, "Block BUY In Strong Downtrend Unless Real Bottom", group=G_SELL_BAL)
+sideGuardTrendPower = input.int(3, "Strong Trend Power Guard", minval=1, maxval=5, group=G_SELL_BAL)
+sideGuardNeedsSweep = input.bool(true, "Countertrend Needs Sweep / Real Reversal", group=G_SELL_BAL)
+sideGuardScoreRelief = input.float(0.55, "With-Trend Score Relief", minval=0, maxval=5, step=0.05, group=G_SELL_BAL)
+
+G_SCALP_CORR = "■ Scalp Correction Engine"
+useScalpCorrection = input.bool(true, "Use Scalp Correction Engine", group=G_SCALP_CORR)
+scalpCorrectionMode = input.string("Balanced", "Correction Mode", options=["Conservative","Balanced","Active"], group=G_SCALP_CORR)
+scalpWithTrendOnly = input.bool(true, "Correction With Trend Only", group=G_SCALP_CORR)
+scalpMinTrendPower = input.int(2, "Min Trend Power For Correction", minval=1, maxval=5, group=G_SCALP_CORR)
+scalpPullbackATR = input.float(0.60, "Pullback Touch ATR", minval=0.05, maxval=5, step=0.05, group=G_SCALP_CORR)
+scalpNeedFreshPulse = input.bool(true, "Need Fresh Rejection / Momentum Pulse", group=G_SCALP_CORR)
+scalpMinRoomPoints = input.int(70, "Min Correction Room Points", minval=1, maxval=2000, group=G_SCALP_CORR)
+scalpScoreBoost = input.float(1.85, "Correction Score Boost", minval=0, maxval=10, step=0.05, group=G_SCALP_CORR)
+scalpRiskRelief = input.float(1.25, "Correction Risk Relief", minval=0, maxval=10, step=0.05, group=G_SCALP_CORR)
+scalpMinQDrop = input.int(1, "Correction Reduce Min Q By", minval=0, maxval=10, group=G_SCALP_CORR)
+scalpScoreDrop = input.float(1.0, "Correction Reduce Min Score By", minval=0, maxval=20, step=0.1, group=G_SCALP_CORR)
+
+G_RMI = "■ RMI Reaction Filter"
+useRMI = input.bool(true, "Use RMI Reaction Filter", group=G_RMI)
+rmiTF = input.timeframe("5", "RMI TF", group=G_RMI)
+rmiLen = input.int(14, "RMI Length", minval=2, maxval=100, group=G_RMI)
+rmiMom = input.int(5, "RMI Momentum", minval=1, maxval=50, group=G_RMI)
+rmiLower = input.float(25.0, "RMI Bottom Level", minval=1, maxval=49, step=0.5, group=G_RMI)
+rmiUpper = input.float(75.0, "RMI Top Level", minval=51, maxval=99, step=0.5, group=G_RMI)
+rmiMustReact = input.bool(true, "RMI Needs Reaction Candle", group=G_RMI)
+rmiScoreBoost = input.float(1.10, "RMI Reaction Score Boost", minval=0, maxval=5, step=0.05, group=G_RMI)
+rmiRiskRelief = input.float(0.80, "RMI Reaction Risk Relief", minval=0, maxval=5, step=0.05, group=G_RMI)
+
+useRMIFlip = input.bool(true, "Use RMI Flip Setup", group=G_RMI)
+rmiFlipTF = input.timeframe("", "RMI Flip TF / Empty = Chart TF", group=G_RMI)
+rmiFlipLen = input.int(20, "RMI Flip Period", minval=2, maxval=100, group=G_RMI)
+rmiFlipMom = input.int(4, "RMI Flip Momentum", minval=1, maxval=50, group=G_RMI)
+rmiFlipSigLen = input.int(6, "RMI Flip Signal Smooth", minval=1, maxval=50, group=G_RMI)
+rmiFlipUpper = input.float(70.0, "RMI Flip Upper Line", minval=51, maxval=99, step=0.5, group=G_RMI)
+rmiFlipLower = input.float(30.0, "RMI Flip Lower Line", minval=1, maxval=49, step=0.5, group=G_RMI)
+rmiFlipBars = input.int(8, "RMI Extreme Lookback Bars", minval=1, maxval=50, group=G_RMI)
+rmiFlipAnyConfirm = input.bool(true, "RMI Flip Any Confirmation Is Enough", group=G_RMI)
+rmiFlipUseColor = input.bool(true, "Confirm: RMI Color Flip", group=G_RMI)
+rmiFlipUseSweep = input.bool(true, "Confirm: Liquidity Sweep", group=G_RMI)
+rmiFlipUseWick = input.bool(true, "Confirm: Rejection Wick", group=G_RMI)
+rmiFlipUseMSS = input.bool(true, "Confirm: MSS / Break", group=G_RMI)
+rmiFlipUseSignalCross = input.bool(true, "Confirm: RMI Cross Signal", group=G_RMI)
+rmiFlipNeedsZone = input.bool(true, "RMI Flip Needs Price Zone", group=G_RMI)
+rmiFlipNeedsCandle = input.bool(true, "RMI Flip Needs Rejection Candle", group=G_RMI)
+rmiFlipScoreBoost = input.float(2.15, "RMI Flip Score Boost", minval=0, maxval=10, step=0.05, group=G_RMI)
+rmiFlipRiskRelief = input.float(1.70, "RMI Flip Risk Relief", minval=0, maxval=10, step=0.05, group=G_RMI)
+showRMIFlipLabels = input.bool(false, "Show RMI Flip Labels", group=G_RMI)
+rmiBiasGuard = input.bool(true, "RMI Bias Guard", group=G_RMI)
+rmiSellBiasLevel = input.float(80.0, "Prefer SELL Near / Above", minval=50, maxval=99, step=0.5, group=G_RMI)
+rmiBuyBiasLevel = input.float(20.0, "Prefer BUY Near / Below", minval=1, maxval=50, step=0.5, group=G_RMI)
+rmiNearBiasBuffer = input.float(10.0, "Near Bias Buffer", minval=0, maxval=30, step=0.5, group=G_RMI)
+rmiNearNeedsConfirmations = input.int(2, "Near Zone Min Confirmations", minval=1, maxval=5, group=G_RMI)
+rmiExtremeNeedsConfirmations = input.int(1, "Extreme Zone Min Confirmations", minval=1, maxval=5, group=G_RMI)
+rmiAgainstBiasNeedsPower = input.int(3, "Opposite Needs Trend Power", minval=1, maxval=5, group=G_RMI)
+rmiZoneOnlyMode = input.bool(true, "RMI Zone Rule: Middle No RMI Trade", group=G_RMI)
+rmiUpperPreZone = input.float(60.0, "Near Top Pre-Zone", minval=40, maxval=89, step=0.5, group=G_RMI)
+rmiLowerPreZone = input.float(40.0, "Near Bottom Pre-Zone", minval=11, maxval=60, step=0.5, group=G_RMI)
+rmiTopSellOnly = input.bool(true, "Top / Near Top = SELL Only", group=G_RMI)
+rmiBottomBuyOnly = input.bool(true, "Bottom / Near Bottom = BUY Only", group=G_RMI)
+rmiPreZoneNeedsStrongReason = input.bool(true, "Pre-Zone Needs Strong Reason", group=G_RMI)
+rmiHideMiddleFlipLabels = input.bool(true, "Hide RMI Labels In Middle", group=G_RMI)
+rmiMasterGate = input.bool(true, "RMI Master Gate: Block Wrong Side", group=G_RMI)
+rmiMasterStrict = input.bool(true, "RMI Master Strict Top/Bottom", group=G_RMI)
+rmiMasterBlockMiddle = input.bool(true, "RMI Master Blocks Middle", group=G_RMI)
+rmiMasterUsePreZone = input.bool(true, "RMI Master Uses Pre-Zones", group=G_RMI)
+rmiMasterRequireCorrectZone = input.bool(false, "RMI Master Requires Correct Zone For Every Trade", group=G_RMI)
+rmiWrongSideNeedsTrend = input.bool(true, "Near Top/Bottom Wrong Side Needs Trend", group=G_RMI)
+rmiWrongSideTrendPower = input.int(3, "Wrong Side Min Trend Power", minval=1, maxval=5, group=G_RMI)
+rmiWrongSideNeedsMap = input.bool(true, "Wrong Side Needs Map Alignment", group=G_RMI)
+rmiZoneDirectTrigger = input.bool(true, "RMI Zone Direct Trigger", group=G_RMI)
+rmiZoneDirectNeedsAnyReason = input.bool(true, "Zone Direct Needs Any Reason", group=G_RMI)
+rmiZoneDirectScoreBoost = input.float(3.00, "Zone Direct Score Boost", minval=0, maxval=10, step=0.05, group=G_RMI)
+rmiZoneDirectRiskRelief = input.float(2.50, "Zone Direct Risk Relief", minval=0, maxval=10, step=0.05, group=G_RMI)
+rmiPriorityEngine = input.bool(true, "RMI PRIORITY: Sell Top / Buy Bottom", group=G_RMI)
+rmiPriorityBypassScore = input.bool(true, "RMI Priority Bypasses Score Gap", group=G_RMI)
+rmiPriorityNeedsReason = input.bool(true, "RMI Priority Needs Any Reason", group=G_RMI)
+rmiPriorityBlockOpposite = input.bool(true, "RMI Priority Blocks Opposite Side", group=G_RMI)
+rmiPriorityBlockMiddle = input.bool(true, "RMI Priority Blocks Middle", group=G_RMI)
+rmiRealMaster = input.bool(true, "RMI REAL MASTER: Buy Bottom / Sell Top Only", group=G_RMI)
+rmiRealBuyBelow = input.float(40.0, "REAL BUY Zone RMI <=", minval=1, maxval=60, step=0.5, group=G_RMI)
+rmiRealSellAbove = input.float(60.0, "REAL SELL Zone RMI >=", minval=40, maxval=99, step=0.5, group=G_RMI)
+rmiRealBlockMiddle = input.bool(true, "REAL Block Middle 40-60", group=G_RMI)
+rmiRealNeedsReason = input.bool(true, "REAL Zone Needs Any Reaction Reason", group=G_RMI)
+rmiRealAllowTrendException = input.bool(false, "Allow Wrong Side Only With Very Strong Trend", group=G_RMI)
+rmiRealTrendPower = input.int(4, "Wrong Side Trend Power", minval=1, maxval=5, group=G_RMI)
+rmiRealBypassMapScore = input.bool(true, "REAL Zone Bypasses Map Score", group=G_RMI)
+
+G_REASON = "■ Reason Lock Engine"
+useReasonLock = input.bool(true, "Use Reason Lock: No Trade Without Reason", group=G_REASON)
+reasonMinCount = input.int(2, "Minimum Reasons For Any Trade", minval=1, maxval=8, group=G_REASON)
+reasonMinCountRMI = input.int(2, "Minimum Reasons For RMI Zone Trade", minval=1, maxval=8, group=G_REASON)
+reasonAllowTrendContinuation = input.bool(true, "Allow Strong Trend Continuation Reasons", group=G_REASON)
+reasonTrendPower = input.int(3, "Strong Trend Power", minval=1, maxval=5, group=G_REASON)
+reasonRequireRoom = input.bool(true, "Reason Lock Requires Room", group=G_REASON)
+reasonBlockNoZone = input.bool(false, "Block Trade If No Zone", group=G_REASON)
+reasonRMIAsZoneOnly = input.bool(true, "RMI Is Zone Filter Not Standalone Entry", group=G_REASON)
+reasonShowInTable = input.bool(true, "Show Reason Count In Table", group=G_REASON)
+
+G_AMD = "■ AMD / Power Of Three"
+useAMD = input.bool(true, "Use AMD Session Setup", group=G_AMD)
+amdOncePerDay = input.bool(true, "AMD One Trade Per Day", group=G_AMD)
+amdUseSetupTF = input.bool(true, "AMD Runs On Dedicated TF", group=G_AMD)
+amdSetupTF = input.timeframe("15", "AMD Setup TF", group=G_AMD)
+amdUseClosedSetupTF = input.bool(true, "AMD Use Closed Setup TF Candle", group=G_AMD)
+amdTz = input.string("Europe/Berlin", "AMD Sessions Timezone", options=["Europe/Berlin","Etc/UTC","America/New_York","Asia/Dubai"], group=G_AMD)
+amdAsiaSession = input.session("0000-0700", "Accumulation / Asia Session", group=G_AMD)
+amdManipSession = input.session("0700-1130", "Manipulation / London Session", group=G_AMD)
+amdDistSession = input.session("1330-1700", "Distribution / NY Session", group=G_AMD)
+amdAllowLondonEntry = input.bool(true, "Allow Entry During London After Sweep", group=G_AMD)
+amdSweepBufferPts = input.int(8, "AMD Sweep Buffer Points", minval=0, maxval=500, group=G_AMD)
+amdMssLookback = input.int(8, "AMD MSS Lookback", minval=2, maxval=80, group=G_AMD)
+amdMaxBarsAfterManip = input.int(360, "AMD Max Bars After Manipulation", minval=5, maxval=1500, group=G_AMD)
+amdUseOurFilters = input.bool(true, "AMD Must Pass Our Filters", group=G_AMD)
+amdScoreBoost = input.float(2.60, "AMD Score Boost", minval=0, maxval=10, step=0.05, group=G_AMD)
+amdRiskRelief = input.float(2.20, "AMD Risk Relief", minval=0, maxval=10, step=0.05, group=G_AMD)
+amdMinQDrop = input.int(2, "AMD Reduce Min Q By", minval=0, maxval=10, group=G_AMD)
+amdScoreDrop = input.float(2.0, "AMD Reduce Min Score By", minval=0, maxval=20, step=0.1, group=G_AMD)
+amdAllowCounterHTF = input.bool(false, "AMD Can Override Strong HTF", group=G_AMD)
+showAMDLevels = input.bool(false, "Show AMD Asia High / Low", group=G_AMD)
+showAMDStateLabels = input.bool(false, "Show AMD Manipulation Labels", group=G_AMD)
+
+G_RISK = "■ Entry / TP / SL"
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK)
+stopPoints = input.int(50, "Stop Points", minval=1, group=G_RISK)
+targetPoints = input.int(80, "Target Points", minval=1, group=G_RISK)
+sameCandleRule = input.string("Stop First", "If TP and SL Same Candle", options=["Stop First", "Target First"], group=G_RISK)
+useRoomFilter = input.bool(true, "Require Room For TP", group=G_RISK)
+minRoomPoints = input.int(120, "Min Room Points", minval=0, maxval=2000, group=G_RISK)
+
+G_MAP = "■ Map Settings"
+emaFastLen = input.int(30, "EMA Fast", minval=1, maxval=300, group=G_MAP)
+emaMidLen = input.int(50, "EMA Mid", minval=1, maxval=500, group=G_MAP)
+emaSlowLen = input.int(100, "EMA Slow", minval=1, maxval=800, group=G_MAP)
+htfSwingLen = input.int(90, "HTF Swing Lookback", minval=20, maxval=800, group=G_MAP)
+localSwingLen = input.int(50, "Local Swing Lookback", minval=20, maxval=800, group=G_MAP)
+pivotLen = input.int(4, "True Pivot Length", minval=2, maxval=30, group=G_MAP)
+dmiLen = input.int(14, "DMI Length", minval=2, maxval=100, group=G_MAP)
+adxSmooth = input.int(10, "ADX Smooth", minval=2, maxval=100, group=G_MAP)
+adxTrendMin = input.float(15, "ADX Trend Min", minval=5, maxval=90, step=0.5, group=G_MAP)
+adxStrongMin = input.float(23.0, "ADX Strong Min", minval=5, maxval=90, step=0.5, group=G_MAP)
+erLen = input.int(20, "Efficiency Length", minval=5, maxval=150, group=G_MAP)
+erCleanMin = input.float(0.25, "Clean Move Min", minval=0.01, maxval=1, step=0.01, group=G_MAP)
+premiumLevel = input.float(76.0, "Premium Sell Area %", minval=50, maxval=98, step=1, group=G_MAP)
+discountLevel = input.float(24.0, "Discount Buy Area %", minval=2, maxval=50, step=1, group=G_MAP)
+middleLow = input.float(43.0, "Middle No Trade Low %", minval=20, maxval=50, step=1, group=G_MAP)
+middleHigh = input.float(57.0, "Middle No Trade High %", minval=50, maxval=80, step=1, group=G_MAP)
+zoneAtrBuffer = input.float(0.45, "Zone Touch ATR Buffer", minval=0, maxval=5, step=0.05, group=G_MAP)
+nearHTFPoints = input.int(90, "Near HTF Level Points", minval=5, maxval=3000, group=G_MAP)
+
+G_SMC = "■ Liquidity / Orders / FVG"
+sweepLen = input.int(14, "Sweep Lookback", minval=3, maxval=200, group=G_SMC)
+eqTolPoints = input.int(20, "Equal High/Low Tolerance Points", minval=1, maxval=300, group=G_SMC)
+impulseAtrMult = input.float(1.15, "Impulse Candle ATR", minval=0.3, maxval=8, step=0.05, group=G_SMC)
+obRetestAtr = input.float(0.55, "Order Zone Retest ATR", minval=0, maxval=5, step=0.05, group=G_SMC)
+fvgMinAtr = input.float(0.18, "Min FVG Size ATR", minval=0.01, maxval=5, step=0.05, group=G_SMC)
+fvgRetestAtr = input.float(0.35, "FVG Retest ATR", minval=0, maxval=5, step=0.05, group=G_SMC)
+retestBars = input.int(24, "Break Retest Bars", minval=2, maxval=200, group=G_SMC)
+retestAtr = input.float(0.45, "Break Retest ATR", minval=0, maxval=5, step=0.05, group=G_SMC)
+
+G_MOM = "■ Momentum / Candle"
+atrLen = input.int(14, "ATR Length", minval=1, maxval=100, group=G_MOM)
+atrAvgLen = input.int(60, "ATR Average Length", minval=10, maxval=500, group=G_MOM)
+minBodyPct = input.float(23.0, "Min Rejection Body %", minval=5, maxval=95, step=1, group=G_MOM)
+strongBodyPct = input.float(46.0, "Strong Body %", minval=10, maxval=95, step=1, group=G_MOM)
+minWickPct = input.float(10.0, "Min Rejection Wick %", minval=0, maxval=90, step=1, group=G_MOM)
+maxSignalCandleATR = input.float(2.15, "Max Signal Candle ATR", minval=0.3, maxval=10, step=0.05, group=G_MOM)
+newsSpikeATR = input.float(3, "Block Crazy Candle ATR", minval=0.8, maxval=10, step=0.05, group=G_MOM)
+minAtrVsAvg = input.float(0.12, "Min ATR / Avg ATR", minval=0.01, maxval=3, step=0.05, group=G_MOM)
+maxAtrVsAvg = input.float(4.8, "Max ATR / Avg ATR", minval=0.5, maxval=15, step=0.05, group=G_MOM)
+maxChaseATR = input.float(1.7, "Max Chase From EMA20 ATR", minval=0.2, maxval=10, step=0.05, group=G_MOM)
+exhaustATR = input.float(3.7, "Exhaustion Move ATR", minval=0.5, maxval=15, step=0.1, group=G_MOM)
+volumeSpikeMult = input.float(1.3, "Volume Spike Mult", minval=0.5, maxval=10, step=0.05, group=G_MOM)
+
+G_VIS = "■ Visual"
+showSignals = input.bool(true, "Show BUY / SELL", group=G_VIS)
+showTradeLines = input.bool(true, "Show Entry / TP / SL", group=G_VIS)
+showTable = input.bool(true, "Show Stats + Map Table", group=G_VIS)
+showHiddenMap = input.bool(false, "Show Hidden Map Zones", group=G_VIS)
+showDebug = input.bool(false, "Show Debug Table", group=G_VIS)
+cleanChartMode = input.bool(true, "Clean Chart Mode: Only BUY / SELL / ENTRY / TP / SL", group=G_VIS)
+showSetupNamesOnSignal = input.bool(false, "Show Setup Name On Signal Label", group=G_VIS)
+signalOffsetPts = input.int(8, "Signal Offset Points", minval=0, maxval=500, group=G_VIS)
+lineBars = input.int(50, "Active Line Bars", minval=5, maxval=500, group=G_VIS)
+tablePos = input.string("Top Right", "Table Position", options=["Top Right", "Bottom Right", "Top Left", "Bottom Left"], group=G_VIS)
+tableSizeInput = input.string("Small", "Table Size", options=["Tiny", "Small", "Normal"], group=G_VIS)
+
+G_STATS = "■ Stats / Reset"
+statsMode = input.string("All Loaded History", "Stats Count", options=["All Loaded History", "From Custom Time"], group=G_STATS)
+statsStartTime = input.time(1783040400000, "Reset / Start Stats From", group=G_STATS)
+manualResetKey = input.int(0, "Manual Reset Number", minval=0, group=G_STATS)
+
+allowLong = tradeSide == "BOTH" or tradeSide == "LONG"
+allowShort = tradeSide == "BOTH" or tradeSide == "SHORT"
+minScore = mode == "Fast" ? minScoreFast : mode == "Strict" ? minScoreStrict : minScoreSmart
+maxRisk = mode == "Fast" ? maxRiskFast : mode == "Strict" ? maxRiskStrict : maxRiskSmart
+minQ = mode == "Fast" ? minQFast : mode == "Strict" ? minQStrict : minQSmart
+scoreGap = mode == "Fast" ? scoreGapFast : mode == "Strict" ? scoreGapStrict : scoreGapSmart
+pointUnit = math.max(pointUnitInput, syminfo.mintick)
+slDist = stopPoints * pointUnit
+tpDist = targetPoints * pointUnit
+tblSize = tableSizeInput == "Tiny" ? size.tiny : tableSizeInput == "Normal" ? size.normal : size.small
+tblPos = tablePos == "Bottom Right" ? position.bottom_right : tablePos == "Top Left" ? position.top_left : tablePos == "Bottom Left" ? position.bottom_left : position.top_right
+statsActive = statsMode == "All Loaded History" or time >= statsStartTime
+statsResetByTime = statsMode == "From Custom Time" and time >= statsStartTime and (na(time[1]) or time[1] < statsStartTime)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FUNCTIONS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_er(_len) =>
+    _change = math.abs(close - close[_len])
+    _vol = ta.sma(math.abs(close - close[1]), _len) * _len
+    _vol <= syminfo.mintick ? 0.0 : _change / _vol
+
+f_rmi_value(_len, _mom) =>
+    _momChg = close - close[_mom]
+    _up = ta.rma(math.max(_momChg, 0.0), _len)
+    _dn = ta.rma(math.max(-_momChg, 0.0), _len)
+    _dn == 0.0 ? 100.0 : _up == 0.0 ? 0.0 : 100.0 - (100.0 / (1.0 + _up / _dn))
+
+f_rmi_engine() =>
+    _r = f_rmi_value(rmiLen, rmiMom)
+    _rng = math.max(high - low, syminfo.mintick)
+    _body = math.abs(close - open)
+    _bodyPct = _body / _rng * 100.0
+    _upW = (high - math.max(open, close)) / _rng * 100.0
+    _dnW = (math.min(open, close) - low) / _rng * 100.0
+    _cpB = (close - low) / _rng
+    _cpS = (high - close) / _rng
+    _bullReact = close > open and _dnW >= minWickPct and _cpB >= 0.55
+    _bearReact = close < open and _upW >= minWickPct and _cpS >= 0.55
+    _buy = (_r[1] <= rmiLower and _r > _r[1] and (not rmiMustReact or _bullReact)) or ta.crossover(_r, rmiLower)
+    _sell = (_r[1] >= rmiUpper and _r < _r[1] and (not rmiMustReact or _bearReact)) or ta.crossunder(_r, rmiUpper)
+    [_r, _buy, _sell, _bullReact, _bearReact]
+
+f_rmi_flip_engine() =>
+    _r = f_rmi_value(rmiFlipLen, rmiFlipMom)
+    _sig = ta.ema(_r, rmiFlipSigLen)
+    _blue = _r >= _sig
+    _red = _r < _sig
+    _blueFlip = _blue and not _blue[1]
+    _redFlip = _red and not _red[1]
+    _wasLow = ta.lowest(_r, rmiFlipBars + 1) <= rmiFlipLower
+    _wasHigh = ta.highest(_r, rmiFlipBars + 1) >= rmiFlipUpper
+    _crossUp = ta.crossover(_r, _sig) or ta.crossover(_r, rmiFlipLower)
+    _crossDn = ta.crossunder(_r, _sig) or ta.crossunder(_r, rmiFlipUpper)
+    _rng = math.max(high - low, syminfo.mintick)
+    _upW = (high - math.max(open, close)) / _rng * 100.0
+    _dnW = (math.min(open, close) - low) / _rng * 100.0
+    _cpB = (close - low) / _rng
+    _cpS = (high - close) / _rng
+    _bullReact = close > open and _dnW >= minWickPct and _cpB >= 0.55
+    _bearReact = close < open and _upW >= minWickPct and _cpS >= 0.55
+    _buyColor = _wasLow and _blueFlip and (not rmiFlipNeedsCandle or _bullReact)
+    _sellColor = _wasHigh and _redFlip and (not rmiFlipNeedsCandle or _bearReact)
+    [_r, _sig, _blue, _red, _buyColor, _sellColor, _bullReact, _bearReact, _wasLow, _wasHigh, _crossUp, _crossDn]
+
+f_htf_map() =>
+    _emaFast = ta.ema(close, emaFastLen)[1]
+    _emaMid = ta.ema(close, emaMidLen)[1]
+    _emaSlow = ta.ema(close, emaSlowLen)[1]
+    [_p, _m, _adxRaw] = ta.dmi(dmiLen, adxSmooth)
+    _adx = _adxRaw[1]
+    _erRaw = f_er(erLen)
+    _er = _erRaw[1]
+    _hi = ta.highest(high, htfSwingLen)[1]
+    _lo = ta.lowest(low, htfSwingLen)[1]
+    _rng = math.max(_hi - _lo, syminfo.mintick)
+    _c = close[1]
+    _emaBuy = _emaFast > _emaMid and _emaMid > _emaSlow and _c > _emaMid
+    _emaSell = _emaFast < _emaMid and _emaMid < _emaSlow and _c < _emaMid
+    _dmiBuy = _p[1] > _m[1]
+    _dmiSell = _m[1] > _p[1]
+    _dir = _emaBuy and _dmiBuy ? 1 : _emaSell and _dmiSell ? -1 : 0
+    _fibBuyLow = _hi - _rng * 0.786
+    _fibBuyHigh = _hi - _rng * 0.500
+    _fibSellLow = _lo + _rng * 0.500
+    _fibSellHigh = _lo + _rng * 0.786
+    _pos = (_c - _lo) / _rng * 100.0
+    [_dir, _adx, _er, _hi, _lo, _fibBuyLow, _fibBuyHigh, _fibSellLow, _fibSellHigh, _pos, _emaFast, _emaMid]
+
+f_tf_pick(_raw) =>
+    confirmSchoolTF ? _raw[1] : _raw
+
+f_school_candle() =>
+    _rng = math.max(high - low, syminfo.mintick)
+    _body = math.abs(close - open)
+    _bodyPct = _body / _rng * 100.0
+    _upW = (high - math.max(open, close)) / _rng * 100.0
+    _dnW = (math.min(open, close) - low) / _rng * 100.0
+    _cpB = (close - low) / _rng
+    _cpS = (high - close) / _rng
+    _bullReject = close > open and _bodyPct >= minBodyPct and _dnW >= minWickPct and _cpB >= 0.55
+    _bearReject = close < open and _bodyPct >= minBodyPct and _upW >= minWickPct and _cpS >= 0.55
+    _bullMom = close > open and _bodyPct >= strongBodyPct and _cpB >= 0.55
+    _bearMom = close < open and _bodyPct >= strongBodyPct and _cpS >= 0.55
+    [_bullReject, _bearReject, _bullMom, _bearMom]
+
+f_school_trend() =>
+    _atr = ta.atr(atrLen)
+    _ema9 = ta.ema(close, 9)
+    _ema20 = ta.ema(close, 20)
+    _ema34 = ta.ema(close, 34)
+    _ema50 = ta.ema(close, 50)
+    [_p, _m, _adx] = ta.dmi(dmiLen, adxSmooth)
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _valueBuy = low <= _ema20 + _atr * zoneAtrBuffer or low <= _ema34 + _atr * zoneAtrBuffer or low <= _ema50 + _atr * zoneAtrBuffer
+    _valueSell = high >= _ema20 - _atr * zoneAtrBuffer or high >= _ema34 - _atr * zoneAtrBuffer or high >= _ema50 - _atr * zoneAtrBuffer
+    _buy = _ema9 > _ema20 and _ema20 > _ema50 and close > _ema20 and _p >= _m and _valueBuy and (_bullReject or _bullMom)
+    _sell = _ema9 < _ema20 and _ema20 < _ema50 and close < _ema20 and _m >= _p and _valueSell and (_bearReject or _bearMom)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_continuation() =>
+    _atr = ta.atr(atrLen)
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _h = ta.highest(high, math.max(pivotLen * 4, 10))[1]
+    _l = ta.lowest(low, math.max(pivotLen * 4, 10))[1]
+    _breakUp = not na(_h) and close > _h and close[1] <= _h
+    _breakDn = not na(_l) and close < _l and close[1] >= _l
+    _ema20 = ta.ema(close, 20)
+    _ema50 = ta.ema(close, 50)
+    _buy = _breakUp and _bullMom and close > _ema20 and _ema20 >= _ema50 and (high - low) <= _atr * maxSignalCandleATR
+    _sell = _breakDn and _bearMom and close < _ema20 and _ema20 <= _ema50 and (high - low) <= _atr * maxSignalCandleATR
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_liquidity() =>
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _sh = ta.highest(high, sweepLen)[1]
+    _sl = ta.lowest(low, sweepLen)[1]
+    _ph = ta.pivothigh(high, pivotLen, pivotLen)
+    _pl = ta.pivotlow(low, pivotLen, pivotLen)
+    _lastPH = ta.valuewhen(not na(_ph), _ph, 0)
+    _lastPL = ta.valuewhen(not na(_pl), _pl, 0)
+    _mssUp = not na(_lastPH) and close > _lastPH and close[1] <= _lastPH
+    _mssDn = not na(_lastPL) and close < _lastPL and close[1] >= _lastPL
+    _buy = not na(_sl) and low < _sl and close > _sl and (_bullReject or _bullMom or _mssUp)
+    _sell = not na(_sh) and high > _sh and close < _sh and (_bearReject or _bearMom or _mssDn)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_structure() =>
+    _ph = ta.pivothigh(high, pivotLen, pivotLen)
+    _pl = ta.pivotlow(low, pivotLen, pivotLen)
+    _lastPH = ta.valuewhen(not na(_ph), _ph, 0)
+    _lastPL = ta.valuewhen(not na(_pl), _pl, 0)
+    _prevPH = ta.valuewhen(not na(_ph), _ph, 1)
+    _prevPL = ta.valuewhen(not na(_pl), _pl, 1)
+    _up = (not na(_lastPH) and close > _lastPH and close[1] <= _lastPH) or (not na(_lastPH) and not na(_prevPH) and not na(_lastPL) and not na(_prevPL) and _lastPH > _prevPH and _lastPL > _prevPL)
+    _dn = (not na(_lastPL) and close < _lastPL and close[1] >= _lastPL) or (not na(_lastPH) and not na(_prevPH) and not na(_lastPL) and not na(_prevPL) and _lastPH < _prevPH and _lastPL < _prevPL)
+    [f_tf_pick(_up), f_tf_pick(_dn)]
+
+f_school_retest() =>
+    _atr = ta.atr(atrLen)
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _ph = ta.pivothigh(high, pivotLen, pivotLen)
+    _pl = ta.pivotlow(low, pivotLen, pivotLen)
+    _lastPH = ta.valuewhen(not na(_ph), _ph, 0)
+    _lastPL = ta.valuewhen(not na(_pl), _pl, 0)
+    _brUp = not na(_lastPH) and close > _lastPH and close[1] <= _lastPH
+    _brDn = not na(_lastPL) and close < _lastPL and close[1] >= _lastPL
+    _barsUp = ta.barssince(_brUp)
+    _barsDn = ta.barssince(_brDn)
+    _res = ta.valuewhen(_brUp, _lastPH, 0)
+    _sup = ta.valuewhen(_brDn, _lastPL, 0)
+    _buy = not na(_barsUp) and _barsUp > 0 and _barsUp <= retestBars and not na(_res) and low <= _res + _atr * retestAtr and close > _res and (_bullReject or _bullMom)
+    _sell = not na(_barsDn) and _barsDn > 0 and _barsDn <= retestBars and not na(_sup) and high >= _sup - _atr * retestAtr and close < _sup and (_bearReject or _bearMom)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_ob() =>
+    _atr = ta.atr(atrLen)
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _impUp = close > open and math.abs(close - open) >= _atr * impulseAtrMult and close > high[1]
+    _impDn = close < open and math.abs(close - open) >= _atr * impulseAtrMult and close < low[1]
+    _bLow = ta.valuewhen(_impUp, low[1], 0)
+    _bHigh = ta.valuewhen(_impUp, high[1], 0)
+    _sLow = ta.valuewhen(_impDn, low[1], 0)
+    _sHigh = ta.valuewhen(_impDn, high[1], 0)
+    _buy = not na(_bLow) and not na(_bHigh) and low <= _bHigh + _atr * obRetestAtr and close >= _bLow and (_bullReject or _bullMom)
+    _sell = not na(_sLow) and not na(_sHigh) and high >= _sLow - _atr * obRetestAtr and close <= _sHigh and (_bearReject or _bearMom)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_fvg() =>
+    _atr = ta.atr(atrLen)
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _bullFVG = low > high[2] and (low - high[2]) >= _atr * fvgMinAtr
+    _bearFVG = high < low[2] and (low[2] - high) >= _atr * fvgMinAtr
+    _bLow = ta.valuewhen(_bullFVG, high[2], 0)
+    _bHigh = ta.valuewhen(_bullFVG, low, 0)
+    _sLow = ta.valuewhen(_bearFVG, high, 0)
+    _sHigh = ta.valuewhen(_bearFVG, low[2], 0)
+    _buy = not na(_bLow) and not na(_bHigh) and low <= _bHigh + _atr * fvgRetestAtr and close >= _bLow and (_bullReject or _bullMom)
+    _sell = not na(_sLow) and not na(_sHigh) and high >= _sLow - _atr * fvgRetestAtr and close <= _sHigh and (_bearReject or _bearMom)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_fib() =>
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _hi = ta.highest(high, localSwingLen)
+    _lo = ta.lowest(low, localSwingLen)
+    _rng = math.max(_hi - _lo, syminfo.mintick)
+    _buyLow = _hi - _rng * 0.786
+    _buyHigh = _hi - _rng * 0.500
+    _sellLow = _lo + _rng * 0.500
+    _sellHigh = _lo + _rng * 0.786
+    _buy = close >= _buyLow and close <= _buyHigh and (_bullReject or _bullMom)
+    _sell = close >= _sellLow and close <= _sellHigh and (_bearReject or _bearMom)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_range() =>
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    [_p, _m, _adx] = ta.dmi(dmiLen, adxSmooth)
+    _basis = ta.sma(close, 20)
+    _dev = ta.stdev(close, 20) * 2.0
+    _u = _basis + _dev
+    _l = _basis - _dev
+    _hi = ta.highest(high, localSwingLen)
+    _lo = ta.lowest(low, localSwingLen)
+    _rng = math.max(_hi - _lo, syminfo.mintick)
+    _pos = (close - _lo) / _rng * 100.0
+    _range = _adx < adxTrendMin
+    _buy = _range and low <= _l and _bullReject and _pos <= discountLevel
+    _sell = _range and high >= _u and _bearReject and _pos >= premiumLevel
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_value() =>
+    _atr = ta.atr(atrLen)
+    _ema20 = ta.ema(close, 20)
+    _ema34 = ta.ema(close, 34)
+    _ema50 = ta.ema(close, 50)
+    _vw = ta.vwap(hlc3)
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _buy = (low <= _ema20 + _atr * zoneAtrBuffer or low <= _ema34 + _atr * zoneAtrBuffer or low <= _ema50 + _atr * zoneAtrBuffer or (not na(_vw) and low <= _vw + _atr * zoneAtrBuffer)) and (_bullReject or _bullMom)
+    _sell = (high >= _ema20 - _atr * zoneAtrBuffer or high >= _ema34 - _atr * zoneAtrBuffer or high >= _ema50 - _atr * zoneAtrBuffer or (not na(_vw) and high >= _vw - _atr * zoneAtrBuffer)) and (_bearReject or _bearMom)
+    [f_tf_pick(_buy), f_tf_pick(_sell)]
+
+f_school_momentum() =>
+    [_bullReject, _bearReject, _bullMom, _bearMom] = f_school_candle()
+    _rsi = ta.rsi(close, 14)
+    _rsiSlope = _rsi - _rsi[3]
+    [_macdLine, _macdSignal, _macdHist] = ta.macd(close, 12, 26, 9)
+    _macdUp = _macdHist > _macdHist[1] and _macdHist > _macdHist[2]
+    _macdDown = _macdHist < _macdHist[1] and _macdHist < _macdHist[2]
+    _volAvg = ta.sma(volume, 30)
+    _volBull = _volAvg > 0 ? volume > _volAvg * volumeSpikeMult and close > open : false
+    _volBear = _volAvg > 0 ? volume > _volAvg * volumeSpikeMult and close < open : false
+    _buy = (_macdUp and _rsiSlope > 0) or _bullMom or _volBull or _bullReject
+    _sell = (_macdDown and _rsiSlope < 0) or _bearMom or _volBear or _bearReject
+    [f_tf_pick(_buy), f_tf_pick(_sell), f_tf_pick(_bullReject), f_tf_pick(_bearReject), f_tf_pick(_bullMom), f_tf_pick(_bearMom), f_tf_pick(_volBull), f_tf_pick(_volBear)]
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HTF MAPS - CONFIRMED ONLY
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[tf1Dir, tf1Adx, tf1Er, tf1High, tf1Low, tf1FibBL, tf1FibBH, tf1FibSL, tf1FibSH, tf1Pos, tf1EmaF, tf1EmaM] = request.security(syminfo.tickerid, tfFast, f_htf_map(), barmerge.gaps_off, barmerge.lookahead_off)
+[tf2Dir, tf2Adx, tf2Er, tf2High, tf2Low, tf2FibBL, tf2FibBH, tf2FibSL, tf2FibSH, tf2Pos, tf2EmaF, tf2EmaM] = request.security(syminfo.tickerid, tfZone, f_htf_map(), barmerge.gaps_off, barmerge.lookahead_off)
+[tf3Dir, tf3Adx, tf3Er, tf3High, tf3Low, tf3FibBL, tf3FibBH, tf3FibSL, tf3FibSH, tf3Pos, tf3EmaF, tf3EmaM] = request.security(syminfo.tickerid, tfBig, f_htf_map(), barmerge.gaps_off, barmerge.lookahead_off)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SCHOOL TIMEFRAME ENGINES - EACH SCHOOL CAN READ ITS OWN TF
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[tfTrendBuy, tfTrendSell] = request.security(syminfo.tickerid, trendSchoolTF, f_school_trend(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfContBuy, tfContSell] = request.security(syminfo.tickerid, continuationSchoolTF, f_school_continuation(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfLiqBuy, tfLiqSell] = request.security(syminfo.tickerid, liquiditySchoolTF, f_school_liquidity(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfStructBuy, tfStructSell] = request.security(syminfo.tickerid, structureSchoolTF, f_school_structure(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfRetestBuy, tfRetestSell] = request.security(syminfo.tickerid, retestSchoolTF, f_school_retest(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfOBBuy, tfOBSell] = request.security(syminfo.tickerid, obSchoolTF, f_school_ob(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfFVGBuy, tfFVGSell] = request.security(syminfo.tickerid, fvgSchoolTF, f_school_fvg(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfFibBuy, tfFibSell] = request.security(syminfo.tickerid, fibSchoolTF, f_school_fib(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfRangeBuy, tfRangeSell] = request.security(syminfo.tickerid, rangeSchoolTF, f_school_range(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfValueBuy, tfValueSell] = request.security(syminfo.tickerid, valueSchoolTF, f_school_value(), barmerge.gaps_off, barmerge.lookahead_off)
+[tfMomBuy, tfMomSell, tfBullReject, tfBearReject, tfBullMomentum, tfBearMomentum, tfVolumeBull, tfVolumeBear] = request.security(syminfo.tickerid, momentumSchoolTF, f_school_momentum(), barmerge.gaps_off, barmerge.lookahead_off)
+
+// RMI reaction is only an assist/filter, not a standalone entry.
+[rmiVal, rmiBuyReactionRaw, rmiSellReactionRaw, rmiBullReact, rmiBearReact] = request.security(syminfo.tickerid, rmiTF, f_rmi_engine(), barmerge.gaps_off, barmerge.lookahead_off)
+rmiBuyReaction = useRMI and rmiBuyReactionRaw
+rmiSellReaction = useRMI and rmiSellReactionRaw
+rmiFlipResolvedTF = rmiFlipTF == "" ? timeframe.period : rmiFlipTF
+[rmiFlipVal, rmiFlipSig, rmiFlipBlue, rmiFlipRed, rmiFlipBuyColorRaw, rmiFlipSellColorRaw, rmiFlipBullReact, rmiFlipBearReact, rmiFlipWasLowRaw, rmiFlipWasHighRaw, rmiFlipCrossUpRaw, rmiFlipCrossDnRaw] = request.security(syminfo.tickerid, rmiFlipResolvedTF, f_rmi_flip_engine(), barmerge.gaps_off, barmerge.lookahead_off)
+rmiFlipRecentLow = useRMIFlip and rmiFlipWasLowRaw
+rmiFlipRecentHigh = useRMIFlip and rmiFlipWasHighRaw
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LOCAL MARKET MAP
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+atr = ta.atr(atrLen)
+atrAvg = ta.sma(atr, atrAvgLen)
+atrRatio = atrAvg <= syminfo.mintick ? 1.0 : atr / atrAvg
+ema9 = ta.ema(close, 9)
+ema20 = ta.ema(close, 20)
+ema34 = ta.ema(close, 34)
+ema50 = ta.ema(close, 50)
+ema100 = ta.ema(close, 100)
+ema200 = ta.ema(close, 200)
+vwapVal = ta.vwap(hlc3)
+[pDI, mDI, adx] = ta.dmi(dmiLen, adxSmooth)
+er = f_er(erLen)
+barRange = math.max(high - low, syminfo.mintick)
+body = math.abs(close - open)
+bodyPct = body / barRange * 100.0
+upperWickPct = (high - math.max(open, close)) / barRange * 100.0
+lowerWickPct = (math.min(open, close) - low) / barRange * 100.0
+closePosBuy = (close - low) / barRange
+closePosSell = (high - close) / barRange
+bullReject = close > open and bodyPct >= minBodyPct and lowerWickPct >= minWickPct and closePosBuy >= 0.55
+bearReject = close < open and bodyPct >= minBodyPct and upperWickPct >= minWickPct and closePosSell >= 0.55
+bullMomentum = close > open and bodyPct >= strongBodyPct and closePosBuy >= 0.55
+bearMomentum = close < open and bodyPct >= strongBodyPct and closePosSell >= 0.55
+signalCandleOK = barRange <= atr * maxSignalCandleATR
+crazyCandle = barRange >= atr * newsSpikeATR or body >= atr * newsSpikeATR * 0.70
+deadMarket = atrRatio < minAtrVsAvg
+wildMarket = atrRatio > maxAtrVsAvg
+volumeAvg = ta.sma(volume, 30)
+volumeSpike = volumeAvg > 0 ? volume > volumeAvg * volumeSpikeMult : false
+volumeBull = volumeSpike and close > open
+volumeBear = volumeSpike and close < open
+localHigh = ta.highest(high, localSwingLen)
+localLow = ta.lowest(low, localSwingLen)
+localRange = math.max(localHigh - localLow, syminfo.mintick)
+rangePos = (close - localLow) / localRange * 100.0
+premium = rangePos >= premiumLevel
+discount = rangePos <= discountLevel
+middleZone = rangePos >= middleLow and rangePos <= middleHigh
+localTrendBuy = ema9 > ema20 and ema20 > ema50 and close > ema20 and pDI >= mDI
+localTrendSell = ema9 < ema20 and ema20 < ema50 and close < ema20 and mDI >= pDI
+localDir = localTrendBuy ? 1 : localTrendSell ? -1 : 0
+htfBiasScore = (tf1Dir == 1 ? 1.0 : tf1Dir == -1 ? -1.0 : 0.0) + (tf2Dir == 1 ? 1.5 : tf2Dir == -1 ? -1.5 : 0.0) + (tf3Dir == 1 ? 2.0 : tf3Dir == -1 ? -2.0 : 0.0)
+mapDir = htfBiasScore > 1.0 ? 1 : htfBiasScore < -1.0 ? -1 : 0
+strongHTFBuy = htfBiasScore >= 3.0 and tf2Adx >= adxStrongMin
+strongHTFSell = htfBiasScore <= -3.0 and tf2Adx >= adxStrongMin
+powerUp = htfBiasScore >= 2.0 and ema20 > ema50 and close > ema20
+powerDown = htfBiasScore <= -2.0 and ema20 < ema50 and close < ema20
+conflictMarket = mapDir != 0 and localDir != 0 and mapDir != localDir
+rangeMarket = adx < adxTrendMin and math.abs(htfBiasScore) < 1.5
+cleanMove = er >= erCleanMin or tf1Er >= erCleanMin or tf2Er >= erCleanMin
+tradeableBase = barstate.isconfirmed and signalCandleOK and not crazyCandle and not deadMarket and not wildMarket
+trendPowerBuy = (localTrendBuy ? 1 : 0) + (tf1Dir == 1 ? 1 : 0) + (tf2Dir == 1 ? 1 : 0) + (tf3Dir == 1 ? 1 : 0)
+trendPowerSell = (localTrendSell ? 1 : 0) + (tf1Dir == -1 ? 1 : 0) + (tf2Dir == -1 ? 1 : 0) + (tf3Dir == -1 ? 1 : 0)
+alignmentBuy = mapDir >= 0 and localDir >= 0
+alignmentSell = mapDir <= 0 and localDir <= 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FULL MAP ZONES
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+inTF1FibBuy = close >= tf1FibBL and close <= tf1FibBH
+inTF2FibBuy = close >= tf2FibBL and close <= tf2FibBH
+inTF3FibBuy = close >= tf3FibBL and close <= tf3FibBH
+inTF1FibSell = close >= tf1FibSL and close <= tf1FibSH
+inTF2FibSell = close >= tf2FibSL and close <= tf2FibSH
+inTF3FibSell = close >= tf3FibSL and close <= tf3FibSH
+nearTF1Low = math.abs(close - tf1Low) / pointUnit <= nearHTFPoints
+nearTF2Low = math.abs(close - tf2Low) / pointUnit <= nearHTFPoints
+nearTF3Low = math.abs(close - tf3Low) / pointUnit <= nearHTFPoints
+nearTF1High = math.abs(close - tf1High) / pointUnit <= nearHTFPoints
+nearTF2High = math.abs(close - tf2High) / pointUnit <= nearHTFPoints
+nearTF3High = math.abs(close - tf3High) / pointUnit <= nearHTFPoints
+htfBuyZone = inTF1FibBuy or inTF2FibBuy or inTF3FibBuy or nearTF1Low or nearTF2Low or nearTF3Low or tf2Pos <= 30 or tf3Pos <= 30
+htfSellZone = inTF1FibSell or inTF2FibSell or inTF3FibSell or nearTF1High or nearTF2High or nearTF3High or tf2Pos >= 70 or tf3Pos >= 70
+ph = ta.pivothigh(high, pivotLen, pivotLen)
+pl = ta.pivotlow(low, pivotLen, pivotLen)
+lastPH = ta.valuewhen(not na(ph), ph, 0)
+lastPL = ta.valuewhen(not na(pl), pl, 0)
+prevPH = ta.valuewhen(not na(ph), ph, 1)
+prevPL = ta.valuewhen(not na(pl), pl, 1)
+structureUp = not na(lastPH) and not na(prevPH) and not na(lastPL) and not na(prevPL) and lastPH > prevPH and lastPL > prevPL
+structureDown = not na(lastPH) and not na(prevPH) and not na(lastPL) and not na(prevPL) and lastPH < prevPH and lastPL < prevPL
+mssUp = not na(lastPH) and close > lastPH and close[1] <= lastPH
+mssDown = not na(lastPL) and close < lastPL and close[1] >= lastPL
+supportTouch = not na(lastPL) and low <= lastPL + atr * zoneAtrBuffer and close > lastPL
+resistanceTouch = not na(lastPH) and high >= lastPH - atr * zoneAtrBuffer and close < lastPH
+supportRejectBuy = supportTouch and bullReject
+resistanceRejectSell = resistanceTouch and bearReject
+sweepHighLevel = ta.highest(high, sweepLen)[1]
+sweepLowLevel = ta.lowest(low, sweepLen)[1]
+sweepLow = not na(sweepLowLevel) and low < sweepLowLevel and close > sweepLowLevel
+sweepHigh = not na(sweepHighLevel) and high > sweepHighLevel and close < sweepHighLevel
+sweepLowConfirm = sweepLow and (bullReject or bullMomentum or mssUp)
+sweepHighConfirm = sweepHigh and (bearReject or bearMomentum or mssDown)
+equalHighNear = not na(sweepHighLevel) and math.abs(high - sweepHighLevel) / pointUnit <= eqTolPoints
+equalLowNear = not na(sweepLowLevel) and math.abs(low - sweepLowLevel) / pointUnit <= eqTolPoints
+stopHuntBuy = sweepLowConfirm and (discount or htfBuyZone or rangeMarket)
+stopHuntSell = sweepHighConfirm and (premium or htfSellZone or rangeMarket)
+breakUp = not na(lastPH) and close > lastPH and close[1] <= lastPH
+breakDown = not na(lastPL) and close < lastPL and close[1] >= lastPL
+barsBreakUp = ta.barssince(breakUp)
+barsBreakDown = ta.barssince(breakDown)
+brokenRes = ta.valuewhen(breakUp, lastPH, 0)
+brokenSup = ta.valuewhen(breakDown, lastPL, 0)
+retestBuy = not na(barsBreakUp) and barsBreakUp > 0 and barsBreakUp <= retestBars and not na(brokenRes) and low <= brokenRes + atr * retestAtr and close > brokenRes
+retestSell = not na(barsBreakDown) and barsBreakDown > 0 and barsBreakDown <= retestBars and not na(brokenSup) and high >= brokenSup - atr * retestAtr and close < brokenSup
+retestBuyConfirm = retestBuy and (bullReject or bullMomentum or mssUp)
+retestSellConfirm = retestSell and (bearReject or bearMomentum or mssDown)
+impulseUp = close > open and body >= atr * impulseAtrMult and close > high[1]
+impulseDown = close < open and body >= atr * impulseAtrMult and close < low[1]
+bullOBLow = ta.valuewhen(impulseUp, low[1], 0)
+bullOBHigh = ta.valuewhen(impulseUp, high[1], 0)
+bearOBLow = ta.valuewhen(impulseDown, low[1], 0)
+bearOBHigh = ta.valuewhen(impulseDown, high[1], 0)
+inBullOB = not na(bullOBLow) and not na(bullOBHigh) and low <= bullOBHigh + atr * obRetestAtr and close >= bullOBLow
+inBearOB = not na(bearOBLow) and not na(bearOBHigh) and high >= bearOBLow - atr * obRetestAtr and close <= bearOBHigh
+bullOBConfirm = inBullOB and (bullReject or bullMomentum or mssUp)
+bearOBConfirm = inBearOB and (bearReject or bearMomentum or mssDown)
+bullFVG = low > high[2] and (low - high[2]) >= atr * fvgMinAtr
+bearFVG = high < low[2] and (low[2] - high) >= atr * fvgMinAtr
+lastBullFVGLow = ta.valuewhen(bullFVG, high[2], 0)
+lastBullFVGHigh = ta.valuewhen(bullFVG, low, 0)
+lastBearFVGLow = ta.valuewhen(bearFVG, high, 0)
+lastBearFVGHigh = ta.valuewhen(bearFVG, low[2], 0)
+inBullFVG = not na(lastBullFVGLow) and not na(lastBullFVGHigh) and low <= lastBullFVGHigh + atr * fvgRetestAtr and close >= lastBullFVGLow
+inBearFVG = not na(lastBearFVGLow) and not na(lastBearFVGHigh) and high >= lastBearFVGLow - atr * fvgRetestAtr and close <= lastBearFVGHigh
+bullFVGConfirm = inBullFVG and (bullReject or bullMomentum or mssUp)
+bearFVGConfirm = inBearFVG and (bearReject or bearMomentum or mssDown)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// VALUE / MOMENTUM / ROOM
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+valueBuy = low <= ema20 + atr * zoneAtrBuffer or low <= ema34 + atr * zoneAtrBuffer or low <= ema50 + atr * zoneAtrBuffer or (not na(vwapVal) and low <= vwapVal + atr * zoneAtrBuffer)
+valueSell = high >= ema20 - atr * zoneAtrBuffer or high >= ema34 - atr * zoneAtrBuffer or high >= ema50 - atr * zoneAtrBuffer or (not na(vwapVal) and high >= vwapVal - atr * zoneAtrBuffer)
+localFibBuyLow = localHigh - localRange * 0.786
+localFibBuyHigh = localHigh - localRange * 0.500
+localFibSellLow = localLow + localRange * 0.500
+localFibSellHigh = localLow + localRange * 0.786
+localFibBuy = close >= localFibBuyLow and close <= localFibBuyHigh
+localFibSell = close >= localFibSellLow and close <= localFibSellHigh
+fibBuyConfirm = (localFibBuy or inTF1FibBuy or inTF2FibBuy or inTF3FibBuy) and (bullReject or bullMomentum or mssUp)
+fibSellConfirm = (localFibSell or inTF1FibSell or inTF2FibSell or inTF3FibSell) and (bearReject or bearMomentum or mssDown)
+donHigh = ta.highest(high, 30)[1]
+donLow = ta.lowest(low, 30)[1]
+donMid = (donHigh + donLow) / 2.0
+donBuy = not na(donMid) and low <= donMid + atr * zoneAtrBuffer and close > donMid and bullReject and not premium
+donSell = not na(donMid) and high >= donMid - atr * zoneAtrBuffer and close < donMid and bearReject and not discount
+bbBasis = ta.sma(close, 20)
+bbDev = ta.stdev(close, 20) * 2.0
+bbU = bbBasis + bbDev
+bbL = bbBasis - bbDev
+bbRangeBuy = rangeMarket and low <= bbL and bullReject and discount
+bbRangeSell = rangeMarket and high >= bbU and bearReject and premium
+rsi = ta.rsi(close, 14)
+rsiSlope = rsi - rsi[3]
+[macdLine, macdSignal, macdHist] = ta.macd(close, 12, 26, 9)
+macdUp = macdHist > macdHist[1] and macdHist > macdHist[2]
+macdDown = macdHist < macdHist[1] and macdHist < macdHist[2]
+momentumBuy = (macdUp and rsiSlope > 0) or bullMomentum or volumeBull
+momentumSell = (macdDown and rsiSlope < 0) or bearMomentum or volumeBear
+moveFromLowATR = (close - ta.lowest(low, 30)) / math.max(atr, syminfo.mintick)
+moveFromHighATR = (ta.highest(high, 30) - close) / math.max(atr, syminfo.mintick)
+exhaustBuyRisk = premium and close > ema20 + atr * maxChaseATR and moveFromLowATR >= exhaustATR
+exhaustSellRisk = discount and close < ema20 - atr * maxChaseATR and moveFromHighATR >= exhaustATR
+exhaustionReversalBuy = discount and sweepLowConfirm and bullReject and moveFromHighATR >= exhaustATR * 0.50
+exhaustionReversalSell = premium and sweepHighConfirm and bearReject and moveFromLowATR >= exhaustATR * 0.50
+chaseBuyRisk = close > ema20 + atr * maxChaseATR and not retestBuyConfirm and not bullFVGConfirm and not bullOBConfirm and not breakUp
+chaseSellRisk = close < ema20 - atr * maxChaseATR and not retestSellConfirm and not bearFVGConfirm and not bearOBConfirm and not breakDown
+upMagnetRaw = math.max(localHigh, math.max(tf1High, math.max(tf2High, tf3High)))
+downMagnetRaw = math.min(localLow, math.min(tf1Low, math.min(tf2Low, tf3Low)))
+projectedUp = close + atr * 3.0
+projectedDown = close - atr * 3.0
+upTarget = upMagnetRaw > close ? upMagnetRaw : projectedUp
+downTarget = downMagnetRaw < close ? downMagnetRaw : projectedDown
+roomBuyPts = math.max((upTarget - close) / pointUnit, 0)
+roomSellPts = math.max((close - downTarget) / pointUnit, 0)
+roomBuyOK = not useRoomFilter or roomBuyPts >= minRoomPoints
+roomSellOK = not useRoomFilter or roomSellPts >= minRoomPoints
+targetBuyAligned = roomBuyPts >= targetPoints * 0.65 or retestBuyConfirm or momentumBuy
+targetSellAligned = roomSellPts >= targetPoints * 0.65 or retestSellConfirm or momentumSell
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// APPLY SCHOOL TF OUTPUTS TO THE ORIGINAL SY265 ENGINE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if useSchoolTF
+    localTrendBuy := tfTrendBuy
+    localTrendSell := tfTrendSell
+    localDir := localTrendBuy ? 1 : localTrendSell ? -1 : 0
+    conflictMarket := mapDir != 0 and localDir != 0 and mapDir != localDir
+    trendPowerBuy := (localTrendBuy ? 1 : 0) + (tf1Dir == 1 ? 1 : 0) + (tf2Dir == 1 ? 1 : 0) + (tf3Dir == 1 ? 1 : 0)
+    trendPowerSell := (localTrendSell ? 1 : 0) + (tf1Dir == -1 ? 1 : 0) + (tf2Dir == -1 ? 1 : 0) + (tf3Dir == -1 ? 1 : 0)
+    alignmentBuy := mapDir >= 0 and localDir >= 0
+    alignmentSell := mapDir <= 0 and localDir <= 0
+    mssUp := tfStructBuy
+    mssDown := tfStructSell
+    structureUp := tfStructBuy
+    structureDown := tfStructSell
+    breakUp := tfContBuy
+    breakDown := tfContSell
+    stopHuntBuy := tfLiqBuy
+    stopHuntSell := tfLiqSell
+    sweepLowConfirm := tfLiqBuy
+    sweepHighConfirm := tfLiqSell
+    retestBuyConfirm := tfRetestBuy
+    retestSellConfirm := tfRetestSell
+    bullOBConfirm := tfOBBuy
+    bearOBConfirm := tfOBSell
+    bullFVGConfirm := tfFVGBuy
+    bearFVGConfirm := tfFVGSell
+    fibBuyConfirm := tfFibBuy
+    fibSellConfirm := tfFibSell
+    bbRangeBuy := tfRangeBuy
+    bbRangeSell := tfRangeSell
+    donBuy := tfRangeBuy or donBuy
+    donSell := tfRangeSell or donSell
+    valueBuy := tfValueBuy
+    valueSell := tfValueSell
+    momentumBuy := tfMomBuy
+    momentumSell := tfMomSell
+    bullReject := tfBullReject
+    bearReject := tfBearReject
+    bullMomentum := tfBullMomentum
+    bearMomentum := tfBearMomentum
+    volumeBull := tfVolumeBull
+    volumeBear := tfVolumeBear
+    supportRejectBuy := supportRejectBuy or tfValueBuy or tfRangeBuy
+    resistanceRejectSell := resistanceRejectSell or tfValueSell or tfRangeSell
+    targetBuyAligned := roomBuyPts >= targetPoints * 0.65 or retestBuyConfirm or momentumBuy or tfContBuy
+    targetSellAligned := roomSellPts >= targetPoints * 0.65 or retestSellConfirm or momentumSell or tfContSell
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// OPTIONAL UT BOT ENGINE - can help the map or be filtered by the map
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+utActive = useUTBot
+utResolvedTF = utUseCurrentTF ? timeframe.period : utBotTF
+utTicker = utUseHA ? ticker.heikinashi(syminfo.tickerid) : syminfo.tickerid
+utSrc = request.security(utTicker, utResolvedTF, close, barmerge.gaps_off, barmerge.lookahead_off)
+utAtr = request.security(syminfo.tickerid, utResolvedTF, ta.atr(utAtrLen), barmerge.gaps_off, barmerge.lookahead_off)
+utLoss = utKey * utAtr
+var float utStop = 0.0
+utPrevStop = nz(utStop[1], 0.0)
+utStop := utSrc > utPrevStop and utSrc[1] > utPrevStop ? math.max(utPrevStop, utSrc - utLoss) : utSrc < utPrevStop and utSrc[1] < utPrevStop ? math.min(utPrevStop, utSrc + utLoss) : utSrc > utPrevStop ? utSrc - utLoss : utSrc + utLoss
+utEma = ta.ema(utSrc, 1)
+utRawBuy = utActive and utSrc > utStop and ta.crossover(utEma, utStop)
+utRawSell = utActive and utSrc < utStop and ta.crossover(utStop, utEma)
+utBull = utActive and utSrc > utStop
+utBear = utActive and utSrc < utStop
+utFreshBuy = utRawBuy and not utRawBuy[1]
+utFreshSell = utRawSell and not utRawSell[1]
+utAssistMode = utActive and utBotMode == "Assist"
+utConfirmMode = utActive and utBotMode == "Confirm"
+utEntryMode = utActive and utBotMode == "UT Entry + Our Filters"
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAP COURT QUESTIONS - actual score/risk engine
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+float buyScore = 0.0
+float sellScore = 0.0
+float buyRisk = 0.0
+float sellRisk = 0.0
+int buyQ = 0
+int sellQ = 0
+
+// Q001: HTF fast direction
+if tf1Dir == 1
+    buyScore += 0.80
+    buyQ += 1
+if tf1Dir == -1
+    sellScore += 0.80
+    sellQ += 1
+if tf1Dir == -1
+    buyRisk += 0.40
+if tf1Dir == 1
+    sellRisk += 0.40
+
+// Q002: HTF zone direction
+if tf2Dir == 1
+    buyScore += 1.00
+    buyQ += 1
+if tf2Dir == -1
+    sellScore += 1.00
+    sellQ += 1
+if tf2Dir == -1
+    buyRisk += 0.60
+if tf2Dir == 1
+    sellRisk += 0.60
+
+// Q003: HTF big map
+if tf3Dir == 1
+    buyScore += 1.20
+    buyQ += 1
+if tf3Dir == -1
+    sellScore += 1.20
+    sellQ += 1
+if tf3Dir == -1
+    buyRisk += 0.80
+if tf3Dir == 1
+    sellRisk += 0.80
+
+// Q004: Local trend
+if localTrendBuy
+    buyScore += 1.10
+    buyQ += 1
+if localTrendSell
+    sellScore += 1.10
+    sellQ += 1
+if localTrendSell
+    buyRisk += 0.60
+if localTrendBuy
+    sellRisk += 0.60
+
+// Q005: Trend power
+if trendPowerBuy >= 2
+    buyScore += 1.00
+    buyQ += 1
+if trendPowerSell >= 2
+    sellScore += 1.00
+    sellQ += 1
+if trendPowerSell >= 3
+    buyRisk += 0.60
+if trendPowerBuy >= 3
+    sellRisk += 0.60
+
+// Q006: HTF zone
+if htfBuyZone
+    buyScore += 1.50
+    buyQ += 1
+if htfSellZone
+    sellScore += 1.50
+    sellQ += 1
+if htfSellZone and not htfBuyZone
+    buyRisk += 0.80
+if htfBuyZone and not htfSellZone
+    sellRisk += 0.80
+
+// Q007: Premium discount
+if discount
+    buyScore += 1.00
+    buyQ += 1
+if premium
+    sellScore += 1.00
+    sellQ += 1
+if premium
+    buyRisk += 1.00
+if discount
+    sellRisk += 1.00
+
+// Q008: Middle filter
+if not middleZone or retestBuyConfirm or bullOBConfirm or bullFVGConfirm
+    buyScore += 0.40
+    buyQ += 1
+if not middleZone or retestSellConfirm or bearOBConfirm or bearFVGConfirm
+    sellScore += 0.40
+    sellQ += 1
+if middleZone and not retestBuyConfirm and not bullOBConfirm and not bullFVGConfirm
+    buyRisk += 0.80
+if middleZone and not retestSellConfirm and not bearOBConfirm and not bearFVGConfirm
+    sellRisk += 0.80
+
+// Q009: Structure shift
+if mssUp or structureUp
+    buyScore += 1.10
+    buyQ += 1
+if mssDown or structureDown
+    sellScore += 1.10
+    sellQ += 1
+if mssDown
+    buyRisk += 0.70
+if mssUp
+    sellRisk += 0.70
+
+// Q010: Support resistance reject
+if supportRejectBuy
+    buyScore += 1.30
+    buyQ += 1
+if resistanceRejectSell
+    sellScore += 1.30
+    sellQ += 1
+if resistanceTouch and not supportTouch
+    buyRisk += 0.60
+if supportTouch and not resistanceTouch
+    sellRisk += 0.60
+
+// Q011: Liquidity sweep
+if stopHuntBuy
+    buyScore += 1.80
+    buyQ += 1
+if stopHuntSell
+    sellScore += 1.80
+    sellQ += 1
+if sweepHighConfirm and premium
+    buyRisk += 0.70
+if sweepLowConfirm and discount
+    sellRisk += 0.70
+
+// Q012: Break retest
+if retestBuyConfirm
+    buyScore += 1.70
+    buyQ += 1
+if retestSellConfirm
+    sellScore += 1.70
+    sellQ += 1
+if breakDown and not retestBuyConfirm
+    buyRisk += 0.70
+if breakUp and not retestSellConfirm
+    sellRisk += 0.70
+
+// Q013: Order zone
+if bullOBConfirm
+    buyScore += 1.50
+    buyQ += 1
+if bearOBConfirm
+    sellScore += 1.50
+    sellQ += 1
+if bearOBConfirm and not bullOBConfirm
+    buyRisk += 0.70
+if bullOBConfirm and not bearOBConfirm
+    sellRisk += 0.70
+
+// Q014: FVG zone
+if bullFVGConfirm
+    buyScore += 1.30
+    buyQ += 1
+if bearFVGConfirm
+    sellScore += 1.30
+    sellQ += 1
+if bearFVGConfirm and not bullFVGConfirm
+    buyRisk += 0.60
+if bullFVGConfirm and not bearFVGConfirm
+    sellRisk += 0.60
+
+// Q015: Value retest
+if valueBuy
+    buyScore += 0.90
+    buyQ += 1
+if valueSell
+    sellScore += 0.90
+    sellQ += 1
+if valueSell and premium
+    buyRisk += 0.50
+if valueBuy and discount
+    sellRisk += 0.50
+
+// Q016: Fibonacci
+if fibBuyConfirm
+    buyScore += 1.40
+    buyQ += 1
+if fibSellConfirm
+    sellScore += 1.40
+    sellQ += 1
+if fibSellConfirm and premium
+    buyRisk += 0.50
+if fibBuyConfirm and discount
+    sellRisk += 0.50
+
+// Q017: Donchian value
+if donBuy
+    buyScore += 0.80
+    buyQ += 1
+if donSell
+    sellScore += 0.80
+    sellQ += 1
+if donSell and premium
+    buyRisk += 0.40
+if donBuy and discount
+    sellRisk += 0.40
+
+// Q018: Bollinger range
+if bbRangeBuy
+    buyScore += 0.90
+    buyQ += 1
+if bbRangeSell
+    sellScore += 0.90
+    sellQ += 1
+if bbRangeSell
+    buyRisk += 0.40
+if bbRangeBuy
+    sellRisk += 0.40
+
+// Q019: Momentum
+if momentumBuy
+    buyScore += 1.10
+    buyQ += 1
+if momentumSell
+    sellScore += 1.10
+    sellQ += 1
+if momentumSell
+    buyRisk += 0.60
+if momentumBuy
+    sellRisk += 0.60
+
+// Q020: Candle rejection
+if bullReject
+    buyScore += 0.90
+    buyQ += 1
+if bearReject
+    sellScore += 0.90
+    sellQ += 1
+if bearReject and not bullReject
+    buyRisk += 0.40
+if bullReject and not bearReject
+    sellRisk += 0.40
+
+// Q021: Impulse candle
+if bullMomentum
+    buyScore += 1.00
+    buyQ += 1
+if bearMomentum
+    sellScore += 1.00
+    sellQ += 1
+if bearMomentum
+    buyRisk += 0.40
+if bullMomentum
+    sellRisk += 0.40
+
+// Q022: Volume pressure
+if volumeBull
+    buyScore += 0.60
+    buyQ += 1
+if volumeBear
+    sellScore += 0.60
+    sellQ += 1
+if volumeBear
+    buyRisk += 0.30
+if volumeBull
+    sellRisk += 0.30
+
+// Q023: Clean move
+if cleanMove
+    buyScore += 0.30
+    buyQ += 1
+if cleanMove
+    sellScore += 0.30
+    sellQ += 1
+if not cleanMove
+    buyRisk += 0.50
+if not cleanMove
+    sellRisk += 0.50
+
+// Q024: Exhaustion reversal
+if exhaustionReversalBuy
+    buyScore += 1.50
+    buyQ += 1
+if exhaustionReversalSell
+    sellScore += 1.50
+    sellQ += 1
+if exhaustBuyRisk
+    buyRisk += 1.00
+if exhaustSellRisk
+    sellRisk += 1.00
+
+// Q025: No chase
+if not chaseBuyRisk
+    buyScore += 0.50
+    buyQ += 1
+if not chaseSellRisk
+    sellScore += 0.50
+    sellQ += 1
+if chaseBuyRisk
+    buyRisk += 1.30
+if chaseSellRisk
+    sellRisk += 1.30
+
+// Q026: Room to TP
+if roomBuyOK and targetBuyAligned
+    buyScore += 1.40
+    buyQ += 1
+if roomSellOK and targetSellAligned
+    sellScore += 1.40
+    sellQ += 1
+if not roomBuyOK
+    buyRisk += 1.40
+if not roomSellOK
+    sellRisk += 1.40
+
+// Q027: Tradeable state
+if tradeableBase
+    buyScore += 0.80
+    buyQ += 1
+if tradeableBase
+    sellScore += 0.80
+    sellQ += 1
+if not tradeableBase
+    buyRisk += 2.00
+if not tradeableBase
+    sellRisk += 2.00
+
+// Q028: Strong HTF not against
+if not strongHTFSell or stopHuntBuy or exhaustionReversalBuy
+    buyScore += 0.80
+    buyQ += 1
+if not strongHTFBuy or stopHuntSell or exhaustionReversalSell
+    sellScore += 0.80
+    sellQ += 1
+if strongHTFSell and not stopHuntBuy and not exhaustionReversalBuy
+    buyRisk += 2.00
+if strongHTFBuy and not stopHuntSell and not exhaustionReversalSell
+    sellRisk += 2.00
+
+// Q029: No top buy / bottom sell
+if not premium or breakUp or stopHuntBuy
+    buyScore += 0.80
+    buyQ += 1
+if not discount or breakDown or stopHuntSell
+    sellScore += 0.80
+    sellQ += 1
+if premium and not breakUp and not stopHuntBuy
+    buyRisk += 1.40
+if discount and not breakDown and not stopHuntSell
+    sellRisk += 1.40
+
+// Q030: EMA20 pullback
+if low <= ema20 + atr * zoneAtrBuffer and close >= ema20 - atr * zoneAtrBuffer
+    buyScore += 0.70
+    buyQ += 1
+if high >= ema20 - atr * zoneAtrBuffer and close <= ema20 + atr * zoneAtrBuffer
+    sellScore += 0.70
+    sellQ += 1
+if close > ema20 + atr * maxChaseATR
+    buyRisk += 0.80
+if close < ema20 - atr * maxChaseATR
+    sellRisk += 0.80
+
+// UT Bot assists the SY184 map scores, and the map can punish opposite UT direction.
+if utActive and (utAssistMode or utConfirmMode or utEntryMode)
+    if utBull
+        buyScore += utAssistWeight
+        buyQ += utFreshBuy ? 2 : 1
+        sellRisk += utOppositePenalty
+    if utBear
+        sellScore += utAssistWeight
+        sellQ += utFreshSell ? 2 : 1
+        buyRisk += utOppositePenalty
+    if utFreshBuy
+        buyScore += utAssistWeight * 0.80
+    if utFreshSell
+        sellScore += utAssistWeight * 0.80
+
+// Q031: HTF fast direction
+if tf1Dir == 1
+    buyScore += 0.80
+    buyQ += 1
+if tf1Dir == -1
+    sellScore += 0.80
+    sellQ += 1
+if tf1Dir == -1
+    buyRisk += 0.40
+if tf1Dir == 1
+    sellRisk += 0.40
+
+// Q032: HTF zone direction
+if tf2Dir == 1
+    buyScore += 1.00
+    buyQ += 1
+if tf2Dir == -1
+    sellScore += 1.00
+    sellQ += 1
+if tf2Dir == -1
+    buyRisk += 0.60
+if tf2Dir == 1
+    sellRisk += 0.60
+
+// Q033: HTF big map
+if tf3Dir == 1
+    buyScore += 1.20
+    buyQ += 1
+if tf3Dir == -1
+    sellScore += 1.20
+    sellQ += 1
+if tf3Dir == -1
+    buyRisk += 0.80
+if tf3Dir == 1
+    sellRisk += 0.80
+
+// Q034: Local trend
+if localTrendBuy
+    buyScore += 1.10
+    buyQ += 1
+if localTrendSell
+    sellScore += 1.10
+    sellQ += 1
+if localTrendSell
+    buyRisk += 0.60
+if localTrendBuy
+    sellRisk += 0.60
+
+// Q035: Trend power
+if trendPowerBuy >= 2
+    buyScore += 1.00
+    buyQ += 1
+if trendPowerSell >= 2
+    sellScore += 1.00
+    sellQ += 1
+if trendPowerSell >= 3
+    buyRisk += 0.60
+if trendPowerBuy >= 3
+    sellRisk += 0.60
+
+// Q036: HTF zone
+if htfBuyZone
+    buyScore += 1.50
+    buyQ += 1
+if htfSellZone
+    sellScore += 1.50
+    sellQ += 1
+if htfSellZone and not htfBuyZone
+    buyRisk += 0.80
+if htfBuyZone and not htfSellZone
+    sellRisk += 0.80
+
+// Q037: Premium discount
+if discount
+    buyScore += 1.00
+    buyQ += 1
+if premium
+    sellScore += 1.00
+    sellQ += 1
+if premium
+    buyRisk += 1.00
+if discount
+    sellRisk += 1.00
+
+// Q038: Middle filter
+if not middleZone or retestBuyConfirm or bullOBConfirm or bullFVGConfirm
+    buyScore += 0.40
+    buyQ += 1
+if not middleZone or retestSellConfirm or bearOBConfirm or bearFVGConfirm
+    sellScore += 0.40
+    sellQ += 1
+if middleZone and not retestBuyConfirm and not bullOBConfirm and not bullFVGConfirm
+    buyRisk += 0.80
+if middleZone and not retestSellConfirm and not bearOBConfirm and not bearFVGConfirm
+    sellRisk += 0.80
+
+// Q039: Structure shift
+if mssUp or structureUp
+    buyScore += 1.10
+    buyQ += 1
+if mssDown or structureDown
+    sellScore += 1.10
+    sellQ += 1
+if mssDown
+    buyRisk += 0.70
+if mssUp
+    sellRisk += 0.70
+
+// Q040: Support resistance reject
+if supportRejectBuy
+    buyScore += 1.30
+    buyQ += 1
+if resistanceRejectSell
+    sellScore += 1.30
+    sellQ += 1
+if resistanceTouch and not supportTouch
+    buyRisk += 0.60
+if supportTouch and not resistanceTouch
+    sellRisk += 0.60
+
+// Q041: Liquidity sweep
+if stopHuntBuy
+    buyScore += 1.80
+    buyQ += 1
+if stopHuntSell
+    sellScore += 1.80
+    sellQ += 1
+if sweepHighConfirm and premium
+    buyRisk += 0.70
+if sweepLowConfirm and discount
+    sellRisk += 0.70
+
+// Q042: Break retest
+if retestBuyConfirm
+    buyScore += 1.70
+    buyQ += 1
+if retestSellConfirm
+    sellScore += 1.70
+    sellQ += 1
+if breakDown and not retestBuyConfirm
+    buyRisk += 0.70
+if breakUp and not retestSellConfirm
+    sellRisk += 0.70
+
+// Q043: Order zone
+if bullOBConfirm
+    buyScore += 1.50
+    buyQ += 1
+if bearOBConfirm
+    sellScore += 1.50
+    sellQ += 1
+if bearOBConfirm and not bullOBConfirm
+    buyRisk += 0.70
+if bullOBConfirm and not bearOBConfirm
+    sellRisk += 0.70
+
+// Q044: FVG zone
+if bullFVGConfirm
+    buyScore += 1.30
+    buyQ += 1
+if bearFVGConfirm
+    sellScore += 1.30
+    sellQ += 1
+if bearFVGConfirm and not bullFVGConfirm
+    buyRisk += 0.60
+if bullFVGConfirm and not bearFVGConfirm
+    sellRisk += 0.60
+
+// Q045: Value retest
+if valueBuy
+    buyScore += 0.90
+    buyQ += 1
+if valueSell
+    sellScore += 0.90
+    sellQ += 1
+if valueSell and premium
+    buyRisk += 0.50
+if valueBuy and discount
+    sellRisk += 0.50
+
+// Q046: Fibonacci
+if fibBuyConfirm
+    buyScore += 1.40
+    buyQ += 1
+if fibSellConfirm
+    sellScore += 1.40
+    sellQ += 1
+if fibSellConfirm and premium
+    buyRisk += 0.50
+if fibBuyConfirm and discount
+    sellRisk += 0.50
+
+// Q047: Donchian value
+if donBuy
+    buyScore += 0.80
+    buyQ += 1
+if donSell
+    sellScore += 0.80
+    sellQ += 1
+if donSell and premium
+    buyRisk += 0.40
+if donBuy and discount
+    sellRisk += 0.40
+
+// Q048: Bollinger range
+if bbRangeBuy
+    buyScore += 0.90
+    buyQ += 1
+if bbRangeSell
+    sellScore += 0.90
+    sellQ += 1
+if bbRangeSell
+    buyRisk += 0.40
+if bbRangeBuy
+    sellRisk += 0.40
+
+// Q049: Momentum
+if momentumBuy
+    buyScore += 1.10
+    buyQ += 1
+if momentumSell
+    sellScore += 1.10
+    sellQ += 1
+if momentumSell
+    buyRisk += 0.60
+if momentumBuy
+    sellRisk += 0.60
+
+// Q050: Candle rejection
+if bullReject
+    buyScore += 0.90
+    buyQ += 1
+if bearReject
+    sellScore += 0.90
+    sellQ += 1
+if bearReject and not bullReject
+    buyRisk += 0.40
+if bullReject and not bearReject
+    sellRisk += 0.40
+
+// Q051: Impulse candle
+if bullMomentum
+    buyScore += 1.00
+    buyQ += 1
+if bearMomentum
+    sellScore += 1.00
+    sellQ += 1
+if bearMomentum
+    buyRisk += 0.40
+if bullMomentum
+    sellRisk += 0.40
+
+// Q052: Volume pressure
+if volumeBull
+    buyScore += 0.60
+    buyQ += 1
+if volumeBear
+    sellScore += 0.60
+    sellQ += 1
+if volumeBear
+    buyRisk += 0.30
+if volumeBull
+    sellRisk += 0.30
+
+// Q053: Clean move
+if cleanMove
+    buyScore += 0.30
+    buyQ += 1
+if cleanMove
+    sellScore += 0.30
+    sellQ += 1
+if not cleanMove
+    buyRisk += 0.50
+if not cleanMove
+    sellRisk += 0.50
+
+// Q054: Exhaustion reversal
+if exhaustionReversalBuy
+    buyScore += 1.50
+    buyQ += 1
+if exhaustionReversalSell
+    sellScore += 1.50
+    sellQ += 1
+if exhaustBuyRisk
+    buyRisk += 1.00
+if exhaustSellRisk
+    sellRisk += 1.00
+
+// Q055: No chase
+if not chaseBuyRisk
+    buyScore += 0.50
+    buyQ += 1
+if not chaseSellRisk
+    sellScore += 0.50
+    sellQ += 1
+if chaseBuyRisk
+    buyRisk += 1.30
+if chaseSellRisk
+    sellRisk += 1.30
+
+// Q056: Room to TP
+if roomBuyOK and targetBuyAligned
+    buyScore += 1.40
+    buyQ += 1
+if roomSellOK and targetSellAligned
+    sellScore += 1.40
+    sellQ += 1
+if not roomBuyOK
+    buyRisk += 1.40
+if not roomSellOK
+    sellRisk += 1.40
+
+// Q057: Tradeable state
+if tradeableBase
+    buyScore += 0.80
+    buyQ += 1
+if tradeableBase
+    sellScore += 0.80
+    sellQ += 1
+if not tradeableBase
+    buyRisk += 2.00
+if not tradeableBase
+    sellRisk += 2.00
+
+// Q058: Strong HTF not against
+if not strongHTFSell or stopHuntBuy or exhaustionReversalBuy
+    buyScore += 0.80
+    buyQ += 1
+if not strongHTFBuy or stopHuntSell or exhaustionReversalSell
+    sellScore += 0.80
+    sellQ += 1
+if strongHTFSell and not stopHuntBuy and not exhaustionReversalBuy
+    buyRisk += 2.00
+if strongHTFBuy and not stopHuntSell and not exhaustionReversalSell
+    sellRisk += 2.00
+
+// Q059: No top buy / bottom sell
+if not premium or breakUp or stopHuntBuy
+    buyScore += 0.80
+    buyQ += 1
+if not discount or breakDown or stopHuntSell
+    sellScore += 0.80
+    sellQ += 1
+if premium and not breakUp and not stopHuntBuy
+    buyRisk += 1.40
+if discount and not breakDown and not stopHuntSell
+    sellRisk += 1.40
+
+// Q060: EMA20 pullback
+if low <= ema20 + atr * zoneAtrBuffer and close >= ema20 - atr * zoneAtrBuffer
+    buyScore += 0.70
+    buyQ += 1
+if high >= ema20 - atr * zoneAtrBuffer and close <= ema20 + atr * zoneAtrBuffer
+    sellScore += 0.70
+    sellQ += 1
+if close > ema20 + atr * maxChaseATR
+    buyRisk += 0.80
+if close < ema20 - atr * maxChaseATR
+    sellRisk += 0.80
+
+// Q061: HTF fast direction
+if tf1Dir == 1
+    buyScore += 0.80
+    buyQ += 1
+if tf1Dir == -1
+    sellScore += 0.80
+    sellQ += 1
+if tf1Dir == -1
+    buyRisk += 0.40
+if tf1Dir == 1
+    sellRisk += 0.40
+
+// Q062: HTF zone direction
+if tf2Dir == 1
+    buyScore += 1.00
+    buyQ += 1
+if tf2Dir == -1
+    sellScore += 1.00
+    sellQ += 1
+if tf2Dir == -1
+    buyRisk += 0.60
+if tf2Dir == 1
+    sellRisk += 0.60
+
+// Q063: HTF big map
+if tf3Dir == 1
+    buyScore += 1.20
+    buyQ += 1
+if tf3Dir == -1
+    sellScore += 1.20
+    sellQ += 1
+if tf3Dir == -1
+    buyRisk += 0.80
+if tf3Dir == 1
+    sellRisk += 0.80
+
+// Q064: Local trend
+if localTrendBuy
+    buyScore += 1.10
+    buyQ += 1
+if localTrendSell
+    sellScore += 1.10
+    sellQ += 1
+if localTrendSell
+    buyRisk += 0.60
+if localTrendBuy
+    sellRisk += 0.60
+
+// Q065: Trend power
+if trendPowerBuy >= 2
+    buyScore += 1.00
+    buyQ += 1
+if trendPowerSell >= 2
+    sellScore += 1.00
+    sellQ += 1
+if trendPowerSell >= 3
+    buyRisk += 0.60
+if trendPowerBuy >= 3
+    sellRisk += 0.60
+
+// Q066: HTF zone
+if htfBuyZone
+    buyScore += 1.50
+    buyQ += 1
+if htfSellZone
+    sellScore += 1.50
+    sellQ += 1
+if htfSellZone and not htfBuyZone
+    buyRisk += 0.80
+if htfBuyZone and not htfSellZone
+    sellRisk += 0.80
+
+// Q067: Premium discount
+if discount
+    buyScore += 1.00
+    buyQ += 1
+if premium
+    sellScore += 1.00
+    sellQ += 1
+if premium
+    buyRisk += 1.00
+if discount
+    sellRisk += 1.00
+
+// Q068: Middle filter
+if not middleZone or retestBuyConfirm or bullOBConfirm or bullFVGConfirm
+    buyScore += 0.40
+    buyQ += 1
+if not middleZone or retestSellConfirm or bearOBConfirm or bearFVGConfirm
+    sellScore += 0.40
+    sellQ += 1
+if middleZone and not retestBuyConfirm and not bullOBConfirm and not bullFVGConfirm
+    buyRisk += 0.80
+if middleZone and not retestSellConfirm and not bearOBConfirm and not bearFVGConfirm
+    sellRisk += 0.80
+
+// Q069: Structure shift
+if mssUp or structureUp
+    buyScore += 1.10
+    buyQ += 1
+if mssDown or structureDown
+    sellScore += 1.10
+    sellQ += 1
+if mssDown
+    buyRisk += 0.70
+if mssUp
+    sellRisk += 0.70
+
+// Q070: Support resistance reject
+if supportRejectBuy
+    buyScore += 1.30
+    buyQ += 1
+if resistanceRejectSell
+    sellScore += 1.30
+    sellQ += 1
+if resistanceTouch and not supportTouch
+    buyRisk += 0.60
+if supportTouch and not resistanceTouch
+    sellRisk += 0.60
+
+// Q071: Liquidity sweep
+if stopHuntBuy
+    buyScore += 1.80
+    buyQ += 1
+if stopHuntSell
+    sellScore += 1.80
+    sellQ += 1
+if sweepHighConfirm and premium
+    buyRisk += 0.70
+if sweepLowConfirm and discount
+    sellRisk += 0.70
+
+// Q072: Break retest
+if retestBuyConfirm
+    buyScore += 1.70
+    buyQ += 1
+if retestSellConfirm
+    sellScore += 1.70
+    sellQ += 1
+if breakDown and not retestBuyConfirm
+    buyRisk += 0.70
+if breakUp and not retestSellConfirm
+    sellRisk += 0.70
+
+// Q073: Order zone
+if bullOBConfirm
+    buyScore += 1.50
+    buyQ += 1
+if bearOBConfirm
+    sellScore += 1.50
+    sellQ += 1
+if bearOBConfirm and not bullOBConfirm
+    buyRisk += 0.70
+if bullOBConfirm and not bearOBConfirm
+    sellRisk += 0.70
+
+// Q074: FVG zone
+if bullFVGConfirm
+    buyScore += 1.30
+    buyQ += 1
+if bearFVGConfirm
+    sellScore += 1.30
+    sellQ += 1
+if bearFVGConfirm and not bullFVGConfirm
+    buyRisk += 0.60
+if bullFVGConfirm and not bearFVGConfirm
+    sellRisk += 0.60
+
+// Q075: Value retest
+if valueBuy
+    buyScore += 0.90
+    buyQ += 1
+if valueSell
+    sellScore += 0.90
+    sellQ += 1
+if valueSell and premium
+    buyRisk += 0.50
+if valueBuy and discount
+    sellRisk += 0.50
+
+// Q076: Fibonacci
+if fibBuyConfirm
+    buyScore += 1.40
+    buyQ += 1
+if fibSellConfirm
+    sellScore += 1.40
+    sellQ += 1
+if fibSellConfirm and premium
+    buyRisk += 0.50
+if fibBuyConfirm and discount
+    sellRisk += 0.50
+
+// Q077: Donchian value
+if donBuy
+    buyScore += 0.80
+    buyQ += 1
+if donSell
+    sellScore += 0.80
+    sellQ += 1
+if donSell and premium
+    buyRisk += 0.40
+if donBuy and discount
+    sellRisk += 0.40
+
+// Q078: Bollinger range
+if bbRangeBuy
+    buyScore += 0.90
+    buyQ += 1
+if bbRangeSell
+    sellScore += 0.90
+    sellQ += 1
+if bbRangeSell
+    buyRisk += 0.40
+if bbRangeBuy
+    sellRisk += 0.40
+
+// Q079: Momentum
+if momentumBuy
+    buyScore += 1.10
+    buyQ += 1
+if momentumSell
+    sellScore += 1.10
+    sellQ += 1
+if momentumSell
+    buyRisk += 0.60
+if momentumBuy
+    sellRisk += 0.60
+
+// Q080: Candle rejection
+if bullReject
+    buyScore += 0.90
+    buyQ += 1
+if bearReject
+    sellScore += 0.90
+    sellQ += 1
+if bearReject and not bullReject
+    buyRisk += 0.40
+if bullReject and not bearReject
+    sellRisk += 0.40
+
+// Q081: Impulse candle
+if bullMomentum
+    buyScore += 1.00
+    buyQ += 1
+if bearMomentum
+    sellScore += 1.00
+    sellQ += 1
+if bearMomentum
+    buyRisk += 0.40
+if bullMomentum
+    sellRisk += 0.40
+
+// Q082: Volume pressure
+if volumeBull
+    buyScore += 0.60
+    buyQ += 1
+if volumeBear
+    sellScore += 0.60
+    sellQ += 1
+if volumeBear
+    buyRisk += 0.30
+if volumeBull
+    sellRisk += 0.30
+
+// Q083: Clean move
+if cleanMove
+    buyScore += 0.30
+    buyQ += 1
+if cleanMove
+    sellScore += 0.30
+    sellQ += 1
+if not cleanMove
+    buyRisk += 0.50
+if not cleanMove
+    sellRisk += 0.50
+
+// Q084: Exhaustion reversal
+if exhaustionReversalBuy
+    buyScore += 1.50
+    buyQ += 1
+if exhaustionReversalSell
+    sellScore += 1.50
+    sellQ += 1
+if exhaustBuyRisk
+    buyRisk += 1.00
+if exhaustSellRisk
+    sellRisk += 1.00
+
+// Q085: No chase
+if not chaseBuyRisk
+    buyScore += 0.50
+    buyQ += 1
+if not chaseSellRisk
+    sellScore += 0.50
+    sellQ += 1
+if chaseBuyRisk
+    buyRisk += 1.30
+if chaseSellRisk
+    sellRisk += 1.30
+
+// Q086: Room to TP
+if roomBuyOK and targetBuyAligned
+    buyScore += 1.40
+    buyQ += 1
+if roomSellOK and targetSellAligned
+    sellScore += 1.40
+    sellQ += 1
+if not roomBuyOK
+    buyRisk += 1.40
+if not roomSellOK
+    sellRisk += 1.40
+
+// Q087: Tradeable state
+if tradeableBase
+    buyScore += 0.80
+    buyQ += 1
+if tradeableBase
+    sellScore += 0.80
+    sellQ += 1
+if not tradeableBase
+    buyRisk += 2.00
+if not tradeableBase
+    sellRisk += 2.00
+
+// Q088: Strong HTF not against
+if not strongHTFSell or stopHuntBuy or exhaustionReversalBuy
+    buyScore += 0.80
+    buyQ += 1
+if not strongHTFBuy or stopHuntSell or exhaustionReversalSell
+    sellScore += 0.80
+    sellQ += 1
+if strongHTFSell and not stopHuntBuy and not exhaustionReversalBuy
+    buyRisk += 2.00
+if strongHTFBuy and not stopHuntSell and not exhaustionReversalSell
+    sellRisk += 2.00
+
+// Q089: No top buy / bottom sell
+if not premium or breakUp or stopHuntBuy
+    buyScore += 0.80
+    buyQ += 1
+if not discount or breakDown or stopHuntSell
+    sellScore += 0.80
+    sellQ += 1
+if premium and not breakUp and not stopHuntBuy
+    buyRisk += 1.40
+if discount and not breakDown and not stopHuntSell
+    sellRisk += 1.40
+
+// Q090: EMA20 pullback
+if low <= ema20 + atr * zoneAtrBuffer and close >= ema20 - atr * zoneAtrBuffer
+    buyScore += 0.70
+    buyQ += 1
+if high >= ema20 - atr * zoneAtrBuffer and close <= ema20 + atr * zoneAtrBuffer
+    sellScore += 0.70
+    sellQ += 1
+if close > ema20 + atr * maxChaseATR
+    buyRisk += 0.80
+if close < ema20 - atr * maxChaseATR
+    sellRisk += 0.80
+
+// Q091: HTF fast direction
+if tf1Dir == 1
+    buyScore += 0.80
+    buyQ += 1
+if tf1Dir == -1
+    sellScore += 0.80
+    sellQ += 1
+if tf1Dir == -1
+    buyRisk += 0.40
+if tf1Dir == 1
+    sellRisk += 0.40
+
+// Q092: HTF zone direction
+if tf2Dir == 1
+    buyScore += 1.00
+    buyQ += 1
+if tf2Dir == -1
+    sellScore += 1.00
+    sellQ += 1
+if tf2Dir == -1
+    buyRisk += 0.60
+if tf2Dir == 1
+    sellRisk += 0.60
+
+// Q093: HTF big map
+if tf3Dir == 1
+    buyScore += 1.20
+    buyQ += 1
+if tf3Dir == -1
+    sellScore += 1.20
+    sellQ += 1
+if tf3Dir == -1
+    buyRisk += 0.80
+if tf3Dir == 1
+    sellRisk += 0.80
+
+// Q094: Local trend
+if localTrendBuy
+    buyScore += 1.10
+    buyQ += 1
+if localTrendSell
+    sellScore += 1.10
+    sellQ += 1
+if localTrendSell
+    buyRisk += 0.60
+if localTrendBuy
+    sellRisk += 0.60
+
+// Q095: Trend power
+if trendPowerBuy >= 2
+    buyScore += 1.00
+    buyQ += 1
+if trendPowerSell >= 2
+    sellScore += 1.00
+    sellQ += 1
+if trendPowerSell >= 3
+    buyRisk += 0.60
+if trendPowerBuy >= 3
+    sellRisk += 0.60
+
+// Q096: HTF zone
+if htfBuyZone
+    buyScore += 1.50
+    buyQ += 1
+if htfSellZone
+    sellScore += 1.50
+    sellQ += 1
+if htfSellZone and not htfBuyZone
+    buyRisk += 0.80
+if htfBuyZone and not htfSellZone
+    sellRisk += 0.80
+
+// Q097: Premium discount
+if discount
+    buyScore += 1.00
+    buyQ += 1
+if premium
+    sellScore += 1.00
+    sellQ += 1
+if premium
+    buyRisk += 1.00
+if discount
+    sellRisk += 1.00
+
+// Q098: Middle filter
+if not middleZone or retestBuyConfirm or bullOBConfirm or bullFVGConfirm
+    buyScore += 0.40
+    buyQ += 1
+if not middleZone or retestSellConfirm or bearOBConfirm or bearFVGConfirm
+    sellScore += 0.40
+    sellQ += 1
+if middleZone and not retestBuyConfirm and not bullOBConfirm and not bullFVGConfirm
+    buyRisk += 0.80
+if middleZone and not retestSellConfirm and not bearOBConfirm and not bearFVGConfirm
+    sellRisk += 0.80
+
+// Q099: Structure shift
+if mssUp or structureUp
+    buyScore += 1.10
+    buyQ += 1
+if mssDown or structureDown
+    sellScore += 1.10
+    sellQ += 1
+if mssDown
+    buyRisk += 0.70
+if mssUp
+    sellRisk += 0.70
+
+// Q100: Support resistance reject
+if supportRejectBuy
+    buyScore += 1.30
+    buyQ += 1
+if resistanceRejectSell
+    sellScore += 1.30
+    sellQ += 1
+if resistanceTouch and not supportTouch
+    buyRisk += 0.60
+if supportTouch and not resistanceTouch
+    sellRisk += 0.60
+
+// Q101: Liquidity sweep
+if stopHuntBuy
+    buyScore += 1.80
+    buyQ += 1
+if stopHuntSell
+    sellScore += 1.80
+    sellQ += 1
+if sweepHighConfirm and premium
+    buyRisk += 0.70
+if sweepLowConfirm and discount
+    sellRisk += 0.70
+
+// Q102: Break retest
+if retestBuyConfirm
+    buyScore += 1.70
+    buyQ += 1
+if retestSellConfirm
+    sellScore += 1.70
+    sellQ += 1
+if breakDown and not retestBuyConfirm
+    buyRisk += 0.70
+if breakUp and not retestSellConfirm
+    sellRisk += 0.70
+
+// Q103: Order zone
+if bullOBConfirm
+    buyScore += 1.50
+    buyQ += 1
+if bearOBConfirm
+    sellScore += 1.50
+    sellQ += 1
+if bearOBConfirm and not bullOBConfirm
+    buyRisk += 0.70
+if bullOBConfirm and not bearOBConfirm
+    sellRisk += 0.70
+
+// Q104: FVG zone
+if bullFVGConfirm
+    buyScore += 1.30
+    buyQ += 1
+if bearFVGConfirm
+    sellScore += 1.30
+    sellQ += 1
+if bearFVGConfirm and not bullFVGConfirm
+    buyRisk += 0.60
+if bullFVGConfirm and not bearFVGConfirm
+    sellRisk += 0.60
+
+// Q105: Value retest
+if valueBuy
+    buyScore += 0.90
+    buyQ += 1
+if valueSell
+    sellScore += 0.90
+    sellQ += 1
+if valueSell and premium
+    buyRisk += 0.50
+if valueBuy and discount
+    sellRisk += 0.50
+
+// Q106: Fibonacci
+if fibBuyConfirm
+    buyScore += 1.40
+    buyQ += 1
+if fibSellConfirm
+    sellScore += 1.40
+    sellQ += 1
+if fibSellConfirm and premium
+    buyRisk += 0.50
+if fibBuyConfirm and discount
+    sellRisk += 0.50
+
+// Q107: Donchian value
+if donBuy
+    buyScore += 0.80
+    buyQ += 1
+if donSell
+    sellScore += 0.80
+    sellQ += 1
+if donSell and premium
+    buyRisk += 0.40
+if donBuy and discount
+    sellRisk += 0.40
+
+// Q108: Bollinger range
+if bbRangeBuy
+    buyScore += 0.90
+    buyQ += 1
+if bbRangeSell
+    sellScore += 0.90
+    sellQ += 1
+if bbRangeSell
+    buyRisk += 0.40
+if bbRangeBuy
+    sellRisk += 0.40
+
+// Q109: Momentum
+if momentumBuy
+    buyScore += 1.10
+    buyQ += 1
+if momentumSell
+    sellScore += 1.10
+    sellQ += 1
+if momentumSell
+    buyRisk += 0.60
+if momentumBuy
+    sellRisk += 0.60
+
+// Q110: Candle rejection
+if bullReject
+    buyScore += 0.90
+    buyQ += 1
+if bearReject
+    sellScore += 0.90
+    sellQ += 1
+if bearReject and not bullReject
+    buyRisk += 0.40
+if bullReject and not bearReject
+    sellRisk += 0.40
+
+// Q111: Impulse candle
+if bullMomentum
+    buyScore += 1.00
+    buyQ += 1
+if bearMomentum
+    sellScore += 1.00
+    sellQ += 1
+if bearMomentum
+    buyRisk += 0.40
+if bullMomentum
+    sellRisk += 0.40
+
+// Q112: Volume pressure
+if volumeBull
+    buyScore += 0.60
+    buyQ += 1
+if volumeBear
+    sellScore += 0.60
+    sellQ += 1
+if volumeBear
+    buyRisk += 0.30
+if volumeBull
+    sellRisk += 0.30
+
+// Q113: Clean move
+if cleanMove
+    buyScore += 0.30
+    buyQ += 1
+if cleanMove
+    sellScore += 0.30
+    sellQ += 1
+if not cleanMove
+    buyRisk += 0.50
+if not cleanMove
+    sellRisk += 0.50
+
+// Q114: Exhaustion reversal
+if exhaustionReversalBuy
+    buyScore += 1.50
+    buyQ += 1
+if exhaustionReversalSell
+    sellScore += 1.50
+    sellQ += 1
+if exhaustBuyRisk
+    buyRisk += 1.00
+if exhaustSellRisk
+    sellRisk += 1.00
+
+// Q115: No chase
+if not chaseBuyRisk
+    buyScore += 0.50
+    buyQ += 1
+if not chaseSellRisk
+    sellScore += 0.50
+    sellQ += 1
+if chaseBuyRisk
+    buyRisk += 1.30
+if chaseSellRisk
+    sellRisk += 1.30
+
+// Q116: Room to TP
+if roomBuyOK and targetBuyAligned
+    buyScore += 1.40
+    buyQ += 1
+if roomSellOK and targetSellAligned
+    sellScore += 1.40
+    sellQ += 1
+if not roomBuyOK
+    buyRisk += 1.40
+if not roomSellOK
+    sellRisk += 1.40
+
+// Q117: Tradeable state
+if tradeableBase
+    buyScore += 0.80
+    buyQ += 1
+if tradeableBase
+    sellScore += 0.80
+    sellQ += 1
+if not tradeableBase
+    buyRisk += 2.00
+if not tradeableBase
+    sellRisk += 2.00
+
+// Q118: Strong HTF not against
+if not strongHTFSell or stopHuntBuy or exhaustionReversalBuy
+    buyScore += 0.80
+    buyQ += 1
+if not strongHTFBuy or stopHuntSell or exhaustionReversalSell
+    sellScore += 0.80
+    sellQ += 1
+if strongHTFSell and not stopHuntBuy and not exhaustionReversalBuy
+    buyRisk += 2.00
+if strongHTFBuy and not stopHuntSell and not exhaustionReversalSell
+    sellRisk += 2.00
+
+// Q119: No top buy / bottom sell
+if not premium or breakUp or stopHuntBuy
+    buyScore += 0.80
+    buyQ += 1
+if not discount or breakDown or stopHuntSell
+    sellScore += 0.80
+    sellQ += 1
+if premium and not breakUp and not stopHuntBuy
+    buyRisk += 1.40
+if discount and not breakDown and not stopHuntSell
+    sellRisk += 1.40
+
+// Q120: EMA20 pullback
+if low <= ema20 + atr * zoneAtrBuffer and close >= ema20 - atr * zoneAtrBuffer
+    buyScore += 0.70
+    buyQ += 1
+if high >= ema20 - atr * zoneAtrBuffer and close <= ema20 + atr * zoneAtrBuffer
+    sellScore += 0.70
+    sellQ += 1
+if close > ema20 + atr * maxChaseATR
+    buyRisk += 0.80
+if close < ema20 - atr * maxChaseATR
+    sellRisk += 0.80
+
+// Q121: HTF fast direction
+if tf1Dir == 1
+    buyScore += 0.80
+    buyQ += 1
+if tf1Dir == -1
+    sellScore += 0.80
+    sellQ += 1
+if tf1Dir == -1
+    buyRisk += 0.40
+if tf1Dir == 1
+    sellRisk += 0.40
+
+// Q122: HTF zone direction
+if tf2Dir == 1
+    buyScore += 1.00
+    buyQ += 1
+if tf2Dir == -1
+    sellScore += 1.00
+    sellQ += 1
+if tf2Dir == -1
+    buyRisk += 0.60
+if tf2Dir == 1
+    sellRisk += 0.60
+
+// Q123: HTF big map
+if tf3Dir == 1
+    buyScore += 1.20
+    buyQ += 1
+if tf3Dir == -1
+    sellScore += 1.20
+    sellQ += 1
+if tf3Dir == -1
+    buyRisk += 0.80
+if tf3Dir == 1
+    sellRisk += 0.80
+
+// Q124: Local trend
+if localTrendBuy
+    buyScore += 1.10
+    buyQ += 1
+if localTrendSell
+    sellScore += 1.10
+    sellQ += 1
+if localTrendSell
+    buyRisk += 0.60
+if localTrendBuy
+    sellRisk += 0.60
+
+// Q125: Trend power
+if trendPowerBuy >= 2
+    buyScore += 1.00
+    buyQ += 1
+if trendPowerSell >= 2
+    sellScore += 1.00
+    sellQ += 1
+if trendPowerSell >= 3
+    buyRisk += 0.60
+if trendPowerBuy >= 3
+    sellRisk += 0.60
+
+// Q126: HTF zone
+if htfBuyZone
+    buyScore += 1.50
+    buyQ += 1
+if htfSellZone
+    sellScore += 1.50
+    sellQ += 1
+if htfSellZone and not htfBuyZone
+    buyRisk += 0.80
+if htfBuyZone and not htfSellZone
+    sellRisk += 0.80
+
+// Q127: Premium discount
+if discount
+    buyScore += 1.00
+    buyQ += 1
+if premium
+    sellScore += 1.00
+    sellQ += 1
+if premium
+    buyRisk += 1.00
+if discount
+    sellRisk += 1.00
+
+// Q128: Middle filter
+if not middleZone or retestBuyConfirm or bullOBConfirm or bullFVGConfirm
+    buyScore += 0.40
+    buyQ += 1
+if not middleZone or retestSellConfirm or bearOBConfirm or bearFVGConfirm
+    sellScore += 0.40
+    sellQ += 1
+if middleZone and not retestBuyConfirm and not bullOBConfirm and not bullFVGConfirm
+    buyRisk += 0.80
+if middleZone and not retestSellConfirm and not bearOBConfirm and not bearFVGConfirm
+    sellRisk += 0.80
+
+// Q129: Structure shift
+if mssUp or structureUp
+    buyScore += 1.10
+    buyQ += 1
+if mssDown or structureDown
+    sellScore += 1.10
+    sellQ += 1
+if mssDown
+    buyRisk += 0.70
+if mssUp
+    sellRisk += 0.70
+
+// Q130: Support resistance reject
+if supportRejectBuy
+    buyScore += 1.30
+    buyQ += 1
+if resistanceRejectSell
+    sellScore += 1.30
+    sellQ += 1
+if resistanceTouch and not supportTouch
+    buyRisk += 0.60
+if supportTouch and not resistanceTouch
+    sellRisk += 0.60
+
+// Q131: Liquidity sweep
+if stopHuntBuy
+    buyScore += 1.80
+    buyQ += 1
+if stopHuntSell
+    sellScore += 1.80
+    sellQ += 1
+if sweepHighConfirm and premium
+    buyRisk += 0.70
+if sweepLowConfirm and discount
+    sellRisk += 0.70
+
+// Q132: Break retest
+if retestBuyConfirm
+    buyScore += 1.70
+    buyQ += 1
+if retestSellConfirm
+    sellScore += 1.70
+    sellQ += 1
+if breakDown and not retestBuyConfirm
+    buyRisk += 0.70
+if breakUp and not retestSellConfirm
+    sellRisk += 0.70
+
+// Q133: Order zone
+if bullOBConfirm
+    buyScore += 1.50
+    buyQ += 1
+if bearOBConfirm
+    sellScore += 1.50
+    sellQ += 1
+if bearOBConfirm and not bullOBConfirm
+    buyRisk += 0.70
+if bullOBConfirm and not bearOBConfirm
+    sellRisk += 0.70
+
+// Q134: FVG zone
+if bullFVGConfirm
+    buyScore += 1.30
+    buyQ += 1
+if bearFVGConfirm
+    sellScore += 1.30
+    sellQ += 1
+if bearFVGConfirm and not bullFVGConfirm
+    buyRisk += 0.60
+if bullFVGConfirm and not bearFVGConfirm
+    sellRisk += 0.60
+
+// Q135: Value retest
+if valueBuy
+    buyScore += 0.90
+    buyQ += 1
+if valueSell
+    sellScore += 0.90
+    sellQ += 1
+if valueSell and premium
+    buyRisk += 0.50
+if valueBuy and discount
+    sellRisk += 0.50
+
+// Q136: Fibonacci
+if fibBuyConfirm
+    buyScore += 1.40
+    buyQ += 1
+if fibSellConfirm
+    sellScore += 1.40
+    sellQ += 1
+if fibSellConfirm and premium
+    buyRisk += 0.50
+if fibBuyConfirm and discount
+    sellRisk += 0.50
+
+// Q137: Donchian value
+if donBuy
+    buyScore += 0.80
+    buyQ += 1
+if donSell
+    sellScore += 0.80
+    sellQ += 1
+if donSell and premium
+    buyRisk += 0.40
+if donBuy and discount
+    sellRisk += 0.40
+
+// Q138: Bollinger range
+if bbRangeBuy
+    buyScore += 0.90
+    buyQ += 1
+if bbRangeSell
+    sellScore += 0.90
+    sellQ += 1
+if bbRangeSell
+    buyRisk += 0.40
+if bbRangeBuy
+    sellRisk += 0.40
+
+// Q139: Momentum
+if momentumBuy
+    buyScore += 1.10
+    buyQ += 1
+if momentumSell
+    sellScore += 1.10
+    sellQ += 1
+if momentumSell
+    buyRisk += 0.60
+if momentumBuy
+    sellRisk += 0.60
+
+// Q140: Candle rejection
+if bullReject
+    buyScore += 0.90
+    buyQ += 1
+if bearReject
+    sellScore += 0.90
+    sellQ += 1
+if bearReject and not bullReject
+    buyRisk += 0.40
+if bullReject and not bearReject
+    sellRisk += 0.40
+
+// Q141: Impulse candle
+if bullMomentum
+    buyScore += 1.00
+    buyQ += 1
+if bearMomentum
+    sellScore += 1.00
+    sellQ += 1
+if bearMomentum
+    buyRisk += 0.40
+if bullMomentum
+    sellRisk += 0.40
+
+// Q142: Volume pressure
+if volumeBull
+    buyScore += 0.60
+    buyQ += 1
+if volumeBear
+    sellScore += 0.60
+    sellQ += 1
+if volumeBear
+    buyRisk += 0.30
+if volumeBull
+    sellRisk += 0.30
+
+// Q143: Clean move
+if cleanMove
+    buyScore += 0.30
+    buyQ += 1
+if cleanMove
+    sellScore += 0.30
+    sellQ += 1
+if not cleanMove
+    buyRisk += 0.50
+if not cleanMove
+    sellRisk += 0.50
+
+// Q144: Exhaustion reversal
+if exhaustionReversalBuy
+    buyScore += 1.50
+    buyQ += 1
+if exhaustionReversalSell
+    sellScore += 1.50
+    sellQ += 1
+if exhaustBuyRisk
+    buyRisk += 1.00
+if exhaustSellRisk
+    sellRisk += 1.00
+
+// Q145: No chase
+if not chaseBuyRisk
+    buyScore += 0.50
+    buyQ += 1
+if not chaseSellRisk
+    sellScore += 0.50
+    sellQ += 1
+if chaseBuyRisk
+    buyRisk += 1.30
+if chaseSellRisk
+    sellRisk += 1.30
+
+// Q146: Room to TP
+if roomBuyOK and targetBuyAligned
+    buyScore += 1.40
+    buyQ += 1
+if roomSellOK and targetSellAligned
+    sellScore += 1.40
+    sellQ += 1
+if not roomBuyOK
+    buyRisk += 1.40
+if not roomSellOK
+    sellRisk += 1.40
+
+// Q147: Tradeable state
+if tradeableBase
+    buyScore += 0.80
+    buyQ += 1
+if tradeableBase
+    sellScore += 0.80
+    sellQ += 1
+if not tradeableBase
+    buyRisk += 2.00
+if not tradeableBase
+    sellRisk += 2.00
+
+// Q148: Strong HTF not against
+if not strongHTFSell or stopHuntBuy or exhaustionReversalBuy
+    buyScore += 0.80
+    buyQ += 1
+if not strongHTFBuy or stopHuntSell or exhaustionReversalSell
+    sellScore += 0.80
+    sellQ += 1
+if strongHTFSell and not stopHuntBuy and not exhaustionReversalBuy
+    buyRisk += 2.00
+if strongHTFBuy and not stopHuntSell and not exhaustionReversalSell
+    sellRisk += 2.00
+
+// Q149: No top buy / bottom sell
+if not premium or breakUp or stopHuntBuy
+    buyScore += 0.80
+    buyQ += 1
+if not discount or breakDown or stopHuntSell
+    sellScore += 0.80
+    sellQ += 1
+if premium and not breakUp and not stopHuntBuy
+    buyRisk += 1.40
+if discount and not breakDown and not stopHuntSell
+    sellRisk += 1.40
+
+// Q150: EMA20 pullback
+if low <= ema20 + atr * zoneAtrBuffer and close >= ema20 - atr * zoneAtrBuffer
+    buyScore += 0.70
+    buyQ += 1
+if high >= ema20 - atr * zoneAtrBuffer and close <= ema20 + atr * zoneAtrBuffer
+    sellScore += 0.70
+    sellQ += 1
+if close > ema20 + atr * maxChaseATR
+    buyRisk += 0.80
+if close < ema20 - atr * maxChaseATR
+    sellRisk += 0.80
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STORY ENGINE - MAP READS WHY THE TRADE EXISTS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+realReversalBuy = (stopHuntBuy or exhaustionReversalBuy) and (mssUp or close > ema20) and (bullReject or bullMomentum) and (discount or htfBuyZone) and roomBuyOK
+realReversalSell = (stopHuntSell or exhaustionReversalSell) and (mssDown or close < ema20) and (bearReject or bearMomentum) and (premium or htfSellZone) and roomSellOK
+buyStoryPullback = alignmentBuy and trendPowerBuy >= 2 and valueBuy and (bullReject or momentumBuy) and not premium and roomBuyOK
+sellStoryPullback = alignmentSell and trendPowerSell >= 2 and valueSell and (bearReject or momentumSell) and not discount and roomSellOK
+buyStorySweep = stopHuntBuy and not strongHTFSell and (bullReject or bullMomentum) and roomBuyOK
+sellStorySweep = stopHuntSell and not strongHTFBuy and (bearReject or bearMomentum) and roomSellOK
+buyStoryRetest = retestBuyConfirm and mapDir >= 0 and roomBuyOK
+sellStoryRetest = retestSellConfirm and mapDir <= 0 and roomSellOK
+buyStoryOrder = bullOBConfirm and (alignmentBuy or htfBuyZone or discount) and not premium and roomBuyOK
+sellStoryOrder = bearOBConfirm and (alignmentSell or htfSellZone or premium) and not discount and roomSellOK
+buyStoryFVG = bullFVGConfirm and (alignmentBuy or htfBuyZone or discount) and not premium and roomBuyOK
+sellStoryFVG = bearFVGConfirm and (alignmentSell or htfSellZone or premium) and not discount and roomSellOK
+buyStoryFib = fibBuyConfirm and (alignmentBuy or htfBuyZone or discount) and not premium and roomBuyOK
+sellStoryFib = fibSellConfirm and (alignmentSell or htfSellZone or premium) and not discount and roomSellOK
+buyStoryRange = rangeMarket and discount and (supportRejectBuy or bbRangeBuy or donBuy) and roomBuyOK
+sellStoryRange = rangeMarket and premium and (resistanceRejectSell or bbRangeSell or donSell) and roomSellOK
+buyStoryMomentum = cleanMove and momentumBuy and mapDir >= 0 and bullMomentum and not premium and roomBuyOK
+sellStoryMomentum = cleanMove and momentumSell and mapDir <= 0 and bearMomentum and not discount and roomSellOK
+utBuyZoneOK = not utEntryNeedsStory or discount or htfBuyZone or stopHuntBuy or retestBuyConfirm or bullOBConfirm or bullFVGConfirm or fibBuyConfirm or valueBuy or supportRejectBuy
+utSellZoneOK = not utEntryNeedsStory or premium or htfSellZone or stopHuntSell or retestSellConfirm or bearOBConfirm or bearFVGConfirm or fibSellConfirm or valueSell or resistanceRejectSell
+utBuyStory = utEntryMode and utFreshBuy and utBull and utBuyZoneOK and roomBuyOK
+utSellStory = utEntryMode and utFreshSell and utBear and utSellZoneOK and roomSellOK
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AMD / POWER OF THREE SESSION SETUP
+// Accumulation -> Manipulation -> Distribution
+// One full setup per day, labeled AMD BUY / AMD SELL.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_amd_setup_tf_engine() =>
+    _inAsia = useAMD and not na(time(timeframe.period, amdAsiaSession, amdTz))
+    _inManip = useAMD and not na(time(timeframe.period, amdManipSession, amdTz))
+    _inDist = useAMD and not na(time(timeframe.period, amdDistSession, amdTz))
+    _dayKey = year(time) * 10000 + month(time) * 100 + dayofmonth(time)
+    var int _lastDayKey = na
+    var float _asiaHigh = na
+    var float _asiaLow = na
+    var int _manipDir = 0
+    var int _manipBar = na
+    if na(_lastDayKey) or _dayKey != _lastDayKey
+        _asiaHigh := na
+        _asiaLow := na
+        _manipDir := 0
+        _manipBar := na
+        _lastDayKey := _dayKey
+    if _inAsia
+        _asiaHigh := na(_asiaHigh) ? high : math.max(_asiaHigh, high)
+        _asiaLow := na(_asiaLow) ? low : math.min(_asiaLow, low)
+    _ready = useAMD and not na(_asiaHigh) and not na(_asiaLow) and _asiaHigh > _asiaLow
+    _buffer = amdSweepBufferPts * pointUnit
+    _sweepHigh = _ready and _inManip and high > _asiaHigh + _buffer and close < _asiaHigh
+    _sweepLow = _ready and _inManip and low < _asiaLow - _buffer and close > _asiaLow
+    if _manipDir == 0
+        if _sweepLow
+            _manipDir := 1
+            _manipBar := bar_index
+        else if _sweepHigh
+            _manipDir := -1
+            _manipBar := bar_index
+    _barsAfter = na(_manipBar) ? 1000000 : bar_index - _manipBar
+    _windowOK = _barsAfter > 0 and _barsAfter <= amdMaxBarsAfterManip
+    _entrySessionOK = _inDist or (amdAllowLondonEntry and _inManip)
+    _mssHigh = ta.highest(high, amdMssLookback)[1]
+    _mssLow = ta.lowest(low, amdMssLookback)[1]
+    _buyMSS = not na(_mssHigh) and close > _mssHigh and close[1] <= _mssHigh
+    _sellMSS = not na(_mssLow) and close < _mssLow and close[1] >= _mssLow
+    _rng = math.max(high - low, syminfo.mintick)
+    _body = math.abs(close - open)
+    _bodyPct = _body / _rng * 100.0
+    _upW = (high - math.max(open, close)) / _rng * 100.0
+    _dnW = (math.min(open, close) - low) / _rng * 100.0
+    _cpB = (close - low) / _rng
+    _cpS = (high - close) / _rng
+    _bullRejectTF = close > open and _bodyPct >= minBodyPct and _dnW >= minWickPct and _cpB >= 0.55
+    _bearRejectTF = close < open and _bodyPct >= minBodyPct and _upW >= minWickPct and _cpS >= 0.55
+    _bullMomTF = close > open and _bodyPct >= strongBodyPct and _cpB >= 0.60
+    _bearMomTF = close < open and _bodyPct >= strongBodyPct and _cpS >= 0.60
+    _buyPulse = _buyMSS or _bullRejectTF or _bullMomTF
+    _sellPulse = _sellMSS or _bearRejectTF or _bearMomTF
+    _buyZone = _ready and close > _asiaLow and close < _asiaHigh + (_asiaHigh - _asiaLow) * 0.35
+    _sellZone = _ready and close < _asiaHigh and close > _asiaLow - (_asiaHigh - _asiaLow) * 0.35
+    _buySetup = useAMD and _manipDir == 1 and _windowOK and _entrySessionOK and _buyPulse and _buyZone
+    _sellSetup = useAMD and _manipDir == -1 and _windowOK and _entrySessionOK and _sellPulse and _sellZone
+    [_asiaHigh, _asiaLow, _manipDir, _buySetup, _sellSetup, _inAsia, _inManip, _inDist, _sweepHigh, _sweepLow]
+
+[amdTFAsiaHighRaw, amdTFAsiaLowRaw, amdTFManipDirRaw, amdTFBuyRaw0, amdTFSellRaw0, amdTFInAsia, amdTFInManip, amdTFInDist, amdTFSweepHigh, amdTFSweepLow] = request.security(syminfo.tickerid, amdSetupTF, f_amd_setup_tf_engine(), barmerge.gaps_off, barmerge.lookahead_off)
+amdTFBuyRaw = amdUseClosedSetupTF ? amdTFBuyRaw0 : amdTFBuyRaw0
+amdTFSellRaw = amdUseClosedSetupTF ? amdTFSellRaw0 : amdTFSellRaw0
+amdTFBuyPulse = amdTFBuyRaw and not amdTFBuyRaw[1]
+amdTFSellPulse = amdTFSellRaw and not amdTFSellRaw[1]
+amdTFSetupBuyOK = amdUseSetupTF ? amdTFBuyRaw : false
+amdTFSetupSellOK = amdUseSetupTF ? amdTFSellRaw : false
+
+
+inAMDAsia = useAMD and not na(time(timeframe.period, amdAsiaSession, amdTz))
+inAMDManip = useAMD and not na(time(timeframe.period, amdManipSession, amdTz))
+inAMDDist = useAMD and not na(time(timeframe.period, amdDistSession, amdTz))
+amdDayKey = year(time) * 10000 + month(time) * 100 + dayofmonth(time)
+var int amdLastDayKey = na
+var float amdAsiaHigh = na
+var float amdAsiaLow = na
+var int amdManipDir = 0
+var int amdManipBar = na
+var int amdDoneKey = na
+var int amdManipLabelDay = na
+
+if na(amdLastDayKey) or amdDayKey != amdLastDayKey
+    amdAsiaHigh := na
+    amdAsiaLow := na
+    amdManipDir := 0
+    amdManipBar := na
+    amdManipLabelDay := na
+    amdLastDayKey := amdDayKey
+
+if inAMDAsia
+    amdAsiaHigh := na(amdAsiaHigh) ? high : math.max(amdAsiaHigh, high)
+    amdAsiaLow := na(amdAsiaLow) ? low : math.min(amdAsiaLow, low)
+
+amdRangeReady = useAMD and not na(amdAsiaHigh) and not na(amdAsiaLow) and amdAsiaHigh > amdAsiaLow
+amdSweepBuffer = amdSweepBufferPts * pointUnit
+amdAlreadyDone = amdOncePerDay and amdDoneKey == amdDayKey
+amdSweepHighNow = amdRangeReady and inAMDManip and high > amdAsiaHigh + amdSweepBuffer and close < amdAsiaHigh
+amdSweepLowNow = amdRangeReady and inAMDManip and low < amdAsiaLow - amdSweepBuffer and close > amdAsiaLow
+
+if useAMD and not amdAlreadyDone and amdManipDir == 0
+    if amdSweepLowNow
+        amdManipDir := 1
+        amdManipBar := bar_index
+        if showAMDStateLabels and not cleanChartMode and amdManipLabelDay != amdDayKey
+            label.new(bar_index, low, "AMD MANIP LOW", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_up, color=color.new(BUY_C, 10), textcolor=TXT_C, size=size.tiny)
+            amdManipLabelDay := amdDayKey
+    else if amdSweepHighNow
+        amdManipDir := -1
+        amdManipBar := bar_index
+        if showAMDStateLabels and not cleanChartMode and amdManipLabelDay != amdDayKey
+            label.new(bar_index, high, "AMD MANIP HIGH", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=color.new(SELL_C, 10), textcolor=TXT_C, size=size.tiny)
+            amdManipLabelDay := amdDayKey
+
+amdBarsAfterManip = na(amdManipBar) ? 1000000 : bar_index - amdManipBar
+amdWindowOK = amdBarsAfterManip > 0 and amdBarsAfterManip <= amdMaxBarsAfterManip
+amdEntrySessionOK = inAMDDist or (amdAllowLondonEntry and inAMDManip)
+amdMssHigh = ta.highest(high, amdMssLookback)[1]
+amdMssLow = ta.lowest(low, amdMssLookback)[1]
+amdBuyMSS = not na(amdMssHigh) and close > amdMssHigh and close[1] <= amdMssHigh
+amdSellMSS = not na(amdMssLow) and close < amdMssLow and close[1] >= amdMssLow
+amdBuyPulse = amdBuyMSS or mssUp or breakUp or retestBuyConfirm or bullOBConfirm or bullFVGConfirm or bullReject or bullMomentum or momentumBuy or utFreshBuy
+amdSellPulse = amdSellMSS or mssDown or breakDown or retestSellConfirm or bearOBConfirm or bearFVGConfirm or bearReject or bearMomentum or momentumSell or utFreshSell
+amdBuyZone = close > amdAsiaLow and (discount or htfBuyZone or stopHuntBuy or sweepLowConfirm or valueBuy or supportRejectBuy or low <= amdAsiaLow + atr * zoneAtrBuffer)
+amdSellZone = close < amdAsiaHigh and (premium or htfSellZone or stopHuntSell or sweepHighConfirm or valueSell or resistanceRejectSell or high >= amdAsiaHigh - atr * zoneAtrBuffer)
+amdBuyFilterOK = not amdUseOurFilters or (roomBuyOK and not crazyCandle and not deadMarket and (not strongHTFSell or amdAllowCounterHTF) and buyRisk <= maxRisk + amdRiskRelief)
+amdSellFilterOK = not amdUseOurFilters or (roomSellOK and not crazyCandle and not deadMarket and (not strongHTFBuy or amdAllowCounterHTF) and sellRisk <= maxRisk + amdRiskRelief)
+amdBuySetupLocal = useAMD and not amdAlreadyDone and amdManipDir == 1 and amdWindowOK and amdEntrySessionOK and amdBuyPulse and amdBuyZone and amdBuyFilterOK
+amdSellSetupLocal = useAMD and not amdAlreadyDone and amdManipDir == -1 and amdWindowOK and amdEntrySessionOK and amdSellPulse and amdSellZone and amdSellFilterOK
+amdBuySetup = amdUseSetupTF ? useAMD and not amdAlreadyDone and amdTFSetupBuyOK and amdBuyFilterOK : amdBuySetupLocal
+amdSellSetup = amdUseSetupTF ? useAMD and not amdAlreadyDone and amdTFSetupSellOK and amdSellFilterOK : amdSellSetupLocal
+
+if amdBuySetup
+    buyScore += amdScoreBoost
+    buyQ += 2
+    buyRisk := math.max(buyRisk - amdRiskRelief, 0.0)
+if amdSellSetup
+    sellScore += amdScoreBoost
+    sellQ += 2
+    sellRisk := math.max(sellRisk - amdRiskRelief, 0.0)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RMI FLIP ANY-CONFIRMATION SETUP
+// Not only 2 candles. After RMI extreme, ANY valid confirmation can trigger.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+rmiFlipPriceBuyOK = not rmiFlipNeedsZone or discount or htfBuyZone or supportRejectBuy or valueBuy or stopHuntBuy or sweepLowConfirm or bullFVGConfirm or bullOBConfirm or retestBuyConfirm
+rmiFlipPriceSellOK = not rmiFlipNeedsZone or premium or htfSellZone or resistanceRejectSell or valueSell or stopHuntSell or sweepHighConfirm or bearFVGConfirm or bearOBConfirm or retestSellConfirm
+
+rmiFlipBuyColorOK = rmiFlipUseColor and rmiFlipBuyColorRaw
+rmiFlipSellColorOK = rmiFlipUseColor and rmiFlipSellColorRaw
+rmiFlipBuySweepOK = rmiFlipUseSweep and rmiFlipRecentLow and (stopHuntBuy or sweepLowConfirm)
+rmiFlipSellSweepOK = rmiFlipUseSweep and rmiFlipRecentHigh and (stopHuntSell or sweepHighConfirm)
+rmiFlipBuyWickOK = rmiFlipUseWick and rmiFlipRecentLow and (bullReject or rmiFlipBullReact)
+rmiFlipSellWickOK = rmiFlipUseWick and rmiFlipRecentHigh and (bearReject or rmiFlipBearReact)
+rmiFlipBuyMSSOK = rmiFlipUseMSS and rmiFlipRecentLow and (mssUp or breakUp or retestBuyConfirm)
+rmiFlipSellMSSOK = rmiFlipUseMSS and rmiFlipRecentHigh and (mssDown or breakDown or retestSellConfirm)
+rmiFlipBuyCrossOK = rmiFlipUseSignalCross and rmiFlipRecentLow and rmiFlipCrossUpRaw
+rmiFlipSellCrossOK = rmiFlipUseSignalCross and rmiFlipRecentHigh and rmiFlipCrossDnRaw
+
+rmiFlipBuyConfirmCount = (rmiFlipBuyColorOK ? 1 : 0) + (rmiFlipBuySweepOK ? 1 : 0) + (rmiFlipBuyWickOK ? 1 : 0) + (rmiFlipBuyMSSOK ? 1 : 0) + (rmiFlipBuyCrossOK ? 1 : 0)
+rmiFlipSellConfirmCount = (rmiFlipSellColorOK ? 1 : 0) + (rmiFlipSellSweepOK ? 1 : 0) + (rmiFlipSellWickOK ? 1 : 0) + (rmiFlipSellMSSOK ? 1 : 0) + (rmiFlipSellCrossOK ? 1 : 0)
+// RMI ZONE RULE:
+// Above upper line = SELL only.
+// Below lower line = BUY only.
+// Near upper line with strong sell reason before touching upper = SELL only.
+// Near lower line with strong buy reason before touching lower = BUY only.
+// Middle = RMI does not create trades.
+rmiTopZone = rmiBiasGuard and rmiFlipVal >= rmiFlipUpper
+rmiBottomZone = rmiBiasGuard and rmiFlipVal <= rmiFlipLower
+rmiNearTopZone = rmiBiasGuard and rmiFlipVal >= rmiUpperPreZone and rmiFlipVal < rmiFlipUpper
+rmiNearBottomZone = rmiBiasGuard and rmiFlipVal <= rmiLowerPreZone and rmiFlipVal > rmiFlipLower
+rmiMiddleZone = rmiBiasGuard and not rmiTopZone and not rmiBottomZone and not rmiNearTopZone and not rmiNearBottomZone
+
+rmiStrongSellReason = trendPowerSell >= rmiAgainstBiasNeedsPower or strongHTFSell or amdSellSetup or rmiFlipSellSweepOK or rmiFlipSellWickOK or rmiFlipSellMSSOK or (premium or htfSellZone or resistanceRejectSell) and (bearReject or bearMomentum or mssDown or breakDown)
+rmiStrongBuyReason = trendPowerBuy >= rmiAgainstBiasNeedsPower or strongHTFBuy or amdBuySetup or rmiFlipBuySweepOK or rmiFlipBuyWickOK or rmiFlipBuyMSSOK or (discount or htfBuyZone or supportRejectBuy) and (bullReject or bullMomentum or mssUp or breakUp)
+
+rmiPreferSellZone = rmiTopZone or (rmiNearTopZone and (not rmiPreZoneNeedsStrongReason or rmiStrongSellReason))
+rmiPreferBuyZone = rmiBottomZone or (rmiNearBottomZone and (not rmiPreZoneNeedsStrongReason or rmiStrongBuyReason))
+
+// Required confirmations:
+// Extreme zones are easier.
+// Pre-zones need stronger reason and at least the configured near confirmations.
+rmiBuyNeededConf = rmiBottomZone ? rmiExtremeNeedsConfirmations : rmiNearBottomZone ? rmiNearNeedsConfirmations : 999
+rmiSellNeededConf = rmiTopZone ? rmiExtremeNeedsConfirmations : rmiNearTopZone ? rmiNearNeedsConfirmations : 999
+rmiFlipBuyConfirmOK = rmiFlipBuyConfirmCount >= rmiBuyNeededConf
+rmiFlipSellConfirmOK = rmiFlipSellConfirmCount >= rmiSellNeededConf
+
+// Direction rule: top side cannot generate BUY; bottom side cannot generate SELL.
+// Middle cannot generate RMI trades.
+rmiBuyDirectionOK = rmiPreferBuyZone and not rmiPreferSellZone
+rmiSellDirectionOK = rmiPreferSellZone and not rmiPreferBuyZone
+
+if rmiTopSellOnly and (rmiTopZone or rmiNearTopZone) and not rmiStrongBuyReason
+    buyRisk += rmiTopZone ? 6.0 : 3.0
+    buyScore := math.max(buyScore - (rmiTopZone ? 3.0 : 1.5), 0.0)
+if rmiBottomBuyOnly and (rmiBottomZone or rmiNearBottomZone) and not rmiStrongSellReason
+    sellRisk += rmiBottomZone ? 6.0 : 3.0
+    sellScore := math.max(sellScore - (rmiBottomZone ? 3.0 : 1.5), 0.0)
+
+rmiDirectBuyReason = rmiFlipBuyColorOK or rmiFlipBuySweepOK or rmiFlipBuyWickOK or rmiFlipBuyMSSOK or rmiFlipBuyCrossOK or bullReject or bullMomentum or mssUp or breakUp
+rmiDirectSellReason = rmiFlipSellColorOK or rmiFlipSellSweepOK or rmiFlipSellWickOK or rmiFlipSellMSSOK or rmiFlipSellCrossOK or bearReject or bearMomentum or mssDown or breakDown
+
+rmiDirectBuyOK = rmiZoneDirectTrigger and rmiPreferBuyZone and rmiFlipPriceBuyOK and (not rmiZoneDirectNeedsAnyReason or rmiDirectBuyReason)
+rmiDirectSellOK = rmiZoneDirectTrigger and rmiPreferSellZone and rmiFlipPriceSellOK and (not rmiZoneDirectNeedsAnyReason or rmiDirectSellReason)
+
+rmiFlipBuySetup = useRMIFlip and rmiZoneOnlyMode and rmiBuyDirectionOK and rmiFlipPriceBuyOK and (rmiFlipBuyConfirmOK or rmiDirectBuyOK)
+rmiFlipSellSetup = useRMIFlip and rmiZoneOnlyMode and rmiSellDirectionOK and rmiFlipPriceSellOK and (rmiFlipSellConfirmOK or rmiDirectSellOK)
+
+if rmiFlipBuySetup
+    buyScore += rmiFlipScoreBoost
+    buyQ += rmiFlipBuyConfirmCount >= 2 ? 2 : 1
+    buyRisk := math.max(buyRisk - rmiFlipRiskRelief, 0.0)
+if rmiFlipSellSetup
+    sellScore += rmiFlipScoreBoost
+    sellQ += rmiFlipSellConfirmCount >= 2 ? 2 : 1
+    sellRisk := math.max(sellRisk - rmiFlipRiskRelief, 0.0)
+if rmiDirectBuyOK
+    buyScore += rmiZoneDirectScoreBoost
+    buyQ += 2
+    buyRisk := math.max(buyRisk - rmiZoneDirectRiskRelief, 0.0)
+if rmiDirectSellOK
+    sellScore += rmiZoneDirectScoreBoost
+    sellQ += 2
+    sellRisk := math.max(sellRisk - rmiZoneDirectRiskRelief, 0.0)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RMI MASTER DIRECTION GATE
+// This blocks ALL BUY signals from top RMI zones and ALL SELL signals from bottom RMI zones.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RMI master rule:
+// Near/top zone prefers SELL.
+// Near/bottom zone prefers BUY.
+// Wrong-side trades are blocked unless a strong trend is actually aligned.
+rmiMasterSellZone = rmiTopZone or (rmiMasterUsePreZone and rmiNearTopZone and rmiStrongSellReason)
+rmiMasterBuyZone = rmiBottomZone or (rmiMasterUsePreZone and rmiNearBottomZone and rmiStrongBuyReason)
+rmiMasterTopArea = rmiTopZone or (rmiMasterUsePreZone and rmiNearTopZone)
+rmiMasterBottomArea = rmiBottomZone or (rmiMasterUsePreZone and rmiNearBottomZone)
+rmiMasterTop = rmiMasterGate and rmiMasterTopArea
+rmiMasterBottom = rmiMasterGate and rmiMasterBottomArea
+rmiMasterMiddle = rmiMasterGate and not rmiMasterTop and not rmiMasterBottom
+
+rmiBuyTrendPermission = trendPowerBuy >= rmiWrongSideTrendPower and (not rmiWrongSideNeedsMap or mapDir >= 0 or tf1Dir == 1 or tf2Dir == 1 or strongHTFBuy)
+rmiSellTrendPermission = trendPowerSell >= rmiWrongSideTrendPower and (not rmiWrongSideNeedsMap or mapDir <= 0 or tf1Dir == -1 or tf2Dir == -1 or strongHTFSell)
+
+// Buy near top is allowed only if there is a real bullish trend.
+// Sell near bottom is allowed only if there is a real bearish trend.
+rmiWrongBuyNearTopOK = not rmiWrongSideNeedsTrend or not rmiMasterTopArea or rmiBuyTrendPermission
+rmiWrongSellNearBottomOK = not rmiWrongSideNeedsTrend or not rmiMasterBottomArea or rmiSellTrendPermission
+
+rmiMasterBuyOK = not rmiMasterGate or rmiWrongBuyNearTopOK
+rmiMasterSellOK = not rmiMasterGate or rmiWrongSellNearBottomOK
+rmiMasterTradeOK = not rmiMasterGate or not rmiMasterBlockMiddle or not rmiMasterMiddle
+
+if rmiMasterTopArea and not rmiBuyTrendPermission
+    buyRisk += rmiTopZone ? 12.0 : 7.0
+    buyScore := 0.0
+if rmiMasterBottomArea and not rmiSellTrendPermission
+    sellRisk += rmiBottomZone ? 12.0 : 7.0
+    sellScore := 0.0
+if rmiMasterMiddle and rmiMasterBlockMiddle
+    buyScore := 0.0
+    sellScore := 0.0
+    buyRisk += 12.0
+    sellRisk += 12.0
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SCALP CORRECTION ENGINE
+// Pullback/reaction entries with trend. It is not allowed to spam every candle.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+scalpActive = useScalpCorrection
+scalpAgg = scalpCorrectionMode == "Active"
+scalpCons = scalpCorrectionMode == "Conservative"
+scalpBuyTrend = trendPowerBuy >= scalpMinTrendPower or localTrendBuy or mapDir == 1 or tf1Dir == 1 or tf2Dir == 1
+scalpSellTrend = trendPowerSell >= scalpMinTrendPower or localTrendSell or mapDir == -1 or tf1Dir == -1 or tf2Dir == -1
+scalpBuyPullback = valueBuy or supportRejectBuy or rmiBuyReaction or rmiFlipBuySetup or low <= ema20 + atr * scalpPullbackATR or low <= ema34 + atr * scalpPullbackATR or (not na(vwapVal) and low <= vwapVal + atr * scalpPullbackATR)
+scalpSellPullback = valueSell or resistanceRejectSell or rmiSellReaction or rmiFlipSellSetup or high >= ema20 - atr * scalpPullbackATR or high >= ema34 - atr * scalpPullbackATR or (not na(vwapVal) and high >= vwapVal - atr * scalpPullbackATR)
+scalpBuyFresh = (bullReject and not bullReject[1]) or (bullMomentum and not bullMomentum[1]) or (mssUp and not mssUp[1]) or (breakUp and not breakUp[1]) or (retestBuyConfirm and not retestBuyConfirm[1]) or utFreshBuy or rmiBuyReaction or rmiFlipBuySetup
+scalpSellFresh = (bearReject and not bearReject[1]) or (bearMomentum and not bearMomentum[1]) or (mssDown and not mssDown[1]) or (breakDown and not breakDown[1]) or (retestSellConfirm and not retestSellConfirm[1]) or utFreshSell or rmiSellReaction or rmiFlipSellSetup
+scalpBuyPulseOK = not scalpNeedFreshPulse or scalpBuyFresh
+scalpSellPulseOK = not scalpNeedFreshPulse or scalpSellFresh
+scalpBuyRoomOK = roomBuyOK or roomBuyPts >= scalpMinRoomPoints
+scalpSellRoomOK = roomSellOK or roomSellPts >= scalpMinRoomPoints
+scalpBuyAgainstOK = not scalpWithTrendOnly or not strongHTFSell or amdBuySetup or stopHuntBuy or sweepLowConfirm or rmiBuyReaction or rmiFlipBuySetup
+scalpSellAgainstOK = not scalpWithTrendOnly or not strongHTFBuy or amdSellSetup or stopHuntSell or sweepHighConfirm or rmiSellReaction or rmiFlipSellSetup
+scalpBuyQuality = (scalpBuyTrend ? 1.0 : 0.0) + (scalpBuyPullback ? 1.0 : 0.0) + (scalpBuyFresh ? 1.0 : 0.0) + (bullReject ? 0.55 : 0.0) + (bullMomentum ? 0.55 : 0.0) + (mssUp or breakUp ? 0.60 : 0.0) + (utBull ? 0.25 : 0.0) + (rmiBuyReaction ? 0.65 : 0.0) + (rmiFlipBuySetup ? 0.95 : 0.0)
+scalpSellQuality = (scalpSellTrend ? 1.0 : 0.0) + (scalpSellPullback ? 1.0 : 0.0) + (scalpSellFresh ? 1.0 : 0.0) + (bearReject ? 0.55 : 0.0) + (bearMomentum ? 0.55 : 0.0) + (mssDown or breakDown ? 0.60 : 0.0) + (utBear ? 0.25 : 0.0) + (rmiSellReaction ? 0.65 : 0.0) + (rmiFlipSellSetup ? 0.95 : 0.0)
+scalpMinQuality = scalpAgg ? 2.15 : scalpCons ? 3.15 : 2.55
+scalpBuySetup = scalpActive and scalpBuyTrend and scalpBuyPullback and scalpBuyPulseOK and scalpBuyRoomOK and scalpBuyAgainstOK and not crazyCandle and not deadMarket and scalpBuyQuality >= scalpMinQuality and not chaseBuyRisk
+scalpSellSetup = scalpActive and scalpSellTrend and scalpSellPullback and scalpSellPulseOK and scalpSellRoomOK and scalpSellAgainstOK and not crazyCandle and not deadMarket and scalpSellQuality >= scalpMinQuality and not chaseSellRisk
+if scalpBuySetup
+    buyScore += scalpScoreBoost * (scalpAgg ? 1.20 : 1.0) + (rmiBuyReaction ? rmiScoreBoost : 0.0) + (rmiFlipBuySetup ? rmiFlipScoreBoost : 0.0)
+    buyQ += scalpAgg ? 2 : 1
+    buyRisk := math.max(buyRisk - scalpRiskRelief - (rmiBuyReaction ? rmiRiskRelief : 0.0) - (rmiFlipBuySetup ? rmiFlipRiskRelief : 0.0), 0.0)
+if scalpSellSetup
+    sellScore += scalpScoreBoost * (scalpAgg ? 1.20 : 1.0) + (rmiSellReaction ? rmiScoreBoost : 0.0) + (rmiFlipSellSetup ? rmiFlipScoreBoost : 0.0)
+    sellQ += scalpAgg ? 2 : 1
+    sellRisk := math.max(sellRisk - scalpRiskRelief - (rmiSellReaction ? rmiRiskRelief : 0.0) - (rmiFlipSellSetup ? rmiFlipRiskRelief : 0.0), 0.0)
+buyStory = buyStoryPullback or buyStorySweep or buyStoryRetest or buyStoryOrder or buyStoryFVG or buyStoryFib or buyStoryRange or buyStoryMomentum or realReversalBuy or utBuyStory or amdBuySetup or scalpBuySetup or rmiFlipBuySetup
+sellStory = sellStoryPullback or sellStorySweep or sellStoryRetest or sellStoryOrder or sellStoryFVG or sellStoryFib or sellStoryRange or sellStoryMomentum or realReversalSell or utSellStory or amdSellSetup or scalpSellSetup or rmiFlipSellSetup
+sellAgainstMap = (powerUp or strongHTFBuy or (mapDir == 1 and trendPowerBuy >= 3)) and not (realReversalSell or amdSellSetup)
+buyAgainstMap = (powerDown or strongHTFSell or (mapDir == -1 and trendPowerSell >= 3)) and not (realReversalBuy or amdBuySetup)
+sellTopOnly = premium or htfSellZone or stopHuntSell or retestSellConfirm or bearOBConfirm or bearFVGConfirm or realReversalSell or amdSellSetup
+buyBottomOnly = discount or htfBuyZone or stopHuntBuy or retestBuyConfirm or bullOBConfirm or bullFVGConfirm or realReversalBuy or amdBuySetup
+buyRisk += buyAgainstMap ? 8.0 : 0
+sellRisk += sellAgainstMap ? 8.0 : 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SELL BALANCE ENGINE
+// Keeps BUY quality, but gives SELL fair chance only from logical tops.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+sellBalanceActive = useSellBalance and sellBalanceMode != "Off"
+sellBalanceAgg = sellBalanceMode == "More Sell"
+sellBalanceZone = premium or htfSellZone or resistanceRejectSell or stopHuntSell or retestSellConfirm or bearOBConfirm or bearFVGConfirm or fibSellConfirm or valueSell or bbRangeSell or donSell
+sellBalancePulse = (utFreshSell and utBear) or stopHuntSell or sweepHighConfirm or mssDown or breakDown or retestSellConfirm or bearOBConfirm or bearFVGConfirm or fibSellConfirm or bearReject or bearMomentum or momentumSell
+sellBalanceTrendOK = mapDir <= 0 or trendPowerSell >= 2 or tf1Dir == -1 or tf2Dir == -1 or tf3Dir == -1 or (sellBalanceCounterHTF and (stopHuntSell or sweepHighConfirm) and (mssDown or breakDown or bearReject))
+sellBalanceTopOK = not sellBalanceNeedsZone or sellBalanceZone
+sellBalancePulseOK = not sellBalanceNeedsPulse or sellBalancePulse
+sellBalanceOK = sellBalanceActive and sellBalanceTopOK and sellBalancePulseOK and roomSellOK and sellBalanceTrendOK
+sellBalanceCounterOK = sellBalanceOK and sellBalanceCounterHTF and (stopHuntSell or sweepHighConfirm or bearReject or utFreshSell) and sellBalanceZone and (mssDown or breakDown or bearMomentum)
+if sellBalanceOK
+    sellScore += sellBalanceWeight * (sellBalanceAgg ? 1.10 : 1.0)
+    sellQ += sellBalanceAgg ? 1 : 1
+    sellRisk := math.max(sellRisk - sellBalanceRiskRelief, 0.0)
+if sellBalanceActive and utBear and sellBalanceZone and not strongHTFBuy
+    sellScore += sellBalanceWeight * 0.25
+if sellBalanceActive and utBull and sellBalancePulse and sellBalanceZone and (stopHuntSell or sweepHighConfirm)
+    sellRisk := math.max(sellRisk - sellBalanceRiskRelief * 0.25, 0.0)
+if sellBalanceActive and sellBalanceAgg and not strongHTFBuy and (premium or htfSellZone) and (bearReject or bearMomentum) and (mssDown or breakDown or stopHuntSell)
+    sellScore += sellBalanceWeight * 0.25
+
+// Smart Side Guard: prevents the engine from getting stuck BUY-only or SELL-only.
+strongUpGuard = smartSideGuard and (powerUp or strongHTFBuy or (mapDir == 1 and trendPowerBuy >= sideGuardTrendPower) or (tf1Dir == 1 and tf2Dir == 1))
+strongDownGuard = smartSideGuard and (powerDown or strongHTFSell or (mapDir == -1 and trendPowerSell >= sideGuardTrendPower) or (tf1Dir == -1 and tf2Dir == -1))
+realTopForSell = realReversalSell or amdSellSetup or ((stopHuntSell or sweepHighConfirm) and (mssDown or breakDown or bearReject or bearMomentum)) or ((premium or htfSellZone or resistanceRejectSell) and (bearReject or bearMomentum) and (utBear or momentumSell))
+realBottomForBuy = realReversalBuy or amdBuySetup or ((stopHuntBuy or sweepLowConfirm) and (mssUp or breakUp or bullReject or bullMomentum)) or ((discount or htfBuyZone or supportRejectBuy) and (bullReject or bullMomentum) and (utBull or momentumBuy))
+sideGuardSellOK = not smartSideGuard or not blockSellInStrongUp or not strongUpGuard or (realTopForSell and (not sideGuardNeedsSweep or stopHuntSell or sweepHighConfirm or amdSellSetup))
+sideGuardBuyOK = not smartSideGuard or not blockBuyInStrongDown or not strongDownGuard or (realBottomForBuy and (not sideGuardNeedsSweep or stopHuntBuy or sweepLowConfirm or amdBuySetup))
+if smartSideGuard and strongUpGuard and not realTopForSell
+    sellRisk += 4.0
+    sellScore := math.max(sellScore - 1.5, 0.0)
+    buyScore += sideGuardScoreRelief
+if smartSideGuard and strongDownGuard and not realBottomForBuy
+    buyRisk += 4.0
+    buyScore := math.max(buyScore - 1.5, 0.0)
+    sellScore += sideGuardScoreRelief
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FINAL DECISION
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+utConfirmBuyOK = not utConfirmMode or utBull or amdBuySetup
+utConfirmSellOK = not utConfirmMode or utBear or sellBalanceOK or amdSellSetup
+utMinQ = math.max(minQ - (utEntryMode ? utEntryMinQDrop : 0), 1)
+amdBuyMinQ = math.max(utMinQ - (amdBuySetup ? amdMinQDrop : 0) - (scalpBuySetup or rmiFlipBuySetup ? scalpMinQDrop : 0), 1)
+sellMinQ = math.max(utMinQ - (sellBalanceOK ? sellBalanceQDrop : 0) - (amdSellSetup ? amdMinQDrop : 0) - (scalpSellSetup or rmiFlipSellSetup ? scalpMinQDrop : 0), 1)
+amdBuyMinScore = math.max(minScore - (amdBuySetup ? amdScoreDrop : 0.0) - (scalpBuySetup or rmiFlipBuySetup ? scalpScoreDrop : 0.0), 0.0)
+amdSellMinScore = math.max(minScore - (amdSellSetup ? amdScoreDrop : 0.0) - (scalpSellSetup or rmiFlipSellSetup ? scalpScoreDrop : 0.0), 0.0)
+sellGapFinal = math.max(scoreGap - (sellBalanceOK ? sellBalanceGapRelax : 0.0) - (amdSellSetup ? amdScoreDrop * 0.25 : 0.0), 0.0)
+buyGapFinal = math.max(scoreGap - (amdBuySetup ? amdScoreDrop * 0.25 : 0.0), 0.0)
+utBuyBottomOK = buyBottomOnly or (utEntryMode and utBuyZoneOK) or amdBuySetup or scalpBuySetup
+utSellTopOK = sellTopOnly or (utEntryMode and utSellZoneOK) or sellBalanceOK or amdSellSetup or scalpSellSetup
+sellMapOK = not sellAgainstMap or sellBalanceCounterOK or amdSellSetup
+buyMapOK = not buyAgainstMap or amdBuySetup
+// RMI REAL MASTER CONTROLLER + REASON LOCK
+// RMI is no longer allowed to create a trade by itself.
+// It only defines where BUY/SELL is logically allowed; the trade still needs reasons.
+rmiRealBuyZone = rmiRealMaster and rmiFlipVal <= rmiRealBuyBelow
+rmiRealSellZone = rmiRealMaster and rmiFlipVal >= rmiRealSellAbove
+rmiRealMiddle = rmiRealMaster and not rmiRealBuyZone and not rmiRealSellZone
+
+rmiRealBuyReason = rmiDirectBuyReason or rmiFlipBuyConfirmCount >= 1 or rmiStrongBuyReason or bullReject or bullMomentum or mssUp or breakUp or stopHuntBuy or sweepLowConfirm
+rmiRealSellReason = rmiDirectSellReason or rmiFlipSellConfirmCount >= 1 or rmiStrongSellReason or bearReject or bearMomentum or mssDown or breakDown or stopHuntSell or sweepHighConfirm
+
+rmiRealBuyTrendException = rmiRealAllowTrendException and trendPowerBuy >= rmiRealTrendPower and (mapDir >= 0 or tf1Dir == 1 or tf2Dir == 1 or strongHTFBuy)
+rmiRealSellTrendException = rmiRealAllowTrendException and trendPowerSell >= rmiRealTrendPower and (mapDir <= 0 or tf1Dir == -1 or tf2Dir == -1 or strongHTFSell)
+
+rmiRealBuyOK = not rmiRealMaster or rmiRealBuyZone or rmiRealBuyTrendException
+rmiRealSellOK = not rmiRealMaster or rmiRealSellZone or rmiRealSellTrendException
+rmiRealTradeOK = not rmiRealMaster or not rmiRealBlockMiddle or not rmiRealMiddle
+
+// Reason counters. Each entry must have a real explanation.
+buyReasonZone = discount or htfBuyZone or supportRejectBuy or valueBuy or bullOBConfirm or bullFVGConfirm or retestBuyConfirm or rmiRealBuyZone
+sellReasonZone = premium or htfSellZone or resistanceRejectSell or valueSell or bearOBConfirm or bearFVGConfirm or retestSellConfirm or rmiRealSellZone
+
+buyReasonReaction = bullReject or bullMomentum or rmiFlipBullReact or rmiBuyReaction or rmiDirectBuyReason
+sellReasonReaction = bearReject or bearMomentum or rmiFlipBearReact or rmiSellReaction or rmiDirectSellReason
+
+buyReasonLiquidity = stopHuntBuy or sweepLowConfirm or amdBuySetup
+sellReasonLiquidity = stopHuntSell or sweepHighConfirm or amdSellSetup
+
+buyReasonStructure = mssUp or breakUp or retestBuyConfirm
+sellReasonStructure = mssDown or breakDown or retestSellConfirm
+
+buyReasonTrend = reasonAllowTrendContinuation and trendPowerBuy >= reasonTrendPower and (localTrendBuy or mapDir >= 0 or tf1Dir == 1 or tf2Dir == 1 or strongHTFBuy)
+sellReasonTrend = reasonAllowTrendContinuation and trendPowerSell >= reasonTrendPower and (localTrendSell or mapDir <= 0 or tf1Dir == -1 or tf2Dir == -1 or strongHTFSell)
+
+buyReasonRoom = not reasonRequireRoom or roomBuyOK or roomBuyPts >= scalpMinRoomPoints
+sellReasonRoom = not reasonRequireRoom or roomSellOK or roomSellPts >= scalpMinRoomPoints
+
+buyReasonCount = (buyReasonZone ? 1 : 0) + (buyReasonReaction ? 1 : 0) + (buyReasonLiquidity ? 1 : 0) + (buyReasonStructure ? 1 : 0) + (buyReasonTrend ? 1 : 0) + (buyReasonRoom ? 1 : 0)
+sellReasonCount = (sellReasonZone ? 1 : 0) + (sellReasonReaction ? 1 : 0) + (sellReasonLiquidity ? 1 : 0) + (sellReasonStructure ? 1 : 0) + (sellReasonTrend ? 1 : 0) + (sellReasonRoom ? 1 : 0)
+
+buyRMINeeded = rmiRealBuyZone ? reasonMinCountRMI : reasonMinCount
+sellRMINeeded = rmiRealSellZone ? reasonMinCountRMI : reasonMinCount
+
+buyReasonOK = not useReasonLock or buyReasonCount >= buyRMINeeded
+sellReasonOK = not useReasonLock or sellReasonCount >= sellRMINeeded
+
+if useReasonLock and reasonBlockNoZone and not buyReasonZone
+    buyReasonOK := false
+if useReasonLock and reasonBlockNoZone and not sellReasonZone
+    sellReasonOK := false
+
+// RMI direct trigger cannot create trades alone. It can only add to the reason count.
+if reasonRMIAsZoneOnly
+    rmiDirectBuyOK := false
+    rmiDirectSellOK := false
+
+if useReasonLock and not buyReasonOK
+    buyScore := 0.0
+    buyRisk += 25.0
+if useReasonLock and not sellReasonOK
+    sellScore := 0.0
+    sellRisk += 25.0
+
+// RMI gate blocks the wrong side.
+if rmiRealMaster and not rmiRealBuyOK
+    buyScore := 0.0
+    buyRisk += 30.0
+if rmiRealMaster and not rmiRealSellOK
+    sellScore := 0.0
+    sellRisk += 30.0
+if rmiRealMiddle and rmiRealBlockMiddle
+    buyScore := 0.0
+    sellScore := 0.0
+    buyRisk += 30.0
+    sellRisk += 30.0
+
+baseBuyAllowed = allowLong and buyStory and utBuyBottomOK and utConfirmBuyOK and buyMapOK and sideGuardBuyOK and buyReasonOK and buyQ >= amdBuyMinQ and buyScore >= amdBuyMinScore and buyRisk <= maxRisk and buyScore > sellScore + buyGapFinal
+baseSellAllowed = allowShort and (sellStory or sellBalanceOK or amdSellSetup) and utSellTopOK and utConfirmSellOK and sellMapOK and sideGuardSellOK and sellReasonOK and sellQ >= sellMinQ and sellScore >= amdSellMinScore and sellRisk <= maxRisk and sellScore > buyScore + sellGapFinal
+
+// No forced entries from RMI alone.
+buyAllowed = rmiRealTradeOK and rmiRealBuyOK and baseBuyAllowed
+sellAllowed = rmiRealTradeOK and rmiRealSellOK and baseSellAllowed
+buyDecision = tradeableBase and buyAllowed
+sellDecision = tradeableBase and sellAllowed
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TRADE STATE / STATS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var bool active = false
+var int activeDir = 0
+var int entryBar = na
+var int lastEntryBar = na
+var int lastDayKey = na
+var int tradesToday = 0
+var int lastResetKey = na
+var int lastLossDir = 0
+var int lastLossBar = na
+var int lastResult = 0
+var float entryPrice = na
+var float slPrice = na
+var float tpPrice = na
+var int wins = 0
+var int losses = 0
+var int closedTrades = 0
+var float winPts = 0.0
+var float lossPts = 0.0
+var line entryLine = na
+var line tpLine = na
+var line slLine = na
+var label entryLabel = na
+var label tpLabel = na
+var label slLabel = na
+
+dayKey = year(time) * 10000 + month(time) * 100 + dayofmonth(time)
+if na(lastDayKey) or dayKey != lastDayKey
+    tradesToday := 0
+    lastDayKey := dayKey
+
+resetByKey = not na(lastResetKey) and manualResetKey != lastResetKey
+if na(lastResetKey) or manualResetKey != lastResetKey
+    lastResetKey := manualResetKey
+
+if statsResetByTime or resetByKey
+    active := false
+    activeDir := 0
+    entryBar := na
+    entryPrice := na
+    slPrice := na
+    tpPrice := na
+    wins := 0
+    losses := 0
+    closedTrades := 0
+    winPts := 0.0
+    lossPts := 0.0
+    tradesToday := 0
+    lastLossDir := 0
+    lastLossBar := na
+    lastResult := 0
+    if not na(entryLine)
+        line.delete(entryLine)
+    if not na(tpLine)
+        line.delete(tpLine)
+    if not na(slLine)
+        line.delete(slLine)
+    if not na(entryLabel)
+        label.delete(entryLabel)
+    if not na(tpLabel)
+        label.delete(tpLabel)
+    if not na(slLabel)
+        label.delete(slLabel)
+
+barsSinceLast = na(lastEntryBar) ? 1000000 : bar_index - lastEntryBar
+barsSinceLoss = na(lastLossBar) ? 1000000 : bar_index - lastLossBar
+cooldownOK = barsSinceLast >= cooldownBars
+dailyOK = tradesToday < maxTradesPerDay
+lossBlockLong = lastLossDir == 1 and barsSinceLoss < lossCooldownBars and not realReversalBuy and not retestBuyConfirm
+lossBlockShort = lastLossDir == -1 and barsSinceLoss < lossCooldownBars and not realReversalSell and not retestSellConfirm
+confirmedBuyBase = barstate.isconfirmed and buyDecision and not (bar_index > 0 and buyDecision[1])
+confirmedSellBase = barstate.isconfirmed and sellDecision and not (bar_index > 0 and sellDecision[1])
+longSignal = confirmedBuyBase and not active and cooldownOK and dailyOK and not lossBlockLong
+shortSignal = confirmedSellBase and not active and cooldownOK and dailyOK and not lossBlockShort and not longSignal
+amdLongSignal = longSignal and amdBuySetup
+amdShortSignal = shortSignal and amdSellSetup
+scalpLongSignal = longSignal and (scalpBuySetup or rmiFlipBuySetup) and not amdLongSignal
+scalpShortSignal = shortSignal and (scalpSellSetup or rmiFlipSellSetup) and not amdShortSignal
+rmiFlipLongSignal = longSignal and rmiFlipBuySetup
+rmiFlipShortSignal = shortSignal and rmiFlipSellSetup
+rmiPriorityLongSignal = longSignal and rmiRealBuyZone and buyReasonOK
+rmiPriorityShortSignal = shortSignal and rmiRealSellZone and sellReasonOK
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// OPEN TRADE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if longSignal or shortSignal
+    active := true
+    activeDir := longSignal ? 1 : -1
+    entryBar := bar_index
+    lastEntryBar := bar_index
+    tradesToday += 1
+    if amdLongSignal or amdShortSignal
+        amdDoneKey := amdDayKey
+    entryPrice := close
+    slPrice := activeDir == 1 ? entryPrice - slDist : entryPrice + slDist
+    tpPrice := activeDir == 1 ? entryPrice + tpDist : entryPrice - tpDist
+    if not na(entryLine)
+        line.delete(entryLine)
+    if not na(tpLine)
+        line.delete(tpLine)
+    if not na(slLine)
+        line.delete(slLine)
+    if not na(entryLabel)
+        label.delete(entryLabel)
+    if not na(tpLabel)
+        label.delete(tpLabel)
+    if not na(slLabel)
+        label.delete(slLabel)
+    if showSignals
+        sigY = activeDir == 1 ? low - signalOffsetPts * pointUnit : high + signalOffsetPts * pointUnit
+        label.new(bar_index, sigY, cleanChartMode or not showSetupNamesOnSignal ? (activeDir == 1 ? "BUY" : "SELL") : amdLongSignal ? "AMD 15M BUY" : amdShortSignal ? "AMD 15M SELL" : rmiPriorityLongSignal ? "RMI REAL BUY" : rmiPriorityShortSignal ? "RMI REAL SELL" : rmiFlipLongSignal ? "RMI ZONE BUY" : rmiFlipShortSignal ? "RMI ZONE SELL" : scalpLongSignal and rmiBuyReaction ? "RMI SCALP BUY" : scalpShortSignal and rmiSellReaction ? "RMI SCALP SELL" : scalpLongSignal ? "SCALP BUY" : scalpShortSignal ? "SCALP SELL" : activeDir == 1 ? "BUY" : "SELL", xloc=xloc.bar_index, yloc=yloc.price, style=activeDir == 1 ? label.style_label_up : label.style_label_down, color=amdLongSignal ? color.new(BUY_C, 0) : amdShortSignal ? color.new(SELL_C, 0) : activeDir == 1 ? BUY_C : SELL_C, textcolor=TXT_C, size=size.normal)
+    if showTradeLines
+        rx = bar_index + lineBars
+        entryLine := line.new(bar_index, entryPrice, rx, entryPrice, xloc=xloc.bar_index, color=EN_C, width=2)
+        tpLine := line.new(bar_index, tpPrice, rx, tpPrice, xloc=xloc.bar_index, color=TP_C, width=2)
+        slLine := line.new(bar_index, slPrice, rx, slPrice, xloc=xloc.bar_index, color=SL_C, width=2)
+        entryLabel := label.new(rx, entryPrice, "ENTRY", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=EN_C, textcolor=color.black, size=size.small)
+        tpLabel := label.new(rx, tpPrice, "TP +" + str.tostring(targetPoints), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=TP_C, textcolor=TXT_C, size=size.small)
+        slLabel := label.new(rx, slPrice, "SL -" + str.tostring(stopPoints), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=SL_C, textcolor=TXT_C, size=size.small)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EXIT SIMULATION - COUNTS EVERY CLOSED STOP/TP
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if active and bar_index > nz(entryBar, bar_index)
+    hitSL = activeDir == 1 ? low <= slPrice : high >= slPrice
+    hitTP = activeDir == 1 ? high >= tpPrice : low <= tpPrice
+    bool closeNow = false
+    float closedPts = na
+    float closePrice = close
+    if barstate.isconfirmed and hitSL and hitTP
+        if sameCandleRule == "Stop First"
+            closeNow := true
+            closedPts := -stopPoints
+            closePrice := slPrice
+        else
+            closeNow := true
+            closedPts := targetPoints
+            closePrice := tpPrice
+    else if barstate.isconfirmed and hitSL
+        closeNow := true
+        closedPts := -stopPoints
+        closePrice := slPrice
+    else if barstate.isconfirmed and hitTP
+        closeNow := true
+        closedPts := targetPoints
+        closePrice := tpPrice
+    if closeNow and not na(closedPts)
+        closedTrades += 1
+        if statsActive
+            if closedPts > 0
+                wins += 1
+                winPts += closedPts
+                lastResult := 1
+            else
+                losses += 1
+                lossPts += math.abs(closedPts)
+                lastResult := -1
+        if closedPts < 0
+            lastLossDir := activeDir
+            lastLossBar := bar_index
+        if showSignals
+            label.new(bar_index, closePrice, closedPts > 0 ? "TP" : "STOP", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=closedPts > 0 ? TP_C : SL_C, textcolor=TXT_C, size=size.small)
+        active := false
+        activeDir := 0
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EXTEND ACTIVE LINES
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if active and showTradeLines
+    rx2 = bar_index + lineBars
+    if not na(entryLine)
+        line.set_x2(entryLine, rx2)
+    if not na(tpLine)
+        line.set_x2(tpLine, rx2)
+    if not na(slLine)
+        line.set_x2(slLine, rx2)
+    if not na(entryLabel)
+        label.set_x(entryLabel, rx2)
+    if not na(tpLabel)
+        label.set_x(tpLabel, rx2)
+    if not na(slLabel)
+        label.set_x(slLabel, rx2)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// OPTIONAL MAP PLOTS
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plot(showHiddenMap and not cleanChartMode ? tf2FibBL : na, "15m Fib Buy Low", color=color.new(BUY_C, 80))
+plot(showHiddenMap and not cleanChartMode ? tf2FibBH : na, "15m Fib Buy High", color=color.new(BUY_C, 80))
+plot(showHiddenMap and not cleanChartMode ? tf2FibSL : na, "15m Fib Sell Low", color=color.new(SELL_C, 80))
+plot(showHiddenMap and not cleanChartMode ? tf2FibSH : na, "15m Fib Sell High", color=color.new(SELL_C, 80))
+plot(showHiddenMap and not cleanChartMode ? ema20 : na, "EMA20", color=color.new(color.white, 75))
+plot(showHiddenMap and not cleanChartMode ? vwapVal : na, "VWAP", color=color.new(color.yellow, 75))
+plot(showUTLine and not cleanChartMode and utActive ? utStop : na, "UT Bot Stop", color=utBull ? color.new(BUY_C, 15) : utBear ? color.new(SELL_C, 15) : color.new(WAIT_C, 40), linewidth=2)
+plotshape(showUTRawLabels and not cleanChartMode and utFreshBuy, title="UT Raw Buy", text="UT", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 0), textcolor=TXT_C, size=size.tiny)
+plotshape(showUTRawLabels and not cleanChartMode and utFreshSell, title="UT Raw Sell", text="UT", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 0), textcolor=TXT_C, size=size.tiny)
+plotshape(showRMIFlipLabels and not cleanChartMode and (not rmiHideMiddleFlipLabels or not rmiMiddleZone) and rmiFlipBuySetup, title="RMI Flip Buy Setup", text="RMI BUY", style=shape.triangleup, location=location.belowbar, color=color.new(BUY_C, 0), textcolor=TXT_C, size=size.tiny)
+plotshape(showRMIFlipLabels and not cleanChartMode and (not rmiHideMiddleFlipLabels or not rmiMiddleZone) and rmiFlipSellSetup, title="RMI Flip Sell Setup", text="RMI SELL", style=shape.triangledown, location=location.abovebar, color=color.new(SELL_C, 0), textcolor=TXT_C, size=size.tiny)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATS + MAP TABLE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var table statT = table.new(tblPos, 2, 9, border_width=1, frame_color=color.new(color.white, 70), bgcolor=color.new(color.black, 10))
+if barstate.islast and showTable
+    totalTrades = wins + losses
+    wr = totalTrades > 0 ? wins * 100.0 / totalTrades : 0.0
+    netPts = winPts - lossPts
+    mapTxt = powerUp ? "MAP UP" : powerDown ? "MAP DOWN" : rangeMarket ? "RANGE" : "MIX"
+    mapCol = powerUp ? BUY_C : powerDown ? SELL_C : WAIT_C
+    table.cell(statT, 0, 0, "SY265", text_color=TXT_C, bgcolor=BG_C, text_size=tblSize)
+    table.cell(statT, 1, 0, "SMART", text_color=TXT_C, bgcolor=BG_C, text_size=tblSize)
+    table.cell(statT, 0, 1, "MAP", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 1, mapTxt, text_color=mapCol, text_size=tblSize)
+    table.cell(statT, 0, 2, "WIN / LOSS", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 2, str.tostring(wins) + " / " + str.tostring(losses), text_color=totalTrades > 0 and wins >= losses ? BUY_C : SELL_C, text_size=tblSize)
+    table.cell(statT, 0, 3, "WR%", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 3, str.tostring(wr, "#.0") + "%", text_color=wr >= 50 ? BUY_C : SELL_C, text_size=tblSize)
+    table.cell(statT, 0, 4, "NET", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 4, str.tostring(netPts, "#") + " pts", text_color=netPts >= 0 ? BUY_C : SELL_C, text_size=tblSize)
+    table.cell(statT, 0, 5, "LAST", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 5, lastResult == 1 ? "TP" : lastResult == -1 ? "STOP" : "-", text_color=lastResult == 1 ? TP_C : lastResult == -1 ? SL_C : WAIT_C, text_size=tblSize)
+    table.cell(statT, 0, 6, "RESET", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 6, "Key " + str.tostring(manualResetKey), text_color=WARN_C, text_size=tblSize)
+    table.cell(statT, 0, 7, "AMD", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 7, not useAMD ? "OFF" : amdAlreadyDone ? "DONE" : (amdUseSetupTF ? amdTFManipDirRaw : amdManipDir) == 1 ? "15M LOW SWEEP" : (amdUseSetupTF ? amdTFManipDirRaw : amdManipDir) == -1 ? "15M HIGH SWEEP" : (amdUseSetupTF ? amdTFInAsia : inAMDAsia) ? "ASIA" : "WAIT", text_color=not useAMD ? WAIT_C : amdAlreadyDone ? TP_C : amdManipDir == 1 ? BUY_C : amdManipDir == -1 ? SELL_C : WAIT_C, text_size=tblSize)
+    table.cell(statT, 0, 8, "REASON", text_color=TXT_C, text_size=tblSize)
+    table.cell(statT, 1, 8, reasonShowInTable ? "B " + str.tostring(buyReasonCount) + " / S " + str.tostring(sellReasonCount) : "-", text_color=buyReasonCount > sellReasonCount ? BUY_C : sellReasonCount > buyReasonCount ? SELL_C : WAIT_C, text_size=tblSize)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DEBUG TABLE
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var table dbgT = table.new(position.bottom_right, 2, 13, border_width=1, frame_color=color.new(color.white, 85), bgcolor=color.new(color.black, 20))
+if barstate.islast and showDebug
+    table.cell(dbgT, 0, 0, "MAP", text_color=TXT_C, bgcolor=BG_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 0, powerUp ? "UP" : powerDown ? "DOWN" : rangeMarket ? "RANGE" : "MIX", text_color=powerUp ? BUY_C : powerDown ? SELL_C : WAIT_C, bgcolor=BG_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 1, "Q", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 1, "B " + str.tostring(buyQ) + " / S " + str.tostring(sellQ), text_color=buyQ > sellQ ? BUY_C : sellQ > buyQ ? SELL_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 2, "SCORE", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 2, "B " + str.tostring(buyScore, "#.0") + " / S " + str.tostring(sellScore, "#.0"), text_color=buyScore > sellScore ? BUY_C : sellScore > buyScore ? SELL_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 3, "RISK", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 3, "B " + str.tostring(buyRisk, "#.0") + " / S " + str.tostring(sellRisk, "#.0"), text_color=WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 4, "ZONE", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 4, htfBuyZone ? "HTF BUY" : htfSellZone ? "HTF SELL" : discount ? "DISCOUNT" : premium ? "PREMIUM" : "MID", text_color=htfBuyZone or discount ? BUY_C : htfSellZone or premium ? SELL_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 5, "ROOM", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 5, "UP " + str.tostring(roomBuyPts, "#") + " / DN " + str.tostring(roomSellPts, "#"), text_color=roomBuyOK ? BUY_C : roomSellOK ? SELL_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 6, "STATE", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 6, crazyCandle ? "CRAZY" : deadMarket ? "DEAD" : wildMarket ? "WILD" : conflictMarket ? "CONFLICT" : "OK", text_color=crazyCandle or deadMarket or wildMarket or conflictMarket ? WARN_C : BUY_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 7, "ACTIVE", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 7, active ? activeDir == 1 ? "BUY" : "SELL" : "NO", text_color=active ? activeDir == 1 ? BUY_C : SELL_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 8, "UT", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 8, not utActive ? "OFF" : utBull ? "BULL" : utBear ? "BEAR" : "MID", text_color=not utActive ? WAIT_C : utBull ? BUY_C : utBear ? SELL_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 9, "SELL BAL", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 9, not sellBalanceActive ? "OFF" : sellBalanceOK and sideGuardSellOK ? "READY" : sellBalanceOK and not sideGuardSellOK ? "GUARD" : sellBalanceZone ? "ZONE" : "WAIT", text_color=not sellBalanceActive ? WAIT_C : sellBalanceOK ? SELL_C : sellBalanceZone ? WARN_C : WAIT_C, text_size=size.tiny)
+    table.cell(dbgT, 0, 10, "AMD", text_color=TXT_C, text_size=size.tiny)
+    table.cell(dbgT, 1, 10, not useAMD ? "OFF" : amdBuySetup ? "AMD 15M BUY" : amdSellSetup ? "AMD 15M SELL" : amdAlreadyDone ? "DONE" : amdManipDir == 1 ? "LOW SWP" : amdManipDir == -1 ? "HIGH SWP" : "WAIT", text_color=not useAMD ? WAIT_C : amdBuySetup ? BUY_C : amdSellSetup ? SELL_C : amdAlreadyDone ? TP_C : WAIT_C, text_size=size.tiny)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ALERTS FOR BOT
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+alertcondition(longSignal, title="SY265 BUY", message="SY265 BUY")
+alertcondition(shortSignal, title="SY265 SELL", message="SY265 SELL")
+alertcondition(rmiPriorityLongSignal, title="SY265 RMI REAL BUY", message="SY265 RMI REAL BUY")
+alertcondition(rmiPriorityShortSignal, title="SY265 RMI REAL SELL", message="SY265 RMI REAL SELL")
+alertcondition(rmiPriorityLongSignal, title="SY265 RMI PRIORITY BUY", message="SY265 RMI PRIORITY BUY")
+alertcondition(rmiPriorityShortSignal, title="SY265 RMI PRIORITY SELL", message="SY265 RMI PRIORITY SELL")
+alertcondition(scalpLongSignal, title="SY265 SCALP BUY", message="SY265 SCALP BUY")
+alertcondition(scalpShortSignal, title="SY265 SCALP SELL", message="SY265 SCALP SELL")
+alertcondition(scalpLongSignal and rmiBuyReaction, title="SY265 RMI SCALP BUY", message="SY265 RMI SCALP BUY")
+alertcondition(scalpShortSignal and rmiSellReaction, title="SY265 RMI SCALP SELL", message="SY265 RMI SCALP SELL")
+alertcondition(rmiFlipLongSignal, title="SY265 RMI ZONE BUY", message="SY265 RMI ZONE BUY")
+alertcondition(rmiFlipShortSignal, title="SY265 RMI ZONE SELL", message="SY265 RMI ZONE SELL")
+alertcondition(amdLongSignal, title="SY265 AMD 15M BUY", message="SY265 AMD 15M BUY")
+alertcondition(amdShortSignal, title="SY265 AMD 15M SELL", message="SY265 AMD 15M SELL")
+alertcondition(utFreshBuy, title="SY265 UT RAW BUY", message="SY265 UT RAW BUY")
+alertcondition(utFreshSell, title="SY265 UT RAW SELL", message="SY265 UT RAW SELL")
