@@ -60,6 +60,9 @@ requireRMISignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_
 // BUY cell was negative. Defaults reflect that verdict — all reversible.
 G_GUARD = "02b ■ Trend Teacher (معلم الترند)"
 useTrendTeacher = input.bool(true, "Use Trend Teacher", group=G_GUARD)
+teacherTF = input.timeframe("30", "Teacher Timeframe", group=G_GUARD)
+teacherFastLen = input.int(50, "Teacher Fast EMA", minval=5, maxval=400, group=G_GUARD)
+teacherSlowLen = input.int(200, "Teacher Slow EMA", minval=10, maxval=800, group=G_GUARD)
 buyInUp = input.bool(false, "BUY In Uptrend", group=G_GUARD, inline="BUYR")
 buyInDown = input.bool(false, "BUY In Downtrend", group=G_GUARD, inline="BUYR")
 buyInFlat = input.bool(false, "BUY In Flat", group=G_GUARD, inline="BUYR")
@@ -209,13 +212,13 @@ buyOptionalOK = (previousExtremeLookback == 0 or buyExtremeSeen) and (liquidityS
 sellOptionalOK = (previousExtremeLookback == 0 or sellExtremeSeen) and (liquiditySweepLookback == 0 or sellSweepSeen)
 
 f_h1_trend() =>
-    _e50 = ta.ema(close, 50)
-    _e200 = ta.ema(close, 200)
-    _up = close > _e50 and _e50 > _e200
-    _dn = close < _e50 and _e50 < _e200
+    _eF = ta.ema(close, teacherFastLen)
+    _eS = ta.ema(close, teacherSlowLen)
+    _up = close > _eF and _eF > _eS
+    _dn = close < _eF and _eF < _eS
     [_up[1], _dn[1]]
 
-[macroUpRaw, macroDownRaw] = request.security(syminfo.tickerid, "60", f_h1_trend(), barmerge.gaps_off, barmerge.lookahead_off)
+[macroUpRaw, macroDownRaw] = request.security(syminfo.tickerid, teacherTF, f_h1_trend(), barmerge.gaps_off, barmerge.lookahead_off)
 macroUp = macroUpRaw
 macroDown = macroDownRaw and not macroUpRaw
 macroFlat = not macroUp and not macroDown
