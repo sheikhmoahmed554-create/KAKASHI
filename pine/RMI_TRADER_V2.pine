@@ -61,6 +61,12 @@ requireRMISignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_
 G_GUARD = "02b ■ Trend Teacher (معلم الترند)"
 useTrendTeacher = input.bool(true, "Use Trend Teacher", group=G_GUARD)
 teacherTF = input.timeframe("30", "Teacher Timeframe", group=G_GUARD)
+teacherMode = input.string("EMA", "Teacher System", options=["EMA", "SUPERTREND", "LINREG", "DONCHIAN", "DMI"], group=G_GUARD)
+teacherSuperFactor = input.float(3.0, "Supertrend Factor", minval=0.5, maxval=10.0, step=0.5, group=G_GUARD)
+teacherSuperATR = input.int(10, "Supertrend ATR Length", minval=1, maxval=100, group=G_GUARD)
+teacherLinLen = input.int(100, "LinReg Length", minval=10, maxval=500, group=G_GUARD)
+teacherDonLen = input.int(100, "Donchian Length", minval=10, maxval=500, group=G_GUARD)
+teacherDmiADX = input.float(20.0, "DMI Min ADX", minval=5.0, maxval=50.0, step=1.0, group=G_GUARD)
 teacherFastLen = input.int(50, "Teacher Fast EMA", minval=5, maxval=400, group=G_GUARD)
 teacherSlowLen = input.int(200, "Teacher Slow EMA", minval=10, maxval=800, group=G_GUARD)
 buyInUp = input.bool(false, "BUY In Uptrend", group=G_GUARD, inline="BUYR")
@@ -214,8 +220,24 @@ sellOptionalOK = (previousExtremeLookback == 0 or sellExtremeSeen) and (liquidit
 f_h1_trend() =>
     _eF = ta.ema(close, teacherFastLen)
     _eS = ta.ema(close, teacherSlowLen)
-    _up = close > _eF and _eF > _eS
-    _dn = close < _eF and _eF < _eS
+    _emaUp = close > _eF and _eF > _eS
+    _emaDn = close < _eF and _eF < _eS
+    [_stLine, _stDir] = ta.supertrend(teacherSuperFactor, teacherSuperATR)
+    _stUp = _stDir < 0
+    _stDn = _stDir > 0
+    _lr = ta.linreg(close, teacherLinLen, 0)
+    _lrUp = close > _lr and _lr > _lr[2]
+    _lrDn = close < _lr and _lr < _lr[2]
+    _dHi = ta.highest(high, teacherDonLen)
+    _dLo = ta.lowest(low, teacherDonLen)
+    _dRng = math.max(_dHi - _dLo, syminfo.mintick)
+    _donUp = close >= _dHi - _dRng * 0.30
+    _donDn = close <= _dLo + _dRng * 0.30
+    [_dmiP, _dmiM, _dmiADX] = ta.dmi(14, 14)
+    _dmiUp = _dmiP > _dmiM and _dmiADX >= teacherDmiADX
+    _dmiDn = _dmiM > _dmiP and _dmiADX >= teacherDmiADX
+    _up = teacherMode == "SUPERTREND" ? _stUp : teacherMode == "LINREG" ? _lrUp : teacherMode == "DONCHIAN" ? _donUp : teacherMode == "DMI" ? _dmiUp : _emaUp
+    _dn = teacherMode == "SUPERTREND" ? _stDn : teacherMode == "LINREG" ? _lrDn : teacherMode == "DONCHIAN" ? _donDn : teacherMode == "DMI" ? _dmiDn : _emaDn
     [_up[1], _dn[1]]
 
 [macroUpRaw, macroDownRaw] = request.security(syminfo.tickerid, teacherTF, f_h1_trend(), barmerge.gaps_off, barmerge.lookahead_off)
