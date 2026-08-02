@@ -2772,8 +2772,14 @@ plotshape(ourBlockedBuy, title="OUR GATE BLOCKED BUY", style=shape.xcross, locat
 plotshape(ourBlockedSell, title="OUR GATE BLOCKED SELL", style=shape.xcross, location=location.abovebar, color=color.new(color.orange, 15), size=size.tiny)
 bgcolor(ourShowRegimeBg and ourTrendUp ? color.new(color.green, 92) : ourShowRegimeBg and ourTrendDown ? color.new(color.red, 92) : na, title="OUR REGIME BG")
 
-canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK
-canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK
+// ━━━ 20 ■ Source Solo Test — فحص كل مصدر لحاله ━━━
+// NOTE: champion add-on signals inherit source code 0, so "BASE ONLY"
+// means base engine + champions together; FUSION/TV/M1/POC are clean.
+G_SOLO = "20 ■ Source Solo Test (فحص مصدر لحاله)"
+soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY"], group=G_SOLO)
+ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4)
+canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK and ourSoloOK
+canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK and ourSoloOK
 
 if canEnterLong or canEnterShort
     active := true
