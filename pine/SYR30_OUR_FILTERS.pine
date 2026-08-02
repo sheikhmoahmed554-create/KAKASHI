@@ -2559,13 +2559,13 @@ chA28 = ta.sma(chBp, 28) * 28 / (ta.sma(chTr2, 28) * 28 + 0.00001)
 chUo = 100 * (4 * chA7 + 7 * chA14 + chA28) / 18
 chUoB = chUoUse and adx < chUoAdx and chUo < chUoTh and close > open
 chUoS = chUoUse and adx < chUoAdx and chUo > 100 - chUoTh and close < open
-buySignal := buySignal or chUoB
+buySignal := buySignal or (courtUoB and chUoB)
 sellSignal := sellSignal or chUoS
 chRibUse = input.bool(true, "EMA RIBBON pullback (بديل VWAP Pull) — ON", group=G_PULLBACK_NEW)
 chE100 = ta.ema(close, 100)
 chRibB = chRibUse and chEma > ta.ema(close, 50) and ta.ema(close, 50) > chE100 and low <= ta.ema(close, 50) and close > ta.ema(close, 50) and close > open
 chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 and high >= ta.ema(close, 50) and close < ta.ema(close, 50) and close < open
-buySignal := buySignal or chRibB
+buySignal := buySignal or (courtRibB and chRibB)
 sellSignal := sellSignal or chRibS
 // ━━━ المدارس المنقذة (بحث + اختراع مثبت) ━━━
 chWtUse = input.bool(true, "WAVETREND v2 (WT + chassis) — ON", group=G_CH)
@@ -2577,7 +2577,7 @@ chWt1 = ta.ema(chWtCi, 21)
 chWtB = chWtUse and chWt1 < -60 and chRsi3 < 18.0 and chBig
 chWtS = chWtUse and chWt1 > 60 and chRsi3 > 82.0 and chBig
 buySignal := buySignal or chWtB
-sellSignal := sellSignal or chWtS
+sellSignal := sellSignal or (courtWtS and chWtS)
 chUls2B = chUlsUse and low < ta.lowest(low, chUlsLen)[1] and close > ta.lowest(low, chUlsLen)[1] and chStretch < -chUlsStr and chRsi3 < chUlsRsi
 chUls2S = chUlsUse and high > ta.highest(high, chUlsLen)[1] and close < ta.highest(high, chUlsLen)[1] and chStretch > chUlsStr and chRsi3 > 100 - chUlsRsi
 chVzUse = input.bool(true, "VWAP Absorption Fade — ON", group=G_PULLBACK_NEW)
@@ -2599,7 +2599,7 @@ chCmo = 100 * (ta.sma(chUp, chCmoLen) * chCmoLen - ta.sma(chDn, chCmoLen) * chCm
 chCmoB = chCmoUse and chCmo < -chCmoLvl and chRsi3 < 18.0 and chBig
 chCmoS = chCmoUse and chCmo > chCmoLvl and chRsi3 > 82.0 and chBig
 buySignal := buySignal or chUls2B or chVzB or chCrevB or chCmoB
-sellSignal := sellSignal or chUls2S or chVzS or chCrevS or chCmoS
+sellSignal := sellSignal or (courtUls2S and chUls2S) or (courtVzS and chVzS) or chCrevS or (courtCmoS and chCmoS)
 // ━━━ الأربعة العنيدة — بدائل مخترعة مثبتة ━━━
 chKeltUse = input.bool(true, "KELTNER v2 — ON", group=G_PULLBACK_NEW)
 chKeltK = input.float(2.0, "Keltner mult", minval=0.5, maxval=5.0, step=0.1, group=G_PULLBACK_NEW)
@@ -2632,8 +2632,8 @@ chUtLen = input.int(7, "UT supertrend ATR len", minval=2, maxval=60, group=G_RIS
 [chCldUT, chUtDir] = ta.supertrend(chUtMult, chUtLen)
 chUtB = chUtUse and chUtDir == -1 and chRsi3 < 18.0 and chBig
 chUtS = chUtUse and chUtDir == 1 and chRsi3 > 82.0 and chBig
-buySignal := buySignal or chCldB or chUtB
-sellSignal := sellSignal or chCldS or chUtS
+buySignal := buySignal or (courtCldB and chCldB) or chUtB
+sellSignal := sellSignal or chCldS or (courtUtS and chUtS)
 // ━━━ باقي البدائل الخضراء ━━━
 chTsiUse = input.bool(false, "TSI fade — ON", group=G_MOM_NEW)
 chTsiLvl = input.float(15.0, "TSI extreme level", minval=5, maxval=30, step=1, group=G_MOM_NEW)
@@ -2654,8 +2654,8 @@ chBbM = ta.sma(close, 20)
 chBbS = ta.stdev(close, 20)
 chPsB = chPsUse and chRsi14v < chPsRsi and low <= chBbM - 2 * chBbS and (math.min(open, close) - low > math.abs(close - open) or close > high[1]) and adx < chPsAdx
 chPsS = chPsUse and chRsi14v > 100 - chPsRsi and high >= chBbM + 2 * chBbS and (high - math.max(open, close) > math.abs(close - open) or close < low[1]) and adx < chPsAdx
-buySignal := buySignal or chTsiB or chDixB or chPsB
-sellSignal := sellSignal or chTsiS or chDixS or chPsS
+buySignal := buySignal or chTsiB or chDixB or (courtPsB and chPsB)
+sellSignal := sellSignal or chTsiS or chDixS or (courtPsS and chPsS)
 
 // ━━━ CVD + REG35 (تكملة الـ38) ━━━
 chCvdUse = input.bool(true, "CVD divergence — ON", group=G_MOM_NEW)
@@ -2665,11 +2665,25 @@ chCvdRng = math.max(high - low, syminfo.mintick)
 chCvdFast = ta.sma((2 * close - high - low) / chCvdRng * nz(volume, 0.0), chCvdLen) * chCvdLen
 chCvdB = chCvdUse and low <= ta.lowest(low, chCvdLen) and chCvdFast > chCvdFast[chCvdShift] and close > open
 chCvdS = chCvdUse and high >= ta.highest(high, chCvdLen) and chCvdFast < chCvdFast[chCvdShift] and close < open
-buySignal := buySignal or chCvdB
+buySignal := buySignal or (courtCvdB and chCvdB)
 sellSignal := sellSignal or chCvdS
 buySignal := buySignal or chTriB or chSniB
-sellSignal := sellSignal or chTriS or chSniS
+sellSignal := sellSignal or (courtTriS and chTriS) or chSniS
 
+// ━━━ 21 ■ Court Verdicts — أحكام محكمة المدارس (6.5 أشهر، 13,730 صفقة، 1:1) ━━━
+G_COURT = "21 ■ Court Verdicts (أحكام المحكمة)"
+courtCldB = input.bool(false, "chCld BUY (حكم: -4700)", group=G_COURT)
+courtUoB = input.bool(false, "chUo BUY (حكم: -3550)", group=G_COURT)
+courtRibB = input.bool(false, "chRib BUY (حكم: -2100)", group=G_COURT)
+courtCvdB = input.bool(false, "chCvd BUY (حكم: -1800)", group=G_COURT)
+courtUls2S = input.bool(false, "chUls2 SELL (حكم: -1500)", group=G_COURT)
+courtVzS = input.bool(false, "chVz SELL (حكم: -1150)", group=G_COURT)
+courtCmoS = input.bool(false, "chCmo SELL (حكم: -900)", group=G_COURT)
+courtWtS = input.bool(false, "chWt SELL (حكم: -600)", group=G_COURT)
+courtUtS = input.bool(false, "chUt SELL (حكم: -400)", group=G_COURT)
+courtPsS = input.bool(false, "chPs SELL (حكم: -300)", group=G_COURT)
+courtTriS = input.bool(false, "chTri SELL (حكم: -250)", group=G_COURT)
+courtPsB = input.bool(false, "chPs BUY (حكم: -150)", group=G_COURT)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 18 ■ RMI FILTER — المؤشر الثاني + الحماية
 // Applied at the FINAL entry gate so every signal source above
