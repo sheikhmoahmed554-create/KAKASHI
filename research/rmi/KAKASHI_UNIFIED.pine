@@ -2,7 +2,7 @@
 // Relative Momentum Index (RMI) based on the original concept by Roger Altman.
 // Standalone RMI trade engine with the SYR30-style statistics table and
 // chart-side BUY/SELL, Entry, TP and SL visuals.
-indicator("RMI + MULTICATOR SOURCES", shorttitle="RMI MC", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
+indicator("KAKASHI UNIFIED ENTRY ENGINE", shorttitle="KAKASHI UNIFIED", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
 
 // ══════════════════════════════════════════════════════════════════
 // COLORS — copied from the SYR30 visual system
@@ -25,7 +25,30 @@ color TBL_BG_ROW2 = color.rgb(20, 22, 32)
 // ══════════════════════════════════════════════════════════════════
 G_RMI   = "01 ■ RMI"
 G_ENTRY = "02 ■ RMI Reaction Entry"
-G_SRC   = "03 ■ Multicator Sources"
+G_SRC   = "03 ■ Entry Sources — master list"
+G_RSI = "10 ■ RSI Reaction"
+G_MACD = "11 ■ MACD Cross"
+G_M4C = "12 ■ MACD 4-Colour"
+G_ADX = "13 ■ ADX / DMI"
+G_BB = "14 ■ Bollinger Rebound"
+G_ICHI = "15 ■ Ichimoku"
+G_SAR = "16 ■ Parabolic SAR"
+G_PIVOT = "17 ■ Pivot Reclaim"
+G_FIB = "18 ■ Fibonacci Retracement"
+G_MA = "19 ■ Moving Average"
+G_MIS = "20 ■ RSI+CCI+Stoch Confluence"
+G_MTX = "21 ■ Matrix Series"
+G_QQE = "22 ■ QQE"
+G_SQZ = "23 ■ Squeeze Momentum"
+G_VFX = "24 ■ Williams Vix Fix"
+G_VOL = "25 ■ Volume Spike"
+G_KW = "26 ■ Keltner Wick Rejection"
+G_BRT = "27 ■ Breakout & Retest"
+G_SMB = "28 ■ Smart Money Breakout"
+G_SR = "29 ■ S/R Re-test Finder"
+G_STR = "30 ■ Liquidity Sweep Reversal"
+G_LUX = "31 ■ LuxAlgo Reversal"
+G_AA = "32 ■ AlgoAlpha Reversal"
 G_RISK  = "04 ■ Trade / TP / SL"
 G_EXEC  = "05 ■ Execution"
 G_VIS   = "06 ■ Statistics / Visuals"
@@ -67,140 +90,148 @@ liquiditySweepLookback = input.int(0, "Liquidity Sweep Lookback (0 = Off)", minv
 //   Filter — لا تفتح شيئاً، لكنها تمنع أي دخول لا يوافقها
 // الافتراضي Off في الجميع، فيبقى المؤشر مطابقاً لخط الأساس المتحقَّق منه.
 // ══════════════════════════════════════════════════════════════════
-mcRsiMode = input.string("Off", "RSI", options=["Off", "Source", "Filter"], group=G_SRC)
-mcRsiLen = input.int(14, "RSI Length", minval=2, group=G_SRC)
-mcRsiMaLen = input.int(10, "RSI MA Length", minval=2, group=G_SRC)
-mcRsiOS = input.float(30.0, "RSI Oversold", minval=1.0, maxval=50.0, group=G_SRC)
-mcRsiOB = input.float(70.0, "RSI Overbought", minval=50.0, maxval=99.0, group=G_SRC)
+mcRsiMode = input.string("Off", "RSI", options=["Off", "Source", "Filter"], group=G_RSI)
+mcRsiLen = input.int(14, "RSI Length", minval=2, group=G_RSI)
+mcRsiMaLen = input.int(10, "RSI MA Length", minval=2, group=G_RSI)
+mcRsiOS = input.float(30.0, "RSI Oversold", minval=1.0, maxval=50.0, group=G_RSI)
+mcRsiOB = input.float(70.0, "RSI Overbought", minval=50.0, maxval=99.0, group=G_RSI)
 
-mcMacdMode = input.string("Off", "MACD", options=["Off", "Source", "Filter"], group=G_SRC)
-mcMacdFast = input.int(12, "MACD Fast", minval=1, group=G_SRC)
-mcMacdSlow = input.int(26, "MACD Slow", minval=2, group=G_SRC)
-mcMacdSig = input.int(9, "MACD Signal", minval=1, group=G_SRC)
+mcMacdMode = input.string("Off", "MACD", options=["Off", "Source", "Filter"], group=G_MACD)
+mcMacdFast = input.int(12, "MACD Fast", minval=1, group=G_MACD)
+mcMacdSlow = input.int(26, "MACD Slow", minval=2, group=G_MACD)
+mcMacdSig = input.int(9, "MACD Signal", minval=1, group=G_MACD)
 
-mcAdxMode = input.string("Off", "ADX / DMI", options=["Off", "Source", "Filter"], group=G_SRC)
-mcAdxLen = input.int(17, "DMI Length", minval=1, group=G_SRC)
-mcAdxSmooth = input.int(14, "ADX Smoothing", minval=1, maxval=50, group=G_SRC)
-mcAdxMin = input.float(20.0, "ADX Minimum", minval=0.0, maxval=60.0, step=1.0, group=G_SRC)
+mcAdxMode = input.string("Off", "ADX / DMI", options=["Off", "Source", "Filter"], group=G_ADX)
+mcAdxLen = input.int(17, "DMI Length", minval=1, group=G_ADX)
+mcAdxSmooth = input.int(14, "ADX Smoothing", minval=1, maxval=50, group=G_ADX)
+mcAdxMin = input.float(20.0, "ADX Minimum", minval=0.0, maxval=60.0, step=1.0, group=G_ADX)
 
-mcBbMode = input.string("Off", "Bollinger", options=["Off", "Source", "Filter"], group=G_SRC)
-mcBbLen = input.int(20, "BB Length", minval=2, group=G_SRC)
-mcBbMult = input.float(2.0, "BB StdDev", minval=0.1, maxval=10.0, step=0.1, group=G_SRC)
+mcBbMode = input.string("Off", "Bollinger", options=["Off", "Source", "Filter"], group=G_BB)
+mcBbLen = input.int(20, "BB Length", minval=2, group=G_BB)
+mcBbMult = input.float(2.0, "BB StdDev", minval=0.1, maxval=10.0, step=0.1, group=G_BB)
 
-mcIchiMode = input.string("Off", "Ichimoku", options=["Off", "Source", "Filter"], group=G_SRC)
-mcIchiConv = input.int(9, "Conversion Length", minval=1, group=G_SRC)
-mcIchiBase = input.int(26, "Base Length", minval=1, group=G_SRC)
-mcIchiSpanB = input.int(52, "Leading Span B Length", minval=1, group=G_SRC)
+mcIchiMode = input.string("Off", "Ichimoku", options=["Off", "Source", "Filter"], group=G_ICHI)
+mcIchiConv = input.int(9, "Conversion Length", minval=1, group=G_ICHI)
+mcIchiBase = input.int(26, "Base Length", minval=1, group=G_ICHI)
+mcIchiSpanB = input.int(52, "Leading Span B Length", minval=1, group=G_ICHI)
 
-mcSarMode = input.string("Off", "Parabolic SAR", options=["Off", "Source", "Filter"], group=G_SRC)
-mcSarStart = input.float(0.02, "SAR Start", minval=0.001, step=0.001, group=G_SRC)
-mcSarInc = input.float(0.02, "SAR Increment", minval=0.001, step=0.001, group=G_SRC)
-mcSarMax = input.float(0.2, "SAR Maximum", minval=0.01, step=0.01, group=G_SRC)
+mcSarMode = input.string("Off", "Parabolic SAR", options=["Off", "Source", "Filter"], group=G_SAR)
+mcSarStart = input.float(0.02, "SAR Start", minval=0.001, step=0.001, group=G_SAR)
+mcSarInc = input.float(0.02, "SAR Increment", minval=0.001, step=0.001, group=G_SAR)
+mcSarMax = input.float(0.2, "SAR Maximum", minval=0.01, step=0.01, group=G_SAR)
 
-mcPivotMode = input.string("Off", "Pivot Reclaim", options=["Off", "Source", "Filter"], group=G_SRC)
-mcPivotLeft = input.int(10, "Pivot Left", minval=1, group=G_SRC)
-mcPivotRight = input.int(10, "Pivot Right", minval=1, group=G_SRC)
+mcPivotMode = input.string("Off", "Pivot Reclaim", options=["Off", "Source", "Filter"], group=G_PIVOT)
+mcPivotLeft = input.int(10, "Pivot Left", minval=1, group=G_PIVOT)
+mcPivotRight = input.int(10, "Pivot Right", minval=1, group=G_PIVOT)
 
-mcFibMode = input.string("Off", "Fibonacci Retracement", options=["Off", "Source", "Filter"], group=G_SRC)
-mcFibLen = input.int(233, "Fibonacci Distance", minval=8, group=G_SRC)
-mcFibA = input.float(0.618, "Fib Level A", minval=0.0, maxval=1.618, step=0.001, group=G_SRC)
-mcFibB = input.float(0.382, "Fib Level B", minval=0.0, maxval=1.618, step=0.001, group=G_SRC)
-mcFibC = input.float(0.786, "Fib Level C", minval=0.0, maxval=1.618, step=0.001, group=G_SRC)
-mcFibTolATR = input.float(0.25, "Fib Touch Tolerance ATR", minval=0.01, maxval=2.0, step=0.01, group=G_SRC)
+mcFibMode = input.string("Off", "Fibonacci Retracement", options=["Off", "Source", "Filter"], group=G_FIB)
+mcFibLen = input.int(233, "Fibonacci Distance", minval=8, group=G_FIB)
+mcFibA = input.float(0.618, "Fib Level A", minval=0.0, maxval=1.618, step=0.001, group=G_FIB)
+mcFibB = input.float(0.382, "Fib Level B", minval=0.0, maxval=1.618, step=0.001, group=G_FIB)
+mcFibC = input.float(0.786, "Fib Level C", minval=0.0, maxval=1.618, step=0.001, group=G_FIB)
+mcFibTolATR = input.float(0.25, "Fib Touch Tolerance ATR", minval=0.01, maxval=2.0, step=0.01, group=G_FIB)
 
-mcMaMode = input.string("Off", "Moving Average", options=["Off", "Source", "Filter"], group=G_SRC)
-mcMaType = input.string("EMA", "MA Type", options=["EMA", "SMA"], group=G_SRC)
-mcMaLen = input.int(200, "MA Length", minval=2, group=G_SRC)
+mcMaMode = input.string("Off", "Moving Average", options=["Off", "Source", "Filter"], group=G_MA)
+mcMaType = input.string("EMA", "MA Type", options=["EMA", "SMA"], group=G_MA)
+mcMaLen = input.int(200, "MA Length", minval=2, group=G_MA)
 
-mcBrtMode = input.string("Off", "Breakout & Retest", options=["Off", "Source", "Filter"], group=G_SRC)
-mcBrtPeriod = input.int(7, "BRT Pivot Period", minval=1, group=G_SRC)
-mcBrtConfirmDiv = input.int(2, "BRT Confirmation Divider", minval=1, maxval=10, group=G_SRC)
-mcBrtAtrLen = input.int(40, "BRT ATR Length", minval=1, group=G_SRC)
-mcBrtAtrMult = input.float(2.0, "BRT ATR Multiplier", minval=0.1, step=0.1, group=G_SRC)
+mcBrtMode = input.string("Off", "Breakout & Retest", options=["Off", "Source", "Filter"], group=G_BRT)
+mcBrtPeriod = input.int(7, "BRT Pivot Period", minval=1, group=G_BRT)
+mcBrtConfirmDiv = input.int(2, "BRT Confirmation Divider", minval=1, maxval=10, group=G_BRT)
+mcBrtAtrLen = input.int(40, "BRT ATR Length", minval=1, group=G_BRT)
+mcBrtAtrMult = input.float(2.0, "BRT ATR Multiplier", minval=0.1, step=0.1, group=G_BRT)
 
-mcSmbMode = input.string("Off", "Smart Money Breakout", options=["Off", "Source", "Filter"], group=G_SRC)
-mcSmbSwing = input.int(25, "SMB Structure Horizon", minval=2, group=G_SRC)
-mcSmbConfType = input.string("Candle Close", "SMB Break Confirmation", options=["Candle Close", "Wicks"], group=G_SRC)
+mcSmbMode = input.string("Off", "Smart Money Breakout", options=["Off", "Source", "Filter"], group=G_SMB)
+mcSmbSwing = input.int(25, "SMB Structure Horizon", minval=2, group=G_SMB)
+mcSmbConfType = input.string("Candle Close", "SMB Break Confirmation", options=["Candle Close", "Wicks"], group=G_SMB)
 
-mcSrMode = input.string("Off", "S/R Re-test Finder", options=["Off", "Source", "Filter"], group=G_SRC)
-mcSrLeft = input.int(20, "S/R Left Bars", minval=1, group=G_SRC)
-mcSrRight = input.int(20, "S/R Right Bars", minval=1, group=G_SRC)
-mcSrMethod = input.string("Wick", "S/R Detection Method", options=["Wick", "Body"], group=G_SRC)
-mcSrMaxAge = input.int(1000, "S/R Level Max Age", minval=50, group=G_SRC)
+mcSrMode = input.string("Off", "S/R Re-test Finder", options=["Off", "Source", "Filter"], group=G_SR)
+mcSrLeft = input.int(20, "S/R Left Bars", minval=1, group=G_SR)
+mcSrRight = input.int(20, "S/R Right Bars", minval=1, group=G_SR)
+mcSrMethod = input.string("Wick", "S/R Detection Method", options=["Wick", "Body"], group=G_SR)
+mcSrMaxAge = input.int(1000, "S/R Level Max Age", minval=50, group=G_SR)
 
-mcStrMode = input.string("Off", "Strong Reversal (Liquidity Sweep)", options=["Off", "Source", "Filter"], group=G_SRC)
-mcStrPivLen = input.int(20, "Sweep Pivot Length", minval=3, maxval=100, group=G_SRC)
-mcStrWick = input.float(20.0, "Min Reversal Wick %", minval=1.0, maxval=100.0, group=G_SRC)
+mcStrMode = input.string("Off", "Strong Reversal (Liquidity Sweep)", options=["Off", "Source", "Filter"], group=G_STR)
+mcStrPivLen = input.int(20, "Sweep Pivot Length", minval=3, maxval=100, group=G_STR)
+mcStrWick = input.float(20.0, "Min Reversal Wick %", minval=1.0, maxval=100.0, group=G_STR)
 
-mcMisMode = input.string("Off", "Multi-Indicator Confluence", options=["Off", "Source", "Filter"], group=G_SRC)
-mcMisCombo = input.string("RSI & CCI", "Confluence Combination", options=["RSI & CCI", "RSI & Stoch", "CCI & Stoch", "All Three", "Any Two"], group=G_SRC)
-mcMisRsiLen = input.int(14, "MIS RSI Length", minval=1, group=G_SRC)
-mcMisCciLen = input.int(14, "MIS CCI Length", minval=1, group=G_SRC)
-mcMisStochLen = input.int(14, "MIS Stochastic %K Length", minval=1, group=G_SRC)
-mcMisStochSmooth = input.int(3, "MIS Stochastic Smoothing", minval=1, group=G_SRC)
-mcMisRsiOS = input.int(30, "MIS RSI Oversold", minval=10, maxval=50, group=G_SRC)
-mcMisRsiOB = input.int(70, "MIS RSI Overbought", minval=50, maxval=90, group=G_SRC)
-mcMisCciOS = input.int(-100, "MIS CCI Oversold", minval=-150, maxval=-50, group=G_SRC)
-mcMisCciOB = input.int(100, "MIS CCI Overbought", minval=50, maxval=150, group=G_SRC)
-mcMisStochOS = input.int(20, "MIS Stochastic Oversold", minval=10, maxval=40, group=G_SRC)
-mcMisStochOB = input.int(80, "MIS Stochastic Overbought", minval=60, maxval=90, group=G_SRC)
+mcMisMode = input.string("Off", "Multi-Indicator Confluence", options=["Off", "Source", "Filter"], group=G_MIS)
+mcMisCombo = input.string("RSI & CCI", "Confluence Combination", options=["RSI & CCI", "RSI & Stoch", "CCI & Stoch", "All Three", "Any Two"], group=G_MIS)
+mcMisRsiLen = input.int(14, "MIS RSI Length", minval=1, group=G_MIS)
+mcMisCciLen = input.int(14, "MIS CCI Length", minval=1, group=G_MIS)
+mcMisStochLen = input.int(14, "MIS Stochastic %K Length", minval=1, group=G_MIS)
+mcMisStochSmooth = input.int(3, "MIS Stochastic Smoothing", minval=1, group=G_MIS)
+mcMisRsiOS = input.int(30, "MIS RSI Oversold", minval=10, maxval=50, group=G_MIS)
+mcMisRsiOB = input.int(70, "MIS RSI Overbought", minval=50, maxval=90, group=G_MIS)
+mcMisCciOS = input.int(-100, "MIS CCI Oversold", minval=-150, maxval=-50, group=G_MIS)
+mcMisCciOB = input.int(100, "MIS CCI Overbought", minval=50, maxval=150, group=G_MIS)
+mcMisStochOS = input.int(20, "MIS Stochastic Oversold", minval=10, maxval=40, group=G_MIS)
+mcMisStochOB = input.int(80, "MIS Stochastic Overbought", minval=60, maxval=90, group=G_MIS)
 
-mcM4cMode = input.string("Off", "MACD 4-Colour", options=["Off", "Source", "Filter"], group=G_SRC)
-mcM4cTrigger = input.string("Colour Flip", "MACD 4C Trigger", options=["Colour Flip", "Zero Cross", "Signal Cross", "Strong Only"], group=G_SRC)
-mcM4cFast = input.int(12, "4C Fast MA", minval=2, group=G_SRC)
-mcM4cSlow = input.int(26, "4C Slow MA", minval=3, group=G_SRC)
-mcM4cSignal = input.int(9, "4C Signal Length", minval=1, group=G_SRC)
+mcM4cMode = input.string("Off", "MACD 4-Colour", options=["Off", "Source", "Filter"], group=G_M4C)
+mcM4cTrigger = input.string("Colour Flip", "MACD 4C Trigger", options=["Colour Flip", "Zero Cross", "Signal Cross", "Strong Only"], group=G_M4C)
+mcM4cFast = input.int(12, "4C Fast MA", minval=2, group=G_M4C)
+mcM4cSlow = input.int(26, "4C Slow MA", minval=3, group=G_M4C)
+mcM4cSignal = input.int(9, "4C Signal Length", minval=1, group=G_M4C)
 
-mcVolMode = input.string("Off", "Volume Spike", options=["Off", "Source", "Filter"], group=G_SRC)
-mcVolTrigger = input.string("Spike", "Volume Trigger", options=["Spike", "Growing", "Spike or Growing"], group=G_SRC)
-mcVolBaseLen = input.int(1000, "Volume Baseline Length", minval=20, group=G_SRC)
-mcVolSpikeMult = input.float(1.8, "Volume Spike Multiple", minval=1.0, step=0.1, group=G_SRC)
-mcVolCurLen = input.int(5, "Recent Volume Length", minval=2, group=G_SRC)
-mcVolGrowMult = input.float(1.5, "Growing Volume Multiple", minval=1.0, step=0.1, group=G_SRC)
-mcVolMaLen = input.int(20, "Volume MA Length", minval=2, group=G_SRC)
-mcVolDmiLen = input.int(1, "Volume DMI Length", minval=1, group=G_SRC)
-mcVolDmiSmooth = input.int(1, "Volume DMI Smoothing", minval=1, group=G_SRC)
+mcVolMode = input.string("Off", "Volume Spike", options=["Off", "Source", "Filter"], group=G_VOL)
+mcVolTrigger = input.string("Spike", "Volume Trigger", options=["Spike", "Growing", "Spike or Growing"], group=G_VOL)
+mcVolBaseLen = input.int(1000, "Volume Baseline Length", minval=20, group=G_VOL)
+mcVolSpikeMult = input.float(1.8, "Volume Spike Multiple", minval=1.0, step=0.1, group=G_VOL)
+mcVolCurLen = input.int(5, "Recent Volume Length", minval=2, group=G_VOL)
+mcVolGrowMult = input.float(1.5, "Growing Volume Multiple", minval=1.0, step=0.1, group=G_VOL)
+mcVolMaLen = input.int(20, "Volume MA Length", minval=2, group=G_VOL)
+mcVolDmiLen = input.int(1, "Volume DMI Length", minval=1, group=G_VOL)
+mcVolDmiSmooth = input.int(1, "Volume DMI Smoothing", minval=1, group=G_VOL)
 
-mcMtxMode = input.string("Off", "Matrix Series", options=["Off", "Source", "Filter"], group=G_SRC)
-mcMtxSmooth = input.int(5, "Matrix Smoother", minval=2, group=G_SRC)
-mcMtxOB = input.int(200, "Matrix Overbought", group=G_SRC)
-mcMtxOS = input.int(-200, "Matrix Oversold", group=G_SRC)
+mcMtxMode = input.string("Off", "Matrix Series", options=["Off", "Source", "Filter"], group=G_MTX)
+mcMtxSmooth = input.int(5, "Matrix Smoother", minval=2, group=G_MTX)
+mcMtxOB = input.int(200, "Matrix Overbought", group=G_MTX)
+mcMtxOS = input.int(-200, "Matrix Oversold", group=G_MTX)
 
-mcVfxMode = input.string("Off", "Williams Vix Fix", options=["Off", "Source", "Filter"], group=G_SRC)
-mcVfxTrigger = input.string("Filtered", "Vix Fix Trigger", options=["Filtered", "Aggressive", "Either"], group=G_SRC)
-mcVfxPd = input.int(22, "VF Lookback StdDev High", minval=1, group=G_SRC)
-mcVfxBbl = input.int(20, "VF Bollinger Length", minval=1, group=G_SRC)
-mcVfxMult = input.float(2.0, "VF Bollinger StdDev", minval=1.0, maxval=5.0, group=G_SRC)
-mcVfxLb = input.int(50, "VF Percentile Lookback", minval=1, group=G_SRC)
-mcVfxPh = input.float(0.85, "VF Highest Percentile", minval=0.05, maxval=1.0, group=G_SRC)
-mcVfxLtLB = input.int(40, "VF Long-Term Lookback", minval=25, maxval=99, group=G_SRC)
-mcVfxMtLB = input.int(14, "VF Medium-Term Lookback", minval=10, maxval=20, group=G_SRC)
-mcVfxStr = input.int(3, "VF Price Action Strength", minval=1, maxval=9, group=G_SRC)
+mcVfxMode = input.string("Off", "Williams Vix Fix", options=["Off", "Source", "Filter"], group=G_VFX)
+mcVfxTrigger = input.string("Filtered", "Vix Fix Trigger", options=["Filtered", "Aggressive", "Either"], group=G_VFX)
+mcVfxPd = input.int(22, "VF Lookback StdDev High", minval=1, group=G_VFX)
+mcVfxBbl = input.int(20, "VF Bollinger Length", minval=1, group=G_VFX)
+mcVfxMult = input.float(2.0, "VF Bollinger StdDev", minval=1.0, maxval=5.0, group=G_VFX)
+mcVfxLb = input.int(50, "VF Percentile Lookback", minval=1, group=G_VFX)
+mcVfxPh = input.float(0.85, "VF Highest Percentile", minval=0.05, maxval=1.0, group=G_VFX)
+mcVfxLtLB = input.int(40, "VF Long-Term Lookback", minval=25, maxval=99, group=G_VFX)
+mcVfxMtLB = input.int(14, "VF Medium-Term Lookback", minval=10, maxval=20, group=G_VFX)
+mcVfxStr = input.int(3, "VF Price Action Strength", minval=1, maxval=9, group=G_VFX)
 
-mcQqeMode = input.string("Off", "QQE Signals", options=["Off", "Source", "Filter"], group=G_SRC)
-mcQqeRsiLen = input.int(14, "QQE RSI Length", minval=1, group=G_SRC)
-mcQqeSf = input.int(5, "QQE RSI Smoothing", minval=1, group=G_SRC)
-mcQqeQf = input.float(4.238, "QQE Fast Factor", minval=1.0, step=0.001, group=G_SRC)
+mcQqeMode = input.string("Off", "QQE Signals", options=["Off", "Source", "Filter"], group=G_QQE)
+mcQqeRsiLen = input.int(14, "QQE RSI Length", minval=1, group=G_QQE)
+mcQqeSf = input.int(5, "QQE RSI Smoothing", minval=1, group=G_QQE)
+mcQqeQf = input.float(4.238, "QQE Fast Factor", minval=1.0, step=0.001, group=G_QQE)
 
-mcSqzMode = input.string("Off", "Squeeze Momentum", options=["Off", "Source", "Filter"], group=G_SRC)
-mcSqzTrigger = input.string("Signal Cross", "Squeeze Trigger", options=["Signal Cross", "Squeeze Release"], group=G_SRC)
-mcSqzMomLen = input.int(20, "Squeeze Momentum Length", minval=1, group=G_SRC)
-mcSqzSigLen = input.int(5, "Squeeze Signal Length", minval=2, group=G_SRC)
-mcSqzLen = input.int(20, "Squeeze KC/BB Length", minval=1, group=G_SRC)
-mcSqzMultBB = input.float(2.0, "Squeeze BB Mult", minval=0.5, step=0.05, group=G_SRC)
-mcSqzMultKC = input.float(1.3, "Squeeze KC Mult", minval=0.5, step=0.05, group=G_SRC)
+mcSqzMode = input.string("Off", "Squeeze Momentum", options=["Off", "Source", "Filter"], group=G_SQZ)
+mcSqzTrigger = input.string("Signal Cross", "Squeeze Trigger", options=["Signal Cross", "Squeeze Release"], group=G_SQZ)
+mcSqzMomLen = input.int(20, "Squeeze Momentum Length", minval=1, group=G_SQZ)
+mcSqzSigLen = input.int(5, "Squeeze Signal Length", minval=2, group=G_SQZ)
+mcSqzLen = input.int(20, "Squeeze KC/BB Length", minval=1, group=G_SQZ)
+mcSqzMultBB = input.float(2.0, "Squeeze BB Mult", minval=0.5, step=0.05, group=G_SQZ)
+mcSqzMultKC = input.float(1.3, "Squeeze KC Mult", minval=0.5, step=0.05, group=G_SQZ)
 
-mcKwMode = input.string("Off", "Keltner Wick Rejection", options=["Off", "Source", "Filter"], group=G_SRC)
-mcKwBand = input.string("Full", "Keltner Band", options=["Full", "Half", "Baseline"], group=G_SRC)
-mcKwEma = input.int(21, "KW Baseline EMA", minval=1, group=G_SRC)
-mcKwAtr = input.int(21, "KW ATR Period", minval=1, group=G_SRC)
-mcKwMult = input.float(2.618, "KW Multiplier", minval=0.1, step=0.1, group=G_SRC)
-mcKwSmooth = input.int(3, "KW Band Smoothing", minval=1, group=G_SRC)
-mcKwWickRatio = input.float(0.4, "KW Wick Ratio", minval=0.0, maxval=1.0, step=0.01, group=G_SRC)
-mcKwUseSrsi = input.bool(true, "KW Use Stochastic RSI Filter", group=G_SRC)
-mcKwRsiLen = input.int(14, "KW RSI Length", minval=1, group=G_SRC)
-mcKwStochLen = input.int(8, "KW Stochastic Length", minval=1, group=G_SRC)
-mcKwSmoothK = input.int(3, "KW %K Smoothing", minval=1, group=G_SRC)
+mcKwMode = input.string("Off", "Keltner Wick Rejection", options=["Off", "Source", "Filter"], group=G_KW)
+mcKwBCd = input.string("Full", "Keltner Band", options=["Full", "Half", "Baseline"], group=G_KW)
+mcKwEma = input.int(21, "KW Baseline EMA", minval=1, group=G_KW)
+mcKwAtr = input.int(21, "KW ATR Period", minval=1, group=G_KW)
+mcKwMult = input.float(2.618, "KW Multiplier", minval=0.1, step=0.1, group=G_KW)
+mcKwSmooth = input.int(3, "KW Band Smoothing", minval=1, group=G_KW)
+mcKwWickRatio = input.float(0.4, "KW Wick Ratio", minval=0.0, maxval=1.0, step=0.01, group=G_KW)
+mcKwUseSrsi = input.bool(true, "KW Use Stochastic RSI Filter", group=G_KW)
+mcKwRsiLen = input.int(14, "KW RSI Length", minval=1, group=G_KW)
+mcKwStochLen = input.int(8, "KW Stochastic Length", minval=1, group=G_KW)
+mcKwSmoothK = input.int(3, "KW %K Smoothing", minval=1, group=G_KW)
+
+mcLuxMode = input.string("Off", "LuxAlgo Reversal", options=["Off", "Source", "Filter"], group=G_LUX)
+mcLuxSetup = input.string("Exhaustion", "Lux Setup", options=["Momentum", "Exhaustion"], group=G_LUX)
+
+mcAaMode = input.string("Off", "AlgoAlpha Reversal", options=["Off", "Source", "Filter"], group=G_AA)
+mcAaLookback = input.int(12, "AA Candle Lookback", minval=2, maxval=200, group=G_AA)
+mcAaConfirm = input.int(3, "AA Confirm Within", minval=1, maxval=50, group=G_AA)
+mcAaUseVolume = input.bool(true, "AA Use Volume Confirmation", group=G_AA)
 
 mcAtrLen = input.int(14, "ATR Length — shared by sources", minval=1, group=G_SRC)
 
@@ -962,8 +993,8 @@ mcKwUpFull = ta.sma(mcKwBase + mcKwAtrV * mcKwMult, mcKwSmooth)
 mcKwLoFull = ta.sma(mcKwBase - mcKwAtrV * mcKwMult, mcKwSmooth)
 mcKwUpHalf = ta.sma(mcKwBase + mcKwAtrV * mcKwMult / 2.0, mcKwSmooth)
 mcKwLoHalf = ta.sma(mcKwBase - mcKwAtrV * mcKwMult / 2.0, mcKwSmooth)
-mcKwUpper = mcKwBand == "Full" ? mcKwUpFull : mcKwBand == "Half" ? mcKwUpHalf : mcKwBase
-mcKwLower = mcKwBand == "Full" ? mcKwLoFull : mcKwBand == "Half" ? mcKwLoHalf : mcKwBase
+mcKwUpper = mcKwBCd == "Full" ? mcKwUpFull : mcKwBCd == "Half" ? mcKwUpHalf : mcKwBase
+mcKwLower = mcKwBCd == "Full" ? mcKwLoFull : mcKwBCd == "Half" ? mcKwLoHalf : mcKwBase
 mcKwRsiV = ta.rsi(close, mcKwRsiLen)
 mcKwHH = ta.highest(mcKwRsiV, mcKwStochLen)
 mcKwLL = ta.lowest(mcKwRsiV, mcKwStochLen)
@@ -979,6 +1010,87 @@ mcKwBuy = close > mcKwLower and low < mcKwLower and mcKwBullOK and mcKwDnWick > 
 mcKwBuyOK = close > mcKwBase
 mcKwSellOK = close < mcKwBase
 
+// ── LuxAlgo Reversal ────────────────────────────────────────────────────────
+// عدّ مراحل على طريقة التسلسل: تسع شمعات زخم، ثم ثلاث عشرة شمعة استنزاف.
+// الإشارة انقلاب السعر بعد اكتمال المرحلة. وضع Qualified محذوف لأنه يحتاج
+// ta.valuewhen وهي غير متاحة في محرك الاختبار؛ الوضعان الباقيان كاملان.
+var int mcLuxBs = 0
+var int mcLuxSs = 0
+mcLuxCon = close < nz(close[4], close)
+mcLuxBs := mcLuxCon ? (mcLuxBs == 9 ? 1 : mcLuxBs + 1) : 0
+mcLuxSs := mcLuxCon ? 0 : (mcLuxSs == 9 ? 1 : mcLuxSs + 1)
+mcLuxBc8 = nz(mcLuxBs[1], 0) == 8 and mcLuxSs == 1
+mcLuxSc8 = nz(mcLuxSs[1], 0) == 8 and mcLuxBs == 1
+
+// مرحلة الاستنزاف: عدّ الإغلاقات تحت قاع شمعتين خلف، وبالعكس
+var int mcLuxBcc = 0
+var int mcLuxScc = 0
+var bool mcLuxBon = false
+var bool mcLuxSon = false
+mcLuxBon := mcLuxBs == 9 ? true : (mcLuxSs == 9 or mcLuxBcc >= 13) ? false : mcLuxBon
+mcLuxSon := mcLuxSs == 9 ? true : (mcLuxBs == 9 or mcLuxScc >= 13) ? false : mcLuxSon
+mcLuxBcc := mcLuxBon ? (close <= nz(low[2], low) ? mcLuxBcc + 1 : mcLuxBcc) : 0
+mcLuxScc := mcLuxSon ? (close >= nz(high[2], high) ? mcLuxScc + 1 : mcLuxScc) : 0
+
+// انقلاب السعر بعد اكتمال المرحلة
+mcLuxBuyReady = mcLuxSetup == "Momentum" ? (mcLuxBs == 9 or mcLuxBc8) : nz(mcLuxBcc[5], 0) == 13
+mcLuxSellReady = mcLuxSetup == "Momentum" ? (mcLuxSs == 9 or mcLuxSc8) : nz(mcLuxScc[5], 0) == 13
+var bool mcLuxBarm = false
+var bool mcLuxSarm = false
+mcLuxBuy = mcLuxBarm and close > nz(close[4], close) and nz(close[1], close) < nz(close[5], close)
+mcLuxSell = mcLuxSarm and close < nz(close[4], close) and nz(close[1], close) > nz(close[5], close)
+mcLuxBarm := mcLuxBuyReady ? true : mcLuxBuy ? false : mcLuxBarm
+mcLuxSarm := mcLuxSellReady ? true : mcLuxSell ? false : mcLuxSarm
+mcLuxBuyOK = not mcLuxSarm
+mcLuxSellOK = not mcLuxBarm
+
+// ── AlgoAlpha Reversal ──────────────────────────────────────────────────────
+// شمعة تغلق تحت كل قيعان النافذة تُرشِّح انعكاساً صاعداً، ثم يتأكّد باختراق
+// قمتها خلال عدد محدود من الشموع، مع تأكيد فوليوم اختياري.
+mcAaVolHigh = volume > ta.sma(volume, 20)
+mcAaBullScore = 0
+mcAaBearScore = 0
+for mcAaI = 0 to mcAaLookback - 1
+    if close < low[mcAaI]
+        mcAaBullScore += 1
+    if close > high[mcAaI]
+        mcAaBearScore += 1
+
+var bool mcAaBullCCd = false
+var bool mcAaBearCCd = false
+var float mcAaBullLo = 0.0
+var float mcAaBullHi = 0.0
+var float mcAaBearLo = 0.0
+var float mcAaBearHi = 0.0
+var bool mcAaBullDone = false
+var bool mcAaBearDone = false
+var int mcAaBullCnt = 0
+var int mcAaBearCnt = 0
+
+mcAaNewBull = mcAaBullScore == mcAaLookback - 1
+mcAaNewBear = mcAaBearScore == mcAaLookback - 1
+mcAaBullCCd := mcAaNewBull ? true : mcAaBullCCd
+mcAaBullLo := mcAaNewBull ? low : mcAaBullLo
+mcAaBullHi := mcAaNewBull ? high : mcAaBullHi
+mcAaBullDone := mcAaNewBull ? false : mcAaBullDone
+mcAaBullCnt := mcAaNewBull ? 0 : (mcAaBullCCd ? mcAaBullCnt + 1 : mcAaBullCnt)
+mcAaBearCCd := mcAaNewBear ? true : mcAaBearCCd
+mcAaBearLo := mcAaNewBear ? low : mcAaBearLo
+mcAaBearHi := mcAaNewBear ? high : mcAaBearHi
+mcAaBearDone := mcAaNewBear ? false : mcAaBearDone
+mcAaBearCnt := mcAaNewBear ? 0 : (mcAaBearCCd ? mcAaBearCnt + 1 : mcAaBearCnt)
+
+mcAaBullFire = mcAaBullCCd and close > mcAaBullHi and not mcAaBullDone and mcAaBullCnt <= mcAaConfirm + 1
+mcAaBearFire = mcAaBearCCd and close < mcAaBearLo and not mcAaBearDone and mcAaBearCnt <= mcAaConfirm + 1
+mcAaBuy = mcAaBullFire and (not mcAaUseVolume or mcAaVolHigh)
+mcAaSell = mcAaBearFire and (not mcAaUseVolume or mcAaVolHigh)
+mcAaBullDone := mcAaBullFire ? true : mcAaBullDone
+mcAaBearDone := mcAaBearFire ? true : mcAaBearDone
+mcAaBullCCd := mcAaBullCCd and close >= mcAaBullLo
+mcAaBearCCd := mcAaBearCCd and close <= mcAaBearHi
+mcAaBuyOK = not mcAaBearCCd
+mcAaSellOK = not mcAaBullCCd
+
 // ── تجميع المصادر والفلاتر ──────────────────────────────────────────────────
 f_src(_mode, _sig) =>
     _mode == "Source" and _sig
@@ -989,27 +1101,31 @@ f_flt(_mode, _ok) =>
 mcSourceBuy = f_src(mcRsiMode, mcRsiBuy) or f_src(mcMacdMode, mcMacdBuy) or
  f_src(mcAdxMode, mcAdxBuy) or f_src(mcBbMode, mcBbBuy) or f_src(mcIchiMode, mcIchiBuy) or
  f_src(mcSarMode, mcSarBuy) or f_src(mcPivotMode, mcPivotBuy) or f_src(mcFibMode, mcFibBuy) or
- f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy) or f_src(mcMisMode, mcMisBuy) or f_src(mcM4cMode, mcM4cBuy) or f_src(mcVolMode, mcVolBuy) or f_src(mcMtxMode, mcMtxBuy) or f_src(mcVfxMode, mcVfxBuy) or f_src(mcQqeMode, mcQqeBuy) or f_src(mcSqzMode, mcSqzBuy) or f_src(mcKwMode, mcKwBuy)
+ f_src(mcMaMode, mcMaBuy) or f_src(mcBrtMode, mcBrtBuy) or f_src(mcSmbMode, mcSmbBuy) or f_src(mcSrMode, mcSrBuy) or f_src(mcStrMode, mcStrBuy) or f_src(mcMisMode, mcMisBuy) or f_src(mcM4cMode, mcM4cBuy) or f_src(mcVolMode, mcVolBuy) or f_src(mcMtxMode, mcMtxBuy) or f_src(mcVfxMode, mcVfxBuy) or f_src(mcQqeMode, mcQqeBuy) or f_src(mcSqzMode, mcSqzBuy) or f_src(mcKwMode, mcKwBuy) or f_src(mcLuxMode, mcLuxBuy) or f_src(mcAaMode, mcAaBuy)
 
 mcSourceSell = f_src(mcRsiMode, mcRsiSell) or f_src(mcMacdMode, mcMacdSell) or
  f_src(mcAdxMode, mcAdxSell) or f_src(mcBbMode, mcBbSell) or f_src(mcIchiMode, mcIchiSell) or
  f_src(mcSarMode, mcSarSell) or f_src(mcPivotMode, mcPivotSell) or f_src(mcFibMode, mcFibSell) or
- f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell) or f_src(mcMisMode, mcMisSell) or f_src(mcM4cMode, mcM4cSell) or f_src(mcVolMode, mcVolSell) or f_src(mcMtxMode, mcMtxSell) or f_src(mcVfxMode, mcVfxSell) or f_src(mcQqeMode, mcQqeSell) or f_src(mcSqzMode, mcSqzSell) or f_src(mcKwMode, mcKwSell)
+ f_src(mcMaMode, mcMaSell) or f_src(mcBrtMode, mcBrtSell) or f_src(mcSmbMode, mcSmbSell) or f_src(mcSrMode, mcSrSell) or f_src(mcStrMode, mcStrSell) or f_src(mcMisMode, mcMisSell) or f_src(mcM4cMode, mcM4cSell) or f_src(mcVolMode, mcVolSell) or f_src(mcMtxMode, mcMtxSell) or f_src(mcVfxMode, mcVfxSell) or f_src(mcQqeMode, mcQqeSell) or f_src(mcSqzMode, mcSqzSell) or f_src(mcKwMode, mcKwSell) or f_src(mcLuxMode, mcLuxSell) or f_src(mcAaMode, mcAaSell)
 
 mcFilterBuyOK = f_flt(mcRsiMode, mcRsiBuyOK) and f_flt(mcMacdMode, mcMacdBuyOK) and
  f_flt(mcAdxMode, mcAdxBuyOK) and f_flt(mcBbMode, mcBbBuyOK) and f_flt(mcIchiMode, mcIchiBuyOK) and
  f_flt(mcSarMode, mcSarBuyOK) and f_flt(mcPivotMode, mcPivotBuyOK) and f_flt(mcFibMode, mcFibBuyOK) and
- f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK) and f_flt(mcMisMode, mcMisBuyOK) and f_flt(mcM4cMode, mcM4cBuyOK) and f_flt(mcVolMode, mcVolBuyOK) and f_flt(mcMtxMode, mcMtxBuyOK) and f_flt(mcVfxMode, mcVfxBuyOK) and f_flt(mcQqeMode, mcQqeBuyOK) and f_flt(mcSqzMode, mcSqzBuyOK) and f_flt(mcKwMode, mcKwBuyOK)
+ f_flt(mcMaMode, mcMaBuyOK) and f_flt(mcBrtMode, mcBrtBuyOK) and f_flt(mcSmbMode, mcSmbBuyOK) and f_flt(mcSrMode, mcSrBuyOK) and f_flt(mcStrMode, mcStrBuyOK) and f_flt(mcMisMode, mcMisBuyOK) and f_flt(mcM4cMode, mcM4cBuyOK) and f_flt(mcVolMode, mcVolBuyOK) and f_flt(mcMtxMode, mcMtxBuyOK) and f_flt(mcVfxMode, mcVfxBuyOK) and f_flt(mcQqeMode, mcQqeBuyOK) and f_flt(mcSqzMode, mcSqzBuyOK) and f_flt(mcKwMode, mcKwBuyOK) and f_flt(mcLuxMode, mcLuxBuyOK) and f_flt(mcAaMode, mcAaBuyOK)
 
 mcFilterSellOK = f_flt(mcRsiMode, mcRsiSellOK) and f_flt(mcMacdMode, mcMacdSellOK) and
  f_flt(mcAdxMode, mcAdxSellOK) and f_flt(mcBbMode, mcBbSellOK) and f_flt(mcIchiMode, mcIchiSellOK) and
  f_flt(mcSarMode, mcSarSellOK) and f_flt(mcPivotMode, mcPivotSellOK) and f_flt(mcFibMode, mcFibSellOK) and
- f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK) and f_flt(mcMisMode, mcMisSellOK) and f_flt(mcM4cMode, mcM4cSellOK) and f_flt(mcVolMode, mcVolSellOK) and f_flt(mcMtxMode, mcMtxSellOK) and f_flt(mcVfxMode, mcVfxSellOK) and f_flt(mcQqeMode, mcQqeSellOK) and f_flt(mcSqzMode, mcSqzSellOK) and f_flt(mcKwMode, mcKwSellOK)
+ f_flt(mcMaMode, mcMaSellOK) and f_flt(mcBrtMode, mcBrtSellOK) and f_flt(mcSmbMode, mcSmbSellOK) and f_flt(mcSrMode, mcSrSellOK) and f_flt(mcStrMode, mcStrSellOK) and f_flt(mcMisMode, mcMisSellOK) and f_flt(mcM4cMode, mcM4cSellOK) and f_flt(mcVolMode, mcVolSellOK) and f_flt(mcMtxMode, mcMtxSellOK) and f_flt(mcVfxMode, mcVfxSellOK) and f_flt(mcQqeMode, mcQqeSellOK) and f_flt(mcSqzMode, mcSqzSellOK) and f_flt(mcKwMode, mcKwSellOK) and f_flt(mcLuxMode, mcLuxSellOK) and f_flt(mcAaMode, mcAaSellOK)
 
 mcActiveCount = (mcRsiMode != "Off" ? 1 : 0) + (mcMacdMode != "Off" ? 1 : 0) +
  (mcAdxMode != "Off" ? 1 : 0) + (mcBbMode != "Off" ? 1 : 0) + (mcIchiMode != "Off" ? 1 : 0) +
  (mcSarMode != "Off" ? 1 : 0) + (mcPivotMode != "Off" ? 1 : 0) + (mcFibMode != "Off" ? 1 : 0) +
- (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0) + (mcMisMode != "Off" ? 1 : 0) + (mcM4cMode != "Off" ? 1 : 0) + (mcVolMode != "Off" ? 1 : 0) + (mcMtxMode != "Off" ? 1 : 0) + (mcVfxMode != "Off" ? 1 : 0) + (mcQqeMode != "Off" ? 1 : 0) + (mcSqzMode != "Off" ? 1 : 0) + (mcKwMode != "Off" ? 1 : 0)
+ (mcMaMode != "Off" ? 1 : 0) + (mcBrtMode != "Off" ? 1 : 0) + (mcSmbMode != "Off" ? 1 : 0) + (mcSrMode != "Off" ? 1 : 0) + (mcStrMode != "Off" ? 1 : 0) + (mcMisMode != "Off" ? 1 : 0) + (mcM4cMode != "Off" ? 1 : 0) + (mcVolMode != "Off" ? 1 : 0) + (mcMtxMode != "Off" ? 1 : 0) + (mcVfxMode != "Off" ? 1 : 0) + (mcQqeMode != "Off" ? 1 : 0) + (mcSqzMode != "Off" ? 1 : 0) + (mcKwMode != "Off" ? 1 : 0) + (mcLuxMode != "Off" ? 1 : 0) + (mcAaMode != "Off" ? 1 : 0)
+
+mcSourceCount = (mcRsiMode == "Source" ? 1 : 0) + (mcMacdMode == "Source" ? 1 : 0) + (mcAdxMode == "Source" ? 1 : 0) + (mcBbMode == "Source" ? 1 : 0) + (mcIchiMode == "Source" ? 1 : 0) + (mcSarMode == "Source" ? 1 : 0) + (mcPivotMode == "Source" ? 1 : 0) + (mcFibMode == "Source" ? 1 : 0) + (mcMaMode == "Source" ? 1 : 0) + (mcBrtMode == "Source" ? 1 : 0) + (mcSmbMode == "Source" ? 1 : 0) + (mcSrMode == "Source" ? 1 : 0) + (mcStrMode == "Source" ? 1 : 0) + (mcMisMode == "Source" ? 1 : 0) + (mcM4cMode == "Source" ? 1 : 0) + (mcVolMode == "Source" ? 1 : 0) + (mcMtxMode == "Source" ? 1 : 0) + (mcVfxMode == "Source" ? 1 : 0) + (mcQqeMode == "Source" ? 1 : 0) + (mcSqzMode == "Source" ? 1 : 0) + (mcKwMode == "Source" ? 1 : 0) + (mcLuxMode == "Source" ? 1 : 0) + (mcAaMode == "Source" ? 1 : 0)
+
+mcFilterCount = (mcRsiMode == "Filter" ? 1 : 0) + (mcMacdMode == "Filter" ? 1 : 0) + (mcAdxMode == "Filter" ? 1 : 0) + (mcBbMode == "Filter" ? 1 : 0) + (mcIchiMode == "Filter" ? 1 : 0) + (mcSarMode == "Filter" ? 1 : 0) + (mcPivotMode == "Filter" ? 1 : 0) + (mcFibMode == "Filter" ? 1 : 0) + (mcMaMode == "Filter" ? 1 : 0) + (mcBrtMode == "Filter" ? 1 : 0) + (mcSmbMode == "Filter" ? 1 : 0) + (mcSrMode == "Filter" ? 1 : 0) + (mcStrMode == "Filter" ? 1 : 0) + (mcMisMode == "Filter" ? 1 : 0) + (mcM4cMode == "Filter" ? 1 : 0) + (mcVolMode == "Filter" ? 1 : 0) + (mcMtxMode == "Filter" ? 1 : 0) + (mcVfxMode == "Filter" ? 1 : 0) + (mcQqeMode == "Filter" ? 1 : 0) + (mcSqzMode == "Filter" ? 1 : 0) + (mcKwMode == "Filter" ? 1 : 0) + (mcLuxMode == "Filter" ? 1 : 0) + (mcAaMode == "Filter" ? 1 : 0)
 
 // ══════════════════════════════════════════════════════════════════
 // REACTION ENGINE
@@ -1382,7 +1498,7 @@ if showTable and barstate.islast
     table.cell(t, 1, 10, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm 'UTC'", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
     table.cell(t, 0, 11, "Manager", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(t, 1, 11, mcActiveCount == 0 ? "RMI ONLY" : "RMI + " + str.tostring(mcActiveCount) + " MC", text_color=mcActiveCount == 0 ? BUY_C : EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 11, mcActiveCount == 0 ? "RMI BASELINE" : "RMI + " + str.tostring(mcSourceCount) + "src / " + str.tostring(mcFilterCount) + "flt", text_color=mcActiveCount == 0 ? BUY_C : EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
     table.cell(t, 0, 12, "BUY W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
     table.cell(t, 1, 12, str.tostring(buyWins) + "/" + str.tostring(buyLosses), text_color=buyWins >= buyLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
