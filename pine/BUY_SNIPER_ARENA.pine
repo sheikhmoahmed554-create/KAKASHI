@@ -1,0 +1,203 @@
+//@version=6
+// BUY SNIPER ARENA — four bottom-hunting philosophies compete for the
+// BUY-wing chair next to the RMI V2 sell engine. BUY-only by design.
+// Candidates:
+//   FALSE_BREAK — price sweeps below a clear prior low then closes back above it
+//   DEEP_RMI    — RMI deep-oversold arm + consecutive recovery reaction
+//   BAND_SNAP   — deep stretch below lower band + explicit reversal candle
+//   MOMO_DIV    — new price low while momentum refuses to confirm (divergence proxy)
+indicator("BUY SNIPER ARENA", shorttitle="BUY ARENA", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
+
+color BUY_C  = color.rgb(0, 170, 90)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color TXT_C  = color.white
+
+G_CAND = "01 ■ Candidate"
+G_RISK = "02 ■ Trade / TP / SL"
+G_EXEC = "03 ■ Execution"
+G_VIS  = "04 ■ Statistics / Visuals"
+
+candidateMode = input.string("FALSE_BREAK", "Candidate", options=["FALSE_BREAK", "DEEP_RMI", "BAND_SNAP", "MOMO_DIV"], group=G_CAND)
+
+// FALSE_BREAK params
+fbLookback = input.int(60, "FB: Prior Low Lookback", minval=10, maxval=500, group=G_CAND)
+fbReclaimBars = input.int(3, "FB: Reclaim Within Bars", minval=1, maxval=20, group=G_CAND)
+
+// DEEP_RMI params
+drLength = input.int(18, "DR: RMI Length", minval=1, group=G_CAND)
+drMomentum = input.int(6, "DR: RMI Momentum", minval=1, group=G_CAND)
+drZone = input.float(15.0, "DR: Deep Oversold Zone", minval=1.0, maxval=40.0, step=1.0, group=G_CAND)
+drReactionBars = input.int(2, "DR: Consecutive Reaction Candles", minval=1, maxval=10, group=G_CAND)
+drMaxWait = input.int(6, "DR: Maximum Bars After Zone", minval=1, maxval=50, group=G_CAND)
+
+// BAND_SNAP params
+bsLength = input.int(20, "BS: Band Length", minval=5, maxval=200, group=G_CAND)
+bsDev = input.float(2.5, "BS: Band Deviation", minval=1.0, maxval=5.0, step=0.1, group=G_CAND)
+bsClosePos = input.float(0.60, "BS: Min Close Position", minval=0.5, maxval=0.95, step=0.05, group=G_CAND)
+
+// MOMO_DIV params
+mdWindow = input.int(60, "MD: Low Window", minval=10, maxval=500, group=G_CAND)
+mdRsiLen = input.int(14, "MD: RSI Length", minval=2, maxval=100, group=G_CAND)
+mdMinGap = input.float(5.0, "MD: Min RSI Gap Above Window Low", minval=1.0, maxval=30.0, step=0.5, group=G_CAND)
+
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK)
+targetPoints = input.float(130.0, "Target Points", minval=1.0, step=1.0, group=G_RISK)
+stopPoints = input.float(70.0, "Stop Points", minval=1.0, step=1.0, group=G_RISK)
+sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK)
+
+cooldownBars = input.int(0, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_EXEC)
+
+showSignals = input.bool(true, "Show BUY / TP / SL", group=G_VIS)
+showTable = input.bool(true, "Show Stats Table", group=G_VIS)
+statsMode = input.string("All Loaded History", "Stats Count", options=["All Loaded History", "From Custom Time"], group=G_VIS)
+statsStartTime = input.time(1784512800000, "Start Stats From (UTC)", group=G_VIS)
+
+pointUnit = math.max(pointUnitInput, syminfo.mintick)
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 1 — FALSE_BREAK: sweep of a prior low + fast close reclaim
+// ══════════════════════════════════════════════════════════════════
+fbPriorLow = ta.lowest(low[1], fbLookback)
+fbSweepNow = low < fbPriorLow
+var int fbSweepBar = na
+var float fbSweepLevel = na
+if fbSweepNow
+    fbSweepBar := bar_index
+    fbSweepLevel := fbPriorLow
+fbFresh = not na(fbSweepBar) and bar_index - fbSweepBar <= fbReclaimBars
+fbEntry = fbFresh and not na(fbSweepLevel) and close > fbSweepLevel and close > open
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 2 — DEEP_RMI: deep oversold arm + consecutive recovery
+// ══════════════════════════════════════════════════════════════════
+drUp = ta.ema(math.max(close - close[drMomentum], 0.0), drLength)
+drDown = ta.ema(math.max(close[drMomentum] - close, 0.0), drLength)
+drRmi = drDown == 0.0 ? (drUp == 0.0 ? 50.0 : 100.0) : 100.0 - 100.0 / (1.0 + drUp / drDown)
+drInZone = drRmi <= drZone
+drZoneEntered = drInZone and not drInZone[1]
+var bool drArmed = false
+var int drArmBar = na
+var int drCount = 0
+if drZoneEntered
+    drArmed := true
+    drArmBar := bar_index
+    drCount := 0
+if drArmed and bar_index - drArmBar > drMaxWait
+    drArmed := false
+    drCount := 0
+drReactionBar = drArmed and bar_index > drArmBar and drRmi > drRmi[1] and close > close[1]
+if drArmed
+    drCount := drReactionBar ? drCount + 1 : 0
+drEntry = drArmed and drCount >= drReactionBars
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 3 — BAND_SNAP: deep stretch below band + reversal candle
+// ══════════════════════════════════════════════════════════════════
+bsBasis = ta.sma(close, bsLength)
+bsSnapLevel = bsBasis - ta.stdev(close, bsLength) * bsDev
+bsStretched = low < bsSnapLevel
+bsRange = math.max(high - low, syminfo.mintick)
+bsRevCandle = close > open and (close - low) / bsRange >= bsClosePos
+bsEntry = bsStretched and bsRevCandle
+
+// ══════════════════════════════════════════════════════════════════
+// CANDIDATE 4 — MOMO_DIV: new window low, RSI refuses to confirm
+// ══════════════════════════════════════════════════════════════════
+mdRsi = ta.rsi(close, mdRsiLen)
+mdNewLow = low <= ta.lowest(low, mdWindow)
+mdRsiFloor = ta.lowest(mdRsi, mdWindow)
+mdDiverging = mdRsi >= mdRsiFloor + mdMinGap
+mdEntry = mdNewLow and mdDiverging and close > open
+
+// ══════════════════════════════════════════════════════════════════
+// SELECTED CANDIDATE
+// ══════════════════════════════════════════════════════════════════
+rawBuyEntry = candidateMode == "FALSE_BREAK" ? fbEntry : candidateMode == "DEEP_RMI" ? drEntry : candidateMode == "BAND_SNAP" ? bsEntry : mdEntry
+
+if rawBuyEntry
+    drArmed := false
+    drCount := 0
+    fbSweepBar := na
+
+// ══════════════════════════════════════════════════════════════════
+// TRADE STATE / STATISTICS (same framework as RMI V2, BUY only)
+// ══════════════════════════════════════════════════════════════════
+statsActive = statsMode == "All Loaded History" or time >= statsStartTime
+
+var bool active = false
+var float entryPrice = na
+var float tpPrice = na
+var float slPrice = na
+var int entryBar = na
+var int lastTradeBar = na
+
+var int wins = 0
+var int losses = 0
+var int trades = 0
+var float netPts = 0.0
+
+var bool entryBuyPlot = false
+var bool exitTPPlot = false
+var bool exitSLPlot = false
+
+entryBuyPlot := false
+exitTPPlot := false
+exitSLPlot := false
+
+globalCooldownOK = na(lastTradeBar) or bar_index - lastTradeBar >= cooldownBars
+canEnterLong = barstate.isconfirmed and not active and globalCooldownOK and rawBuyEntry
+
+if canEnterLong
+    active := true
+    entryPrice := close
+    tpPrice := entryPrice + targetPoints * pointUnit
+    slPrice := entryPrice - stopPoints * pointUnit
+    entryBar := bar_index
+    lastTradeBar := bar_index
+    entryBuyPlot := true
+
+if active and bar_index > entryBar
+    hitTP = high >= tpPrice
+    hitSL = low <= slPrice
+    both = hitTP and hitSL
+    skipTrade = both and sameCandleRule == "Skip"
+    isWin = both ? (not skipTrade and sameCandleRule == "Target First") : hitTP
+    isLoss = both ? (not skipTrade and sameCandleRule == "Stop First") : hitSL
+    if isWin or isLoss or skipTrade
+        statsCounted = statsActive and not skipTrade
+        if statsCounted
+            trades += 1
+            if isWin
+                wins += 1
+                netPts += targetPoints
+                exitTPPlot := true
+            else
+                losses += 1
+                netPts -= stopPoints
+                exitSLPlot := true
+        active := false
+        entryPrice := na
+        tpPrice := na
+        slPrice := na
+        entryBar := na
+
+plotshape(showSignals and statsActive and entryBuyPlot, title="ARENA BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small, force_overlay=true)
+plotshape(showSignals and exitTPPlot, title="ARENA TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny, force_overlay=true)
+plotshape(showSignals and exitSLPlot, title="ARENA SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny, force_overlay=true)
+
+wr = trades > 0 ? wins * 100.0 / trades : 0.0
+var table t = table.new(position.top_right, 2, 5, bgcolor=color.rgb(16, 18, 26), border_width=0)
+if showTable and barstate.islast
+    table.cell(t, 0, 0, "BUY ARENA", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 0, candidateMode, text_color=color.rgb(255, 210, 0), text_size=size.small)
+    table.cell(t, 0, 1, "Win", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color=BUY_C, text_size=size.small)
+    table.cell(t, 0, 2, "Loss", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color=SL_C, text_size=size.small)
+    table.cell(t, 0, 3, "WR", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(wr, "#.##") + "%", text_color=wr >= 40 ? BUY_C : SL_C, text_size=size.small)
+    table.cell(t, 0, 4, "Net", text_color=color.white, text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SL_C, text_size=size.small)
+
+alertcondition(canEnterLong, "ARENA BUY", "BUY SNIPER ARENA entry")
