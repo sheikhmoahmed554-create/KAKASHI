@@ -2673,14 +2673,14 @@ rmiFTrendGuard = input.bool(true, "③ Strong Trend Guard", group=G_RMIF)
 rmiFTrendADX = input.float(28.0, "③ Strong Trend Min ADX", minval=5.0, maxval=60.0, step=1.0, group=G_RMIF)
 rmiFShowBlocked = input.bool(true, "Show Blocked X Marks", group=G_RMIF)
 
+// Exact TheLark RMI formula (EMA smoothing, dn==0 -> 0 guard)
 f_rmi_filter_val(_len, _mom) =>
-    _chg = close - close[_mom]
-    _u = ta.rma(math.max(_chg, 0.0), _len)
-    _d = ta.rma(math.max(-_chg, 0.0), _len)
-    _d == 0.0 ? 100.0 : _u == 0.0 ? 0.0 : 100.0 - (100.0 / (1.0 + _u / _d))
+    _u = ta.ema(math.max(close - close[_mom], 0.0), _len)
+    _d = ta.ema(math.max(close[_mom] - close, 0.0), _len)
+    _d == 0.0 ? 0.0 : 100.0 - 100.0 / (1.0 + _u / _d)
 
 rmiFVal = f_rmi_filter_val(rmiFLen, rmiFMom)
-rmiFSigLine = ta.ema(rmiFVal, rmiFSigLen)
+rmiFSigLine = ta.sma(rmiFVal, rmiFSigLen)
 rmiFOB = rmiFVal >= rmiFUpper
 rmiFOS = rmiFVal <= rmiFLower
 rmiFRising = rmiFVal > rmiFVal[1]
