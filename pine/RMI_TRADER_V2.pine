@@ -35,7 +35,7 @@ G_ALERT = "06 ■ Alerts / Bot"
 // ══════════════════════════════════════════════════════════════════
 rmiLength = input.int(18, "Length", minval=1, group=G_RMI)
 rmiMomentum = input.int(6, "Momentum", minval=1, group=G_RMI)
-rmiOverbought = input.float(80.0, "Overbought / SELL Zone", minval=50.0, maxval=100.0, step=1.0, group=G_RMI)
+rmiOverbought = input.float(78.0, "Overbought / SELL Zone", minval=50.0, maxval=100.0, step=1.0, group=G_RMI)
 rmiOversold = input.float(20.0, "Oversold / BUY Zone", minval=0.0, maxval=50.0, step=1.0, group=G_RMI)
 rmiSignalLength = input.int(6, "Signal Length", minval=1, group=G_RMI)
 rmiChangeColor = input.bool(true, "Change RMI Color", group=G_RMI)
@@ -61,7 +61,7 @@ requireRMISignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_
 G_GUARD = "02b ■ Trend Teacher (معلم الترند)"
 useTrendTeacher = input.bool(true, "Use Trend Teacher", group=G_GUARD)
 teacherTF = input.timeframe("30", "Teacher Timeframe", group=G_GUARD)
-teacherMode = input.string("EMA", "Teacher System", options=["EMA", "SUPERTREND", "LINREG", "DONCHIAN", "DMI"], group=G_GUARD)
+teacherMode = input.string("LINREG", "Teacher System", options=["EMA", "SUPERTREND", "LINREG", "DONCHIAN", "DMI"], group=G_GUARD)
 teacherSuperFactor = input.float(3.0, "Supertrend Factor", minval=0.5, maxval=10.0, step=0.5, group=G_GUARD)
 teacherSuperATR = input.int(10, "Supertrend ATR Length", minval=1, maxval=100, group=G_GUARD)
 teacherLinLen = input.int(100, "LinReg Length", minval=10, maxval=500, group=G_GUARD)
