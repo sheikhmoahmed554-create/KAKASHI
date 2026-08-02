@@ -361,8 +361,8 @@ sy354UseDirectGates = input.bool(false, "Use Direct Active Gates", group=G_ROUTE
 sy354BuyMaxRange = input.float(90.0, "BUY Allowed Under Range %", minval=1.0, maxval=90.0, step=1.0, group=G_ROUTER_NEW)
 sy354SellMinRange = input.float(10.0, "SELL Allowed Over Range %", minval=10.0, maxval=99.0, step=1.0, group=G_ROUTER_NEW)
 sy354RequireReaction = input.bool(true, "Require Rejection/Momentum Candle", group=G_ROUTER_NEW)
-sy337SellUseTrend = true
-sy337SellUseSY336Best = true
+sy337SellUseTrend = false  // محاكمة تدريبية: -450 (1/4 أشهر)
+sy337SellUseSY336Best = false  // محاكمة تدريبية: -450 (1/4 أشهر)
 sy337SellUseBase = true
 k3UseCacheGateBase = input.bool(false, "Apply Cache Gate To Base", group=G_ROUTER_NEW)
 k3UseCacheGateTrendVote = input.bool(false, "Apply Cache Gate To Trend Vote", group=G_ROUTER_NEW)
@@ -2400,17 +2400,18 @@ r8XSell = r8ExtraOK and (r8UtSell or r8WtSell or r8BbSell)
 // ━━━ 21 ■ Court Verdicts — أحكام محكمة المدارس (6.5 أشهر، 13,730 صفقة، 1:1) ━━━
 G_COURT = "21 ■ Court Verdicts (أحكام المحكمة)"
 courtCldB = input.bool(false, "chCld BUY (حكم: -4700)", group=G_COURT)
-courtUoB = input.bool(false, "chUo BUY (حكم: -3550)", group=G_COURT)
-courtRibB = input.bool(false, "chRib BUY (حكم: -2100)", group=G_COURT)
+courtUoB = input.bool(true, "chUo BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
+courtRibB = input.bool(true, "chRib BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtCvdB = input.bool(false, "chCvd BUY (حكم: -1800)", group=G_COURT)
 courtUls2S = input.bool(false, "chUls2 SELL (حكم: -1500)", group=G_COURT)
 courtVzS = input.bool(false, "chVz SELL (حكم: -1150)", group=G_COURT)
 courtCmoS = input.bool(false, "chCmo SELL (حكم: -900)", group=G_COURT)
 courtWtS = input.bool(false, "chWt SELL (حكم: -600)", group=G_COURT)
-courtUtS = input.bool(false, "chUt SELL (حكم: -400)", group=G_COURT)
-courtPsS = input.bool(false, "chPs SELL (حكم: -300)", group=G_COURT)
-courtTriS = input.bool(false, "chTri SELL (حكم: -250)", group=G_COURT)
-courtPsB = input.bool(false, "chPs BUY (حكم: -150)", group=G_COURT)
+courtUtS = input.bool(true, "chUt SELL (نجا بالمحاكمة الثانية)", group=G_COURT)
+courtPsS = input.bool(true, "chPs SELL (نجا — عينة صغيرة)", group=G_COURT)
+courtTriS = input.bool(true, "chTri SELL (نجا — عينة صغيرة)", group=G_COURT)
+courtPsB = input.bool(true, "chPs BUY (نجا — عينة صغيرة)", group=G_COURT)
+courtRibS = input.bool(false, "chRib SELL (حكم تدريبي: -1100)", group=G_COURT)
 buySignal := buySignal or r8XBuy
 sellSignal := sellSignal or r8XSell
 // ━━━ R9 اختياري: مصدر QQE-RSI28 ━━━
@@ -2580,7 +2581,7 @@ chE100 = ta.ema(close, 100)
 chRibB = chRibUse and chEma > ta.ema(close, 50) and ta.ema(close, 50) > chE100 and low <= ta.ema(close, 50) and close > ta.ema(close, 50) and close > open
 chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 and high >= ta.ema(close, 50) and close < ta.ema(close, 50) and close < open
 buySignal := buySignal or (courtRibB and chRibB)
-sellSignal := sellSignal or chRibS
+sellSignal := sellSignal or (courtRibS and chRibS)
 // ━━━ المدارس المنقذة (بحث + اختراع مثبت) ━━━
 chWtUse = input.bool(true, "WAVETREND v2 (WT + chassis) — ON", group=G_CH)
 chWtTp3 = (high + low + close) / 3
