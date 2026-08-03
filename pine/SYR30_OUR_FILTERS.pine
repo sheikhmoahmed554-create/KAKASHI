@@ -2785,6 +2785,7 @@ plotshape(rmiFBlockedSell, title="RMI BLOCKED SELL", style=shape.xcross, locatio
 G_RSRC = "22 ■ رمي مصدر دخول — RMI Source"
 useRmiSource = input.bool(true, "استخدم رمي كمصدر دخول", group=G_RSRC)
 rsrcOnlyMode = input.bool(false, "رمي لحاله — يطفي باقي المصادر", group=G_RSRC)
+rsrcRespectFilters = input.bool(false, "النسخة ②: رمي يمر عبر كل الفلاتر (مطفي = يتجاوزها ويحترم فقط الصفقة الواحدة)", group=G_RSRC)
 rsrcSellOn = input.bool(true, "بيع من رمي (المعتمد)", group=G_RSRC)
 rsrcBuyOn = input.bool(false, "شراء من رمي (غير معتمد)", group=G_RSRC)
 rsrcLength = input.int(18, "RMI Length", minval=1, group=G_RSRC)
@@ -2899,9 +2900,14 @@ bool preRmiSellSignal = sellSignal
 if useRmiSource and rsrcOnlyMode
     buySignal := false
     sellSignal := false
-buySignal := buySignal or (rsrcRawBuy and allowLong)
-sellSignal := sellSignal or (rsrcRawSell and allowShort)
-rmiSrcIsNew = (rsrcRawBuy and buySignal and (rsrcOnlyMode or not preRmiBuySignal)) or (rsrcRawSell and sellSignal and (rsrcOnlyMode or not preRmiSellSignal))
+// النسخة ②: رمي يمر عبر الفلاتر مثل أي مصدر
+bool rsrcViaFilters = useRmiSource and rsrcRespectFilters
+buySignal := buySignal or (rsrcRawBuy and rsrcViaFilters and allowLong)
+sellSignal := sellSignal or (rsrcRawSell and rsrcViaFilters and allowShort)
+// النسخة الافتراضية: رمي يتجاوز الفلاتر — يحترم فقط الصفقة الواحدة المفتوحة واتجاه التداول
+rsrcDirectBuy = useRmiSource and not rsrcRespectFilters and rsrcRawBuy and allowLong
+rsrcDirectSell = useRmiSource and not rsrcRespectFilters and rsrcRawSell and allowShort
+rmiSrcIsNew = rsrcDirectBuy or rsrcDirectSell or (rsrcViaFilters and ((rsrcRawBuy and buySignal and (rsrcOnlyMode or not preRmiBuySignal)) or (rsrcRawSell and sellSignal and (rsrcOnlyMode or not preRmiSellSignal))))
 if useRmiSource and rmiSrcIsNew
     m1SelectedSourceCode := 7
 
@@ -2945,8 +2951,8 @@ bgcolor(ourShowRegimeBg and ourTrendUp ? color.new(color.green, 92) : ourShowReg
 G_SOLO = "20 ■ Source Solo Test (فحص مصدر لحاله)"
 soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY", "RMI ONLY"], group=G_SOLO)
 ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4) or (soloSourceMode == "RMI ONLY" and m1SelectedSourceCode == 7)
-canEnterLong = barstate.isconfirmed and not active and allowLong and canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK and ourSoloOK
-canEnterShort = barstate.isconfirmed and not active and allowShort and canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK and ourSoloOK
+canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK and ourSoloOK) or rsrcDirectBuy)
+canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK and ourSoloOK) or rsrcDirectSell)
 
 if canEnterLong or canEnterShort
     active := true
