@@ -2883,6 +2883,8 @@ mgmtCutPnl = input.float(40.0, "② البتر إذا الخسارة تجاوز�
 mgmtTightenBars = input.int(20, "③ تضييق الستوب بعد (دقائق، 0=مطفي)", minval=0, group=G_MGMT)
 mgmtTightenFrac = input.float(0.3, "③ الستوب الجديد = النسبة من الأصلي", minval=0.05, maxval=1.0, step=0.05, group=G_MGMT)
 mgmtSendAlerts = input.bool(true, "أرسل أوامر الإدارة للبوت (MODIFY_SL / CLOSE)", group=G_MGMT)
+mgmtExitViaStop = input.bool(true, "الخروج بتحريك الستوب بدل أمر الإغلاق — يمنع الانزلاق", group=G_MGMT)
+mgmtExitBufPts = input.float(3.0, "هامش ستوب الخروج (نقاط)", minval=0.0, step=1.0, group=G_MGMT)
 var bool tradeBeArmed = false
 var bool tradeStopMoved = false
 
@@ -3054,6 +3056,12 @@ if active and bar_index > entryBar
         if rmiFixTargetHit
             earlyExit := true
             sy999IntrabarExitPrice := close
+            if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
+                if mgmtExitViaStop
+                    float rmiFixExitSl = side == 1 ? close - mgmtExitBufPts * pointUnit : close + mgmtExitBufPts * pointUnit
+                    alert('{"key":"' + sy963WebhookKey + '","action":"MODIFY_SL","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","sl_price":' + str.tostring(rmiFixExitSl, format.mintick) + ',"reason":"RMI_ZONE_EXIT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
+                else
+                    alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(close, format.mintick) + ',"reason":"RMI_ZONE_EXIT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
     if useTradeMgmt and mgmtCutBars > 0 and barstate.isconfirmed and not hardExit and not earlyExit
         if bar_index - entryBar >= mgmtCutBars and currentPnl <= -mgmtCutPnl
             earlyExit := true
@@ -3061,7 +3069,11 @@ if active and bar_index > entryBar
             if showSignals
                 label.new(bar_index, close, "✂️ بتر", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.orange, 20), textcolor=color.black, size=size.tiny)
             if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_CUT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
+                if mgmtExitViaStop
+                    float mgmtCutSl = side == 1 ? close - mgmtExitBufPts * pointUnit : close + mgmtExitBufPts * pointUnit
+                    alert('{"key":"' + sy963WebhookKey + '","action":"MODIFY_SL","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","sl_price":' + str.tostring(mgmtCutSl, format.mintick) + ',"reason":"MGMT_CUT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
+                else
+                    alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_CUT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
     // تحريك الستوب (يسري من الشمعة التالية — فحوصات هذه الشمعة تمت فوق)
     if useTradeMgmt and not hardExit and not earlyExit
         if mgmtTightenBars > 0 and bar_index - entryBar == mgmtTightenBars
