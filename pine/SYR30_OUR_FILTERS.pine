@@ -2793,8 +2793,8 @@ bgcolor(ourShowRegimeBg and ourTrendUp ? color.new(color.green, 92) : ourShowReg
 G_SOLO = "20 ■ Source Solo Test (فحص مصدر لحاله)"
 soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY"], group=G_SOLO)
 ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4)
-canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK and ourSoloOK
-canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK and ourSoloOK
+canEnterLong = barstate.isconfirmed and not active and allowLong and canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK and ourSoloOK
+canEnterShort = barstate.isconfirmed and not active and allowShort and canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK and ourSoloOK
 
 if canEnterLong or canEnterShort
     active := true
