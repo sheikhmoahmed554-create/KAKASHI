@@ -439,17 +439,6 @@ tvSellImpulseClosePos = 0.76
 pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK_NEW)
 stopPoints = input.int(65, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
 targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
-useMainFixedRisk = input.bool(false, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
-useSideGeometry = input.bool(false, "③ هندسة ذكية للأهداف", group=G_MAIN_NEW)
-sideGeoMode = input.string("By Trend Alignment", "③ الهندسة حسب", options=["By Trend Alignment", "By Side"], group=G_MAIN_NEW)
-alignedTargetPts = input.int(130, "③ هدف الصفقة الماشية مع الترند", minval=1, group=G_MAIN_NEW)
-alignedStopPts = input.int(70, "③ ستوب الماشية مع الترند", minval=1, group=G_MAIN_NEW)
-counterTargetPts = input.int(50, "③ هدف الصفقة العكسية (نطة)", minval=1, group=G_MAIN_NEW)
-counterStopPts = input.int(50, "③ ستوب العكسية", minval=1, group=G_MAIN_NEW)
-mainBuyTargetPts = input.int(50, "③ BUY Target", minval=1, group=G_MAIN_NEW)
-mainBuyStopPts = input.int(50, "③ BUY Stop", minval=1, group=G_MAIN_NEW)
-mainSellTargetPts = input.int(130, "③ SELL Target", minval=1, group=G_MAIN_NEW)
-mainSellStopPts = input.int(70, "③ SELL Stop", minval=1, group=G_MAIN_NEW)
 sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK_NEW)
 trendAlignFilter = input.string("Medium (max 3 oppose) — R10", "R4 Trend Alignment Filter", options=["Off", "Light (max 4 oppose)", "Medium (max 3 oppose) — R10", "Balanced (max 2 + Sweep)", "Strict (max 2 oppose)"], group=G_RISK_NEW)
 useDirectionalAdaptiveExit = input.bool(true, "Use M1 Directional Adaptive Exit", group=G_RISK_NEW)
@@ -2114,9 +2103,6 @@ var int trendVoteLiveWins = 0
 var int trendVoteLiveLosses = 0
 var int finalFusionLiveTrades = 0
 var int finalFusionLiveWins = 0
-var int rmiSrcLiveTrades = 0
-var int rmiSrcLiveWins = 0
-var int rmiSrcLiveLosses = 0
 var int finalFusionLiveLosses = 0
 var int realClosePendingTradeId = na
 var int realCloseLastSendBar = na
@@ -2229,9 +2215,6 @@ if manualResetKey != lastResetKey   // date is display-only filter; engine runs 
     trendVoteLiveLosses := 0
     finalFusionLiveTrades := 0
     finalFusionLiveWins := 0
-    rmiSrcLiveTrades := 0
-    rmiSrcLiveWins := 0
-    rmiSrcLiveLosses := 0
     finalFusionLiveLosses := 0
     realClosePendingTradeId := na
     realCloseLastSendBar := na
@@ -2553,30 +2536,14 @@ chA28 = ta.sma(chBp, 28) * 28 / (ta.sma(chTr2, 28) * 28 + 0.00001)
 chUo = 100 * (4 * chA7 + 7 * chA14 + chA28) / 18
 chUoB = chUoUse and adx < chUoAdx and chUo < chUoTh and close > open
 chUoS = chUoUse and adx < chUoAdx and chUo > 100 - chUoTh and close < open
-// ━━━ 23 ■ Court Verdicts — أحكام محكمة المدارس (6.5 أشهر، 13,730 صفقة، 1:1) ━━━
-G_COURT = "23 ■ Court Verdicts (أحكام المحكمة)"
-courtCldB = input.bool(true, "chCld BUY (حكم: -4700)", group=G_COURT)
-courtUoB = input.bool(true, "chUo BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
-courtRibB = input.bool(true, "chRib BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
-courtCvdB = input.bool(true, "chCvd BUY (حكم: -1800)", group=G_COURT)
-courtUls2S = input.bool(true, "chUls2 SELL (حكم: -1500)", group=G_COURT)
-courtVzS = input.bool(true, "chVz SELL (حكم: -1150)", group=G_COURT)
-courtCmoS = input.bool(true, "chCmo SELL (حكم: -900)", group=G_COURT)
-courtWtS = input.bool(true, "chWt SELL (حكم: -600)", group=G_COURT)
-courtUtS = input.bool(true, "chUt SELL (نجا بالمحاكمة الثانية)", group=G_COURT)
-courtPsS = input.bool(true, "chPs SELL (نجا — عينة صغيرة)", group=G_COURT)
-courtTriS = input.bool(true, "chTri SELL (نجا — عينة صغيرة)", group=G_COURT)
-courtPsB = input.bool(true, "chPs BUY (نجا — عينة صغيرة)", group=G_COURT)
-courtRibS = input.bool(true, "chRib SELL (حكم تدريبي: -1100)", group=G_COURT)
-
-buySignal := buySignal or (courtUoB and chUoB)
+buySignal := buySignal or chUoB
 sellSignal := sellSignal or chUoS
 chRibUse = input.bool(true, "EMA RIBBON pullback (بديل VWAP Pull) — ON", group=G_PULLBACK_NEW)
 chE100 = ta.ema(close, 100)
 chRibB = chRibUse and chEma > ta.ema(close, 50) and ta.ema(close, 50) > chE100 and low <= ta.ema(close, 50) and close > ta.ema(close, 50) and close > open
 chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 and high >= ta.ema(close, 50) and close < ta.ema(close, 50) and close < open
-buySignal := buySignal or (courtRibB and chRibB)
-sellSignal := sellSignal or (courtRibS and chRibS)
+buySignal := buySignal or chRibB
+sellSignal := sellSignal or chRibS
 // ━━━ المدارس المنقذة (بحث + اختراع مثبت) ━━━
 chWtUse = input.bool(true, "WAVETREND v2 (WT + chassis) — ON", group=G_CH)
 chWtTp3 = (high + low + close) / 3
@@ -2587,7 +2554,7 @@ chWt1 = ta.ema(chWtCi, 21)
 chWtB = chWtUse and chWt1 < -60 and chRsi3 < 18.0 and chBig
 chWtS = chWtUse and chWt1 > 60 and chRsi3 > 82.0 and chBig
 buySignal := buySignal or chWtB
-sellSignal := sellSignal or (courtWtS and chWtS)
+sellSignal := sellSignal or chWtS
 chUls2B = chUlsUse and low < ta.lowest(low, chUlsLen)[1] and close > ta.lowest(low, chUlsLen)[1] and chStretch < -chUlsStr and chRsi3 < chUlsRsi
 chUls2S = chUlsUse and high > ta.highest(high, chUlsLen)[1] and close < ta.highest(high, chUlsLen)[1] and chStretch > chUlsStr and chRsi3 > 100 - chUlsRsi
 chVzUse = input.bool(true, "VWAP Absorption Fade — ON", group=G_PULLBACK_NEW)
@@ -2609,7 +2576,7 @@ chCmo = 100 * (ta.sma(chUp, chCmoLen) * chCmoLen - ta.sma(chDn, chCmoLen) * chCm
 chCmoB = chCmoUse and chCmo < -chCmoLvl and chRsi3 < 18.0 and chBig
 chCmoS = chCmoUse and chCmo > chCmoLvl and chRsi3 > 82.0 and chBig
 buySignal := buySignal or chUls2B or chVzB or chCrevB or chCmoB
-sellSignal := sellSignal or (courtUls2S and chUls2S) or (courtVzS and chVzS) or chCrevS or (courtCmoS and chCmoS)
+sellSignal := sellSignal or chUls2S or chVzS or chCrevS or chCmoS
 // ━━━ الأربعة العنيدة — بدائل مخترعة مثبتة ━━━
 chKeltUse = input.bool(true, "KELTNER v2 — ON", group=G_PULLBACK_NEW)
 chKeltK = input.float(2.0, "Keltner mult", minval=0.5, maxval=5.0, step=0.1, group=G_PULLBACK_NEW)
@@ -2642,8 +2609,8 @@ chUtLen = input.int(7, "UT supertrend ATR len", minval=2, maxval=60, group=G_RIS
 [chCldUT, chUtDir] = ta.supertrend(chUtMult, chUtLen)
 chUtB = chUtUse and chUtDir == -1 and chRsi3 < 18.0 and chBig
 chUtS = chUtUse and chUtDir == 1 and chRsi3 > 82.0 and chBig
-buySignal := buySignal or (courtCldB and chCldB) or chUtB
-sellSignal := sellSignal or chCldS or (courtUtS and chUtS)
+buySignal := buySignal or chCldB or chUtB
+sellSignal := sellSignal or chCldS or chUtS
 // ━━━ باقي البدائل الخضراء ━━━
 chTsiUse = input.bool(false, "TSI fade — ON", group=G_MOM_NEW)
 chTsiLvl = input.float(15.0, "TSI extreme level", minval=5, maxval=30, step=1, group=G_MOM_NEW)
@@ -2664,8 +2631,8 @@ chBbM = ta.sma(close, 20)
 chBbS = ta.stdev(close, 20)
 chPsB = chPsUse and chRsi14v < chPsRsi and low <= chBbM - 2 * chBbS and (math.min(open, close) - low > math.abs(close - open) or close > high[1]) and adx < chPsAdx
 chPsS = chPsUse and chRsi14v > 100 - chPsRsi and high >= chBbM + 2 * chBbS and (high - math.max(open, close) > math.abs(close - open) or close < low[1]) and adx < chPsAdx
-buySignal := buySignal or chTsiB or chDixB or (courtPsB and chPsB)
-sellSignal := sellSignal or chTsiS or chDixS or (courtPsS and chPsS)
+buySignal := buySignal or chTsiB or chDixB or chPsB
+sellSignal := sellSignal or chTsiS or chDixS or chPsS
 
 // ━━━ CVD + REG35 (تكملة الـ38) ━━━
 chCvdUse = input.bool(true, "CVD divergence — ON", group=G_MOM_NEW)
@@ -2675,190 +2642,13 @@ chCvdRng = math.max(high - low, syminfo.mintick)
 chCvdFast = ta.sma((2 * close - high - low) / chCvdRng * nz(volume, 0.0), chCvdLen) * chCvdLen
 chCvdB = chCvdUse and low <= ta.lowest(low, chCvdLen) and chCvdFast > chCvdFast[chCvdShift] and close > open
 chCvdS = chCvdUse and high >= ta.highest(high, chCvdLen) and chCvdFast < chCvdFast[chCvdShift] and close < open
-buySignal := buySignal or (courtCvdB and chCvdB)
+buySignal := buySignal or chCvdB
 sellSignal := sellSignal or chCvdS
 buySignal := buySignal or chTriB or chSniB
-sellSignal := sellSignal or (courtTriS and chTriS) or chSniS
+sellSignal := sellSignal or chTriS or chSniS
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 21 ■ OUR REGIME GATE — فلترنا الخاص
-// Built from the owner's measured diagnosis:
-//  - the system earns at range edges and bleeds in the range middle
-//  - it bleeds when fading a trending market
-// Rules: trend up -> BUY only. trend down -> SELL only.
-//        range -> BUY only near the bottom of the range, SELL only
-//        near the top, nothing in the middle.
-// Applied at the FINAL entry gate — no signal source can bypass it.
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-G_OURF = "21 ■ Our Regime Gate (فلترنا)"
-useOurRegimeGate = input.bool(false, "Use Our Regime Gate", group=G_OURF)
-ourTrendADX = input.float(25.0, "Trend Min ADX", minval=5.0, maxval=60.0, step=1.0, group=G_OURF)
-ourTrendNeedHTF = input.bool(true, "Trend Needs HTF Agreement", group=G_OURF)
-ourRangeBuyMax = input.float(35.0, "Range: BUY Only Below %", minval=5.0, maxval=50.0, step=1.0, group=G_OURF)
-ourRangeSellMin = input.float(65.0, "Range: SELL Only Above %", minval=50.0, maxval=95.0, step=1.0, group=G_OURF)
-ourShowRegimeBg = input.bool(false, "Show Trend Background", group=G_OURF)
-ourShowBlocked = input.bool(false, "Show Blocked X Marks", group=G_OURF)
-
-ourTrendUpRaw = adx >= ourTrendADX and ema20 > ema50 and close > ema50 and pDI > mDI
-ourTrendDownRaw = adx >= ourTrendADX and ema20 < ema50 and close < ema50 and mDI > pDI
-ourTrendUp = ourTrendUpRaw and (not ourTrendNeedHTF or htfScore >= 1.0 or tf15Dir == 1)
-ourTrendDown = ourTrendDownRaw and (not ourTrendNeedHTF or htfScore <= -1.0 or tf15Dir == -1)
-ourRanging = not ourTrendUp and not ourTrendDown
-
-ourBuyOK = not useOurRegimeGate or ourTrendUp or (ourRanging and rangePos <= ourRangeBuyMax)
-ourSellOK = not useOurRegimeGate or ourTrendDown or (ourRanging and rangePos >= ourRangeSellMin)
-
-ourBlockedBuy = ourShowBlocked and useOurRegimeGate and barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal and not ourBuyOK
-ourBlockedSell = ourShowBlocked and useOurRegimeGate and barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal and not ourSellOK
-plotshape(ourBlockedBuy, title="OUR GATE BLOCKED BUY", style=shape.xcross, location=location.belowbar, color=color.new(color.orange, 15), size=size.tiny)
-plotshape(ourBlockedSell, title="OUR GATE BLOCKED SELL", style=shape.xcross, location=location.abovebar, color=color.new(color.orange, 15), size=size.tiny)
-bgcolor(ourShowRegimeBg and ourTrendUp ? color.new(color.green, 92) : ourShowRegimeBg and ourTrendDown ? color.new(color.red, 92) : na, title="OUR REGIME BG")
-
-// ━━━ 22 ■ Source Solo Test — فحص كل مصدر لحاله ━━━
-// NOTE: champion add-on signals inherit source code 0, so "BASE ONLY"
-// means base engine + champions together; FUSION/TV/M1/POC are clean.
-G_SOLO = "22 ■ Source Solo Test (فحص مصدر لحاله)"
-soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY", "RMI ONLY"], group=G_SOLO)
-ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4) or (soloSourceMode == "RMI ONLY" and m1SelectedSourceCode == 7)
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 24 ■ RMI SOURCE — رمي المتعلّم كمصدر دخول
-// The educated RMI TRADER V2 graduate (zone 78, reaction 2/12,
-// TP 130 / SL 70) planted inside the owner's chassis as an entry
-// source. Signals pass the same final gates as every other source
-// (RMI Filter, Our Regime Gate, Solo Test, cooldowns, Trade Side).
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-G_RSRC = "24 ■ رمي مصدر دخول — RMI Source"
-useRmiSource = input.bool(false, "استخدم رمي كمصدر دخول", group=G_RSRC)
-rsrcOnlyMode = input.bool(false, "رمي لحاله — يطفي باقي المصادر", group=G_RSRC)
-rsrcRespectFilters = input.bool(false, "النسخة ②: رمي يمر عبر كل الفلاتر (مطفي = يتجاوزها ويحترم فقط الصفقة الواحدة)", group=G_RSRC)
-rsrcSellOn = input.bool(true, "بيع من رمي (المعتمد)", group=G_RSRC)
-rsrcBuyOn = input.bool(false, "شراء من رمي (غير معتمد)", group=G_RSRC)
-rsrcLength = input.int(18, "RMI Length", minval=1, group=G_RSRC)
-rsrcMomentum = input.int(6, "RMI Momentum", minval=1, group=G_RSRC)
-rsrcOverbought = input.float(78.0, "SELL Zone", minval=50.0, maxval=100.0, step=1.0, group=G_RSRC)
-rsrcOversold = input.float(20.0, "BUY Zone", minval=0.0, maxval=50.0, step=1.0, group=G_RSRC)
-rsrcSignalLength = input.int(6, "Signal Length", minval=1, group=G_RSRC)
-rsrcReactionBars = input.int(2, "Consecutive Reaction Candles", minval=1, maxval=10, group=G_RSRC)
-rsrcMaxWaitBars = input.int(12, "Maximum Bars After Zone", minval=1, maxval=50, group=G_RSRC)
-rsrcNeedPriceReaction = input.bool(true, "Require Price Reaction", group=G_RSRC)
-rsrcNeedSignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_RSRC)
-rsrcExtremeLookback = input.int(40, "Previous High/Low Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
-rsrcSweepLookback = input.int(0, "Liquidity Sweep Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
-rsrcUseOwnTargets = input.bool(true, "أهداف رمي الخاصة (130/70)", group=G_RSRC)
-rsrcTargetPts = input.float(130.0, "RMI Target Points", minval=1.0, step=1.0, group=G_RSRC)
-rsrcStopPts = input.float(70.0, "RMI Stop Points", minval=1.0, step=1.0, group=G_RSRC)
-
-rsrcUpMom = ta.ema(math.max(close - close[rsrcMomentum], 0.0), rsrcLength)
-rsrcDnMom = ta.ema(math.max(close[rsrcMomentum] - close, 0.0), rsrcLength)
-rsrcRmi = rsrcDnMom == 0.0 ? (rsrcUpMom == 0.0 ? 50.0 : 100.0) : 100.0 - 100.0 / (1.0 + rsrcUpMom / rsrcDnMom)
-rsrcSigLine = ta.sma(rsrcRmi, rsrcSignalLength)
-rsrcInBuyZone = rsrcRmi <= rsrcOversold
-rsrcInSellZone = rsrcRmi >= rsrcOverbought
-rsrcBuyZoneEntered = rsrcInBuyZone and not rsrcInBuyZone[1]
-rsrcSellZoneEntered = rsrcInSellZone and not rsrcInSellZone[1]
-
-var bool rsrcBuyArmed = false
-var bool rsrcSellArmed = false
-var int rsrcBuyArmBar = na
-var int rsrcSellArmBar = na
-var int rsrcBuyReact = 0
-var int rsrcSellReact = 0
-var bool rsrcBuyExtSeen = false
-var bool rsrcSellExtSeen = false
-var bool rsrcBuySweepSeen = false
-var bool rsrcSellSweepSeen = false
-
-rsrcExtLen = math.max(rsrcExtremeLookback, 1)
-rsrcSweepLen = math.max(rsrcSweepLookback, 1)
-rsrcPrevLow = ta.lowest(low[1], rsrcExtLen)
-rsrcPrevHigh = ta.highest(high[1], rsrcExtLen)
-rsrcSweepLow = ta.lowest(low[1], rsrcSweepLen)
-rsrcSweepHigh = ta.highest(high[1], rsrcSweepLen)
-rsrcBuyExtNow = rsrcExtremeLookback > 0 and low <= rsrcPrevLow
-rsrcSellExtNow = rsrcExtremeLookback > 0 and high >= rsrcPrevHigh
-rsrcBuySweepNow = rsrcSweepLookback > 0 and low < rsrcSweepLow and close > rsrcSweepLow
-rsrcSellSweepNow = rsrcSweepLookback > 0 and high > rsrcSweepHigh and close < rsrcSweepHigh
-
-if rsrcBuyZoneEntered
-    rsrcBuyArmed := true
-    rsrcSellArmed := false
-    rsrcBuyArmBar := bar_index
-    rsrcBuyReact := 0
-    rsrcSellReact := 0
-    rsrcBuyExtSeen := rsrcBuyExtNow
-    rsrcBuySweepSeen := rsrcBuySweepNow
-
-if rsrcSellZoneEntered
-    rsrcSellArmed := true
-    rsrcBuyArmed := false
-    rsrcSellArmBar := bar_index
-    rsrcSellReact := 0
-    rsrcBuyReact := 0
-    rsrcSellExtSeen := rsrcSellExtNow
-    rsrcSellSweepSeen := rsrcSellSweepNow
-
-if rsrcBuyArmed
-    rsrcBuyExtSeen := rsrcBuyExtSeen or rsrcBuyExtNow
-    rsrcBuySweepSeen := rsrcBuySweepSeen or rsrcBuySweepNow
-
-if rsrcSellArmed
-    rsrcSellExtSeen := rsrcSellExtSeen or rsrcSellExtNow
-    rsrcSellSweepSeen := rsrcSellSweepSeen or rsrcSellSweepNow
-
-if rsrcBuyArmed and bar_index - rsrcBuyArmBar > rsrcMaxWaitBars
-    rsrcBuyArmed := false
-    rsrcBuyReact := 0
-
-if rsrcSellArmed and bar_index - rsrcSellArmBar > rsrcMaxWaitBars
-    rsrcSellArmed := false
-    rsrcSellReact := 0
-
-rsrcBuyPriceOK = not rsrcNeedPriceReaction or close > close[1]
-rsrcSellPriceOK = not rsrcNeedPriceReaction or close < close[1]
-rsrcBuyCrossNow = ta.crossover(rsrcRmi, rsrcSigLine)
-rsrcSellCrossNow = ta.crossunder(rsrcRmi, rsrcSigLine)
-rsrcBuyCrossOK = not rsrcNeedSignalCross or rsrcBuyCrossNow
-rsrcSellCrossOK = not rsrcNeedSignalCross or rsrcSellCrossNow
-rsrcBuyReactBar = rsrcBuyArmed and bar_index > rsrcBuyArmBar and rsrcRmi > rsrcRmi[1] and rsrcBuyPriceOK
-rsrcSellReactBar = rsrcSellArmed and bar_index > rsrcSellArmBar and rsrcRmi < rsrcRmi[1] and rsrcSellPriceOK
-
-if rsrcBuyArmed
-    rsrcBuyReact := rsrcBuyReactBar ? rsrcBuyReact + 1 : 0
-if rsrcSellArmed
-    rsrcSellReact := rsrcSellReactBar ? rsrcSellReact + 1 : 0
-
-rsrcBuyOptOK = (rsrcExtremeLookback == 0 or rsrcBuyExtSeen) and (rsrcSweepLookback == 0 or rsrcBuySweepSeen)
-rsrcSellOptOK = (rsrcExtremeLookback == 0 or rsrcSellExtSeen) and (rsrcSweepLookback == 0 or rsrcSellSweepSeen)
-
-rsrcRawBuy = useRmiSource and rsrcBuyOn and rsrcBuyArmed and rsrcBuyReact >= rsrcReactionBars and rsrcBuyOptOK and rsrcBuyCrossOK
-rsrcRawSell = useRmiSource and rsrcSellOn and rsrcSellArmed and rsrcSellReact >= rsrcReactionBars and rsrcSellOptOK and rsrcSellCrossOK
-
-// A completed RMI setup is consumed immediately — never queued (parity with the standalone graduate)
-if rsrcRawBuy or rsrcRawSell
-    rsrcBuyArmed := false
-    rsrcSellArmed := false
-    rsrcBuyReact := 0
-    rsrcSellReact := 0
-
-bool preRmiBuySignal = buySignal
-bool preRmiSellSignal = sellSignal
-if useRmiSource and rsrcOnlyMode
-    buySignal := false
-    sellSignal := false
-// النسخة ②: رمي يمر عبر الفلاتر مثل أي مصدر
-bool rsrcViaFilters = useRmiSource and rsrcRespectFilters
-buySignal := buySignal or (rsrcRawBuy and rsrcViaFilters and allowLong)
-sellSignal := sellSignal or (rsrcRawSell and rsrcViaFilters and allowShort)
-// النسخة الافتراضية: رمي يتجاوز الفلاتر — يحترم فقط الصفقة الواحدة المفتوحة واتجاه التداول
-rsrcDirectBuy = useRmiSource and not rsrcRespectFilters and rsrcRawBuy and allowLong
-rsrcDirectSell = useRmiSource and not rsrcRespectFilters and rsrcRawSell and allowShort
-rmiSrcIsNew = rsrcDirectBuy or rsrcDirectSell or (rsrcViaFilters and ((rsrcRawBuy and buySignal and (rsrcOnlyMode or not preRmiBuySignal)) or (rsrcRawSell and sellSignal and (rsrcOnlyMode or not preRmiSellSignal))))
-if useRmiSource and rmiSrcIsNew
-    m1SelectedSourceCode := 7
-
-canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy)
-canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and ourSellOK and ourSoloOK) or rsrcDirectSell)
+canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
+canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
 
 if canEnterLong or canEnterShort
     active := true
@@ -2866,7 +2656,7 @@ if canEnterLong or canEnterShort
     entryPrice := close
     tradeKind := side == 1 ? longTypeNow : shortTypeNow
     tradeEntrySourceCode := m1SelectedSourceCode
-    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI SRC" : "BASE 999"
+    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : "BASE 999"
 
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
@@ -2878,26 +2668,6 @@ if canEnterLong or canEnterShort
     exitModeText = tradeExitMode == 0 ? "STRONG" : tradeExitMode == 1 ? "ALIGNED" : tradeExitMode == 2 ? "RANGE" : tradeExitMode == 3 ? "REVERSAL" : tradeExitMode == 4 ? "COUNTER" : "LATE"
     tradeRiskState := useDirectionalAdaptiveExit ? "DIR " + exitModeText + " HARD" : "BASE HARD"
     tradeTargetSource := useDirectionalAdaptiveExit ? "M1/M5/M15 + LIQ" : "BASE PLAN"
-    if useMainFixedRisk
-        bool geoAligned = (side == 1 and ourTrendUp) or (side == -1 and ourTrendDown)
-        if not useSideGeometry
-            tradeTargetPts := targetPoints
-            tradeStopPts := stopPoints
-        else if sideGeoMode == "By Trend Alignment"
-            tradeTargetPts := geoAligned ? alignedTargetPts : counterTargetPts
-            tradeStopPts := geoAligned ? alignedStopPts : counterStopPts
-        else
-            tradeTargetPts := side == 1 ? mainBuyTargetPts : mainSellTargetPts
-            tradeStopPts := side == 1 ? mainBuyStopPts : mainSellStopPts
-        tradeRiskState := "FIXED 1:1 HARD"
-        tradeTargetSource := "MAIN ③"
-    // أهداف رمي الخاصة تشتغل فقط عندما يكون خيار القسم ① مطفي —
-    // إذا شغّلت "③ TEST 1:1 أهداف القسم الأول" فهو يلغي كل أنظمة الخروج بما فيها أهداف رمي
-    if tradeEntrySourceCode == 7 and rsrcUseOwnTargets and not useMainFixedRisk
-        tradeTargetPts := rsrcTargetPts
-        tradeStopPts := rsrcStopPts
-        tradeRiskState := "RMI HARD"
-        tradeTargetSource := "RMI 130/70"
     if tradeEntrySourceCode == 1
         m1LiveOwnTrades += 1
     else if tradeEntrySourceCode == 2
@@ -2908,8 +2678,6 @@ if canEnterLong or canEnterShort
         trendVoteLiveTrades += 1
     else if tradeEntrySourceCode == 6
         finalFusionLiveTrades += 1
-    else if tradeEntrySourceCode == 7
-        rmiSrcLiveTrades += 1
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
@@ -3009,11 +2777,6 @@ if active and bar_index > entryBar
                 finalFusionLiveWins += 1
             else
                 finalFusionLiveLosses += 1
-        if statsCounted and tradeEntrySourceCode == 7
-            if exitPts > 0
-                rmiSrcLiveWins += 1
-            else
-                rmiSrcLiveLosses += 1
         if exitPts > 0
             if statsCounted
                 wins += 1
