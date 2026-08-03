@@ -2104,6 +2104,9 @@ var float m1SrcNet = 0.0
 var float pocSrcNet = 0.0
 var float tvSrcNet = 0.0
 var float fusionSrcNet = 0.0
+var float rmiSrcNet = 0.0
+var int rmiSrcWins = 0
+var int rmiSrcLosses = 0
 var int longLossN = 0
 var int shortLossN = 0
 var float longNetPts = 0.0
@@ -2126,6 +2129,9 @@ var int trendVoteLiveLosses = 0
 var int finalFusionLiveTrades = 0
 var int finalFusionLiveWins = 0
 var int finalFusionLiveLosses = 0
+var int rmiSrcLiveTrades = 0
+var int rmiSrcLiveWins = 0
+var int rmiSrcLiveLosses = 0
 var int realClosePendingTradeId = na
 var int realCloseLastSendBar = na
 var int realCloseAttempts = 0
@@ -2225,6 +2231,9 @@ if manualResetKey != lastResetKey   // date is display-only filter; engine runs 
     pocSrcNet := 0.0
     tvSrcNet := 0.0
     fusionSrcNet := 0.0
+    rmiSrcNet := 0.0
+    rmiSrcWins := 0
+    rmiSrcLosses := 0
     longLossN := 0
     shortLossN := 0
     longNetPts := 0.0
@@ -2247,6 +2256,9 @@ if manualResetKey != lastResetKey   // date is display-only filter; engine runs 
     trendVoteLiveWins := 0
     trendVoteLiveLosses := 0
     finalFusionLiveTrades := 0
+    rmiSrcLiveTrades := 0
+    rmiSrcLiveWins := 0
+    rmiSrcLiveLosses := 0
     finalFusionLiveWins := 0
     finalFusionLiveLosses := 0
     realClosePendingTradeId := na
@@ -2764,6 +2776,136 @@ plotshape(rmiFBlockedBuy, title="RMI BLOCKED BUY", style=shape.xcross, location=
 plotshape(rmiFBlockedSell, title="RMI BLOCKED SELL", style=shape.xcross, location=location.abovebar, color=color.new(color.gray, 25), size=size.tiny)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 22 ■ RMI SOURCE — رمي المتعلّم كمصدر دخول
+// The educated RMI TRADER V2 graduate (zone 78, reaction 2/12,
+// TP 130 / SL 70) planted inside the owner's chassis as an entry
+// source. Signals pass the same final gates as every other source
+// (RMI Filter, Our Regime Gate, Solo Test, cooldowns, Trade Side).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+G_RSRC = "22 ■ رمي مصدر دخول — RMI Source"
+useRmiSource = input.bool(true, "استخدم رمي كمصدر دخول", group=G_RSRC)
+rsrcOnlyMode = input.bool(false, "رمي لحاله — يطفي باقي المصادر", group=G_RSRC)
+rsrcSellOn = input.bool(true, "بيع من رمي (المعتمد)", group=G_RSRC)
+rsrcBuyOn = input.bool(false, "شراء من رمي (غير معتمد)", group=G_RSRC)
+rsrcLength = input.int(18, "RMI Length", minval=1, group=G_RSRC)
+rsrcMomentum = input.int(6, "RMI Momentum", minval=1, group=G_RSRC)
+rsrcOverbought = input.float(78.0, "SELL Zone", minval=50.0, maxval=100.0, step=1.0, group=G_RSRC)
+rsrcOversold = input.float(20.0, "BUY Zone", minval=0.0, maxval=50.0, step=1.0, group=G_RSRC)
+rsrcSignalLength = input.int(6, "Signal Length", minval=1, group=G_RSRC)
+rsrcReactionBars = input.int(2, "Consecutive Reaction Candles", minval=1, maxval=10, group=G_RSRC)
+rsrcMaxWaitBars = input.int(12, "Maximum Bars After Zone", minval=1, maxval=50, group=G_RSRC)
+rsrcNeedPriceReaction = input.bool(true, "Require Price Reaction", group=G_RSRC)
+rsrcNeedSignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_RSRC)
+rsrcExtremeLookback = input.int(40, "Previous High/Low Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
+rsrcSweepLookback = input.int(0, "Liquidity Sweep Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
+rsrcUseOwnTargets = input.bool(true, "أهداف رمي الخاصة (130/70)", group=G_RSRC)
+rsrcTargetPts = input.float(130.0, "RMI Target Points", minval=1.0, step=1.0, group=G_RSRC)
+rsrcStopPts = input.float(70.0, "RMI Stop Points", minval=1.0, step=1.0, group=G_RSRC)
+
+rsrcUpMom = ta.ema(math.max(close - close[rsrcMomentum], 0.0), rsrcLength)
+rsrcDnMom = ta.ema(math.max(close[rsrcMomentum] - close, 0.0), rsrcLength)
+rsrcRmi = rsrcDnMom == 0.0 ? (rsrcUpMom == 0.0 ? 50.0 : 100.0) : 100.0 - 100.0 / (1.0 + rsrcUpMom / rsrcDnMom)
+rsrcSigLine = ta.sma(rsrcRmi, rsrcSignalLength)
+rsrcInBuyZone = rsrcRmi <= rsrcOversold
+rsrcInSellZone = rsrcRmi >= rsrcOverbought
+rsrcBuyZoneEntered = rsrcInBuyZone and not rsrcInBuyZone[1]
+rsrcSellZoneEntered = rsrcInSellZone and not rsrcInSellZone[1]
+
+var bool rsrcBuyArmed = false
+var bool rsrcSellArmed = false
+var int rsrcBuyArmBar = na
+var int rsrcSellArmBar = na
+var int rsrcBuyReact = 0
+var int rsrcSellReact = 0
+var bool rsrcBuyExtSeen = false
+var bool rsrcSellExtSeen = false
+var bool rsrcBuySweepSeen = false
+var bool rsrcSellSweepSeen = false
+
+rsrcExtLen = math.max(rsrcExtremeLookback, 1)
+rsrcSweepLen = math.max(rsrcSweepLookback, 1)
+rsrcPrevLow = ta.lowest(low[1], rsrcExtLen)
+rsrcPrevHigh = ta.highest(high[1], rsrcExtLen)
+rsrcSweepLow = ta.lowest(low[1], rsrcSweepLen)
+rsrcSweepHigh = ta.highest(high[1], rsrcSweepLen)
+rsrcBuyExtNow = rsrcExtremeLookback > 0 and low <= rsrcPrevLow
+rsrcSellExtNow = rsrcExtremeLookback > 0 and high >= rsrcPrevHigh
+rsrcBuySweepNow = rsrcSweepLookback > 0 and low < rsrcSweepLow and close > rsrcSweepLow
+rsrcSellSweepNow = rsrcSweepLookback > 0 and high > rsrcSweepHigh and close < rsrcSweepHigh
+
+if rsrcBuyZoneEntered
+    rsrcBuyArmed := true
+    rsrcSellArmed := false
+    rsrcBuyArmBar := bar_index
+    rsrcBuyReact := 0
+    rsrcSellReact := 0
+    rsrcBuyExtSeen := rsrcBuyExtNow
+    rsrcBuySweepSeen := rsrcBuySweepNow
+
+if rsrcSellZoneEntered
+    rsrcSellArmed := true
+    rsrcBuyArmed := false
+    rsrcSellArmBar := bar_index
+    rsrcSellReact := 0
+    rsrcBuyReact := 0
+    rsrcSellExtSeen := rsrcSellExtNow
+    rsrcSellSweepSeen := rsrcSellSweepNow
+
+if rsrcBuyArmed
+    rsrcBuyExtSeen := rsrcBuyExtSeen or rsrcBuyExtNow
+    rsrcBuySweepSeen := rsrcBuySweepSeen or rsrcBuySweepNow
+
+if rsrcSellArmed
+    rsrcSellExtSeen := rsrcSellExtSeen or rsrcSellExtNow
+    rsrcSellSweepSeen := rsrcSellSweepSeen or rsrcSellSweepNow
+
+if rsrcBuyArmed and bar_index - rsrcBuyArmBar > rsrcMaxWaitBars
+    rsrcBuyArmed := false
+    rsrcBuyReact := 0
+
+if rsrcSellArmed and bar_index - rsrcSellArmBar > rsrcMaxWaitBars
+    rsrcSellArmed := false
+    rsrcSellReact := 0
+
+rsrcBuyPriceOK = not rsrcNeedPriceReaction or close > close[1]
+rsrcSellPriceOK = not rsrcNeedPriceReaction or close < close[1]
+rsrcBuyCrossNow = ta.crossover(rsrcRmi, rsrcSigLine)
+rsrcSellCrossNow = ta.crossunder(rsrcRmi, rsrcSigLine)
+rsrcBuyCrossOK = not rsrcNeedSignalCross or rsrcBuyCrossNow
+rsrcSellCrossOK = not rsrcNeedSignalCross or rsrcSellCrossNow
+rsrcBuyReactBar = rsrcBuyArmed and bar_index > rsrcBuyArmBar and rsrcRmi > rsrcRmi[1] and rsrcBuyPriceOK
+rsrcSellReactBar = rsrcSellArmed and bar_index > rsrcSellArmBar and rsrcRmi < rsrcRmi[1] and rsrcSellPriceOK
+
+if rsrcBuyArmed
+    rsrcBuyReact := rsrcBuyReactBar ? rsrcBuyReact + 1 : 0
+if rsrcSellArmed
+    rsrcSellReact := rsrcSellReactBar ? rsrcSellReact + 1 : 0
+
+rsrcBuyOptOK = (rsrcExtremeLookback == 0 or rsrcBuyExtSeen) and (rsrcSweepLookback == 0 or rsrcBuySweepSeen)
+rsrcSellOptOK = (rsrcExtremeLookback == 0 or rsrcSellExtSeen) and (rsrcSweepLookback == 0 or rsrcSellSweepSeen)
+
+rsrcRawBuy = useRmiSource and rsrcBuyOn and rsrcBuyArmed and rsrcBuyReact >= rsrcReactionBars and rsrcBuyOptOK and rsrcBuyCrossOK
+rsrcRawSell = useRmiSource and rsrcSellOn and rsrcSellArmed and rsrcSellReact >= rsrcReactionBars and rsrcSellOptOK and rsrcSellCrossOK
+
+// A completed RMI setup is consumed immediately — never queued (parity with the standalone graduate)
+if rsrcRawBuy or rsrcRawSell
+    rsrcBuyArmed := false
+    rsrcSellArmed := false
+    rsrcBuyReact := 0
+    rsrcSellReact := 0
+
+bool preRmiBuySignal = buySignal
+bool preRmiSellSignal = sellSignal
+if useRmiSource and rsrcOnlyMode
+    buySignal := false
+    sellSignal := false
+buySignal := buySignal or (rsrcRawBuy and allowLong)
+sellSignal := sellSignal or (rsrcRawSell and allowShort)
+rmiSrcIsNew = (rsrcRawBuy and buySignal and (rsrcOnlyMode or not preRmiBuySignal)) or (rsrcRawSell and sellSignal and (rsrcOnlyMode or not preRmiSellSignal))
+if useRmiSource and rmiSrcIsNew
+    m1SelectedSourceCode := 7
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 19 ■ OUR REGIME GATE — فلترنا الخاص
 // Built from the owner's measured diagnosis:
 //  - the system earns at range edges and bleeds in the range middle
@@ -2801,8 +2943,8 @@ bgcolor(ourShowRegimeBg and ourTrendUp ? color.new(color.green, 92) : ourShowReg
 // NOTE: champion add-on signals inherit source code 0, so "BASE ONLY"
 // means base engine + champions together; FUSION/TV/M1/POC are clean.
 G_SOLO = "20 ■ Source Solo Test (فحص مصدر لحاله)"
-soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY"], group=G_SOLO)
-ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4)
+soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY", "RMI ONLY"], group=G_SOLO)
+ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4) or (soloSourceMode == "RMI ONLY" and m1SelectedSourceCode == 7)
 canEnterLong = barstate.isconfirmed and not active and allowLong and canCooldown and canLongAfterLoss and buySignal and rmiFBuyOK and ourBuyOK and ourSoloOK
 canEnterShort = barstate.isconfirmed and not active and allowShort and canCooldown and canShortAfterLoss and sellSignal and rmiFSellOK and ourSellOK and ourSoloOK
 
@@ -2812,7 +2954,7 @@ if canEnterLong or canEnterShort
     entryPrice := close
     tradeKind := side == 1 ? longTypeNow : shortTypeNow
     tradeEntrySourceCode := m1SelectedSourceCode
-    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : "BASE 999"
+    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI SRC" : "BASE 999"
 
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
@@ -2834,6 +2976,8 @@ if canEnterLong or canEnterShort
         trendVoteLiveTrades += 1
     else if tradeEntrySourceCode == 6
         finalFusionLiveTrades += 1
+    else if tradeEntrySourceCode == 7
+        rmiSrcLiveTrades += 1
     if useMainFixedRisk
         bool geoAligned = (side == 1 and ourTrendUp) or (side == -1 and ourTrendDown)
         if not useSideGeometry
@@ -2847,6 +2991,11 @@ if canEnterLong or canEnterShort
             tradeStopPts := side == 1 ? mainBuyStopPts : mainSellStopPts
         tradeRiskState := "FIXED 1:1 HARD"
         tradeTargetSource := "MAIN ③"
+    if tradeEntrySourceCode == 7 and rsrcUseOwnTargets
+        tradeTargetPts := rsrcTargetPts
+        tradeStopPts := rsrcStopPts
+        tradeRiskState := "RMI HARD"
+        tradeTargetSource := "RMI 130/70"
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
@@ -2946,6 +3095,11 @@ if active and bar_index > entryBar
                 finalFusionLiveWins += 1
             else
                 finalFusionLiveLosses += 1
+        if statsCounted and tradeEntrySourceCode == 7
+            if exitPts > 0
+                rmiSrcLiveWins += 1
+            else
+                rmiSrcLiveLosses += 1
         if exitPts > 0
             if statsCounted
                 wins += 1
@@ -2970,6 +3124,9 @@ if active and bar_index > entryBar
                     pocSrcNet += exitPts
                 else if tradeEntrySourceCode == 5
                     tvSrcNet += exitPts
+                else if tradeEntrySourceCode == 7
+                    rmiSrcWins += 1
+                    rmiSrcNet += exitPts
                 else
                     fusionSrcNet += exitPts
             if not earlyExit and statsCounted
@@ -2998,6 +3155,9 @@ if active and bar_index > entryBar
                     pocSrcNet += exitPts
                 else if tradeEntrySourceCode == 5
                     tvSrcNet += exitPts
+                else if tradeEntrySourceCode == 7
+                    rmiSrcLosses += 1
+                    rmiSrcNet += exitPts
                 else
                     fusionSrcNet += exitPts
             if side == 1
