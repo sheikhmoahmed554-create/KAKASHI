@@ -483,6 +483,8 @@ r11ConnorsCD = input.int(9, "Connors Cooldown Bars", minval=5, maxval=100, group
 
 // ━━━ SYR30 replacement-school controls ━━━
 syr30UseSchoolRouter = input.bool(true, "Connect SYR30 Schools To Final Router", group=G_ROUTER_NEW)
+syr30DirectEntry = input.bool(true, "SYR30 Schools: دخول مباشر (يتجاوز الكولداون والفلاتر)", group=G_ROUTER_NEW)
+syr30SoloMode = input.bool(false, "SYR30 Schools: لحالهم — يطفي باقي المصادر", group=G_ROUTER_NEW)
 
 syr30UseBalance = input.bool(false, "Enable Balance Reset Launch", group=G_SYR30_BAL)
 syr30BalanceBuyEnabled = input.bool(true, "Enable BUY", group=G_SYR30_BAL, inline="BAL_SIDE")
@@ -2831,9 +2833,23 @@ if rsrcRawBuy or rsrcRawSell
     rsrcBuyReact := 0
     rsrcSellReact := 0
 
-// توصيل مدارس SYR30 (أقسام 18/19/20) بالراوتر — كان ناتجها معلقاً بلا استخدام
-buySignal := buySignal or syr30ReplacementBuy
-sellSignal := sellSignal or syr30ReplacementSell
+// توصيل مدارس SYR30 (أقسام 18/19/20) — كان ناتجها معلقاً بلا استخدام
+if syr30SoloMode
+    buySignal := false
+    sellSignal := false
+buySignal := buySignal or (not syr30DirectEntry and syr30ReplacementBuy)
+sellSignal := sellSignal or (not syr30DirectEntry and syr30ReplacementSell)
+syr30DirectBuy = syr30DirectEntry and syr30ReplacementBuy
+syr30DirectSell = syr30DirectEntry and syr30ReplacementSell
+if syr30DirectBuy or syr30DirectSell
+    m1SelectedSourceCode := 10
+// علامات مرئية: كل إشارة مدرسة تظهر على الشارت حتى لو ما دخلت صفقة
+plotshape(syr30BalanceBuy, title="BAL18 BUY", style=shape.circle, location=location.belowbar, color=color.new(color.lime, 20), size=size.tiny, text="18")
+plotshape(syr30BalanceSell, title="BAL18 SELL", style=shape.circle, location=location.abovebar, color=color.new(color.red, 20), size=size.tiny, text="18")
+plotshape(syr30AsiaBuy, title="ASIA19 BUY", style=shape.circle, location=location.belowbar, color=color.new(color.aqua, 20), size=size.tiny, text="19")
+plotshape(syr30AsiaSell, title="ASIA19 SELL", style=shape.circle, location=location.abovebar, color=color.new(color.orange, 20), size=size.tiny, text="19")
+plotshape(syr30DeadAuctionBuy, title="AUCT20 BUY", style=shape.circle, location=location.belowbar, color=color.new(color.yellow, 20), size=size.tiny, text="20")
+plotshape(syr30DeadAuctionSell, title="AUCT20 SELL", style=shape.circle, location=location.abovebar, color=color.new(color.fuchsia, 20), size=size.tiny, text="20")
 
 bool preRmiBuySignal = buySignal
 bool preRmiSellSignal = sellSignal
@@ -2964,8 +2980,8 @@ kzDirectBuy = kzFireBuy and kzMid > close
 if kzDirectBuy or kzDirectSell
     m1SelectedSourceCode := 9
 
-canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy or orbDirectBuy or kzDirectBuy)
-canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and ourSellOK and ourSoloOK) or rsrcDirectSell or orbDirectSell or kzDirectSell)
+canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy or orbDirectBuy or kzDirectBuy or syr30DirectBuy)
+canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and ourSellOK and ourSoloOK) or rsrcDirectSell or orbDirectSell or kzDirectSell or syr30DirectSell)
 
 if canEnterLong or canEnterShort
     active := true
@@ -2973,7 +2989,7 @@ if canEnterLong or canEnterShort
     entryPrice := close
     tradeKind := side == 1 ? longTypeNow : shortTypeNow
     tradeEntrySourceCode := m1SelectedSourceCode
-    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI SRC" : tradeEntrySourceCode == 8 ? "ORB لندن" : tradeEntrySourceCode == 9 ? "كنسة لندن" : "BASE 999"
+    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI SRC" : tradeEntrySourceCode == 8 ? "ORB لندن" : tradeEntrySourceCode == 9 ? "كنسة لندن" : tradeEntrySourceCode == 10 ? "SYR30 مدرسة" : "BASE 999"
 
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
@@ -3010,6 +3026,8 @@ if canEnterLong or canEnterShort
         tradeStopPts := math.abs(entryPrice - kzSlPx) / pointUnit
         tradeRiskState := "KZ HARD"
         tradeTargetSource := "كنسة لندن"
+    if tradeEntrySourceCode == 10
+        tradeTargetSource := syr30BalanceBuy or syr30BalanceSell ? "توازن 18" : syr30AsiaBuy or syr30AsiaSell ? "آسيا 19" : "مزاد 20"
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
