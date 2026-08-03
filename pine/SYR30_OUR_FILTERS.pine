@@ -440,16 +440,6 @@ pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=
 stopPoints = input.int(65, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
 targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
 useMainFixedRisk = input.bool(false, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
-useSideGeometry = input.bool(false, "③ هندسة ذكية للأهداف", group=G_MAIN_NEW)
-sideGeoMode = input.string("By Trend Alignment", "③ الهندسة حسب", options=["By Trend Alignment", "By Side"], group=G_MAIN_NEW)
-alignedTargetPts = input.int(130, "③ هدف الصفقة الماشية مع الترند", minval=1, group=G_MAIN_NEW)
-alignedStopPts = input.int(70, "③ ستوب الماشية مع الترند", minval=1, group=G_MAIN_NEW)
-counterTargetPts = input.int(50, "③ هدف الصفقة العكسية (نطة)", minval=1, group=G_MAIN_NEW)
-counterStopPts = input.int(50, "③ ستوب العكسية", minval=1, group=G_MAIN_NEW)
-mainBuyTargetPts = input.int(50, "③ BUY Target", minval=1, group=G_MAIN_NEW)
-mainBuyStopPts = input.int(50, "③ BUY Stop", minval=1, group=G_MAIN_NEW)
-mainSellTargetPts = input.int(130, "③ SELL Target", minval=1, group=G_MAIN_NEW)
-mainSellStopPts = input.int(70, "③ SELL Stop", minval=1, group=G_MAIN_NEW)
 sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK_NEW)
 trendAlignFilter = input.string("Medium (max 3 oppose) — R10", "R4 Trend Alignment Filter", options=["Off", "Light (max 4 oppose)", "Medium (max 3 oppose) — R10", "Balanced (max 2 + Sweep)", "Strict (max 2 oppose)"], group=G_RISK_NEW)
 useDirectionalAdaptiveExit = input.bool(true, "Use M1 Directional Adaptive Exit", group=G_RISK_NEW)
@@ -2857,48 +2847,6 @@ rmiSrcIsNew = rsrcDirectBuy or rsrcDirectSell or (rsrcViaFilters and ((rsrcRawBu
 if useRmiSource and rmiSrcIsNew
     m1SelectedSourceCode := 7
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 25 ■ RMI ZONES TARGET — رمي مصحح الأهداف (فكرة المالك)
-// رمي يتدخل فقط إذا فتحت الصفقة وهو داخل إحدى مناطقه:
-// باي ورمي بمنطقة 20 (وتحت) → هدف الصفقة وصول رمي لمنطقة 80 المعاكسة.
-// سيل ورمي بمنطقة 80 (وفوق) → هدفه رجوع رمي لمنطقة 20.
-// الهدف سعرٌ يوضع على الشارت لحظة الدخول (معادلة رمي العكسية) ولا يتحرك — TP عادي باللمس.
-// الستوب يبقى ستوب الصفقة الأصلي. إذا رمي بنص رينجه لحظة الدخول — لا تدخّل.
-// (يستخدم نفس حساب رمي المزروع في قسم 24: طول 18 / زخم 6)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 26 ■ TRADE MANAGEMENT — إدارة الصفقة (نفس الصفقات، مصير أحسن)
-// ثلاث أدوات تشتغل بعد الدخول، كل صفقات المؤشر تبقى كما هي:
-// ① قفل التعادل: بعد ربح X نقطة ينتقل الستوب للدخول+Y
-// ② بتر الخاسرة: صفقة عمرها N دقيقة وواقفة تحت -P نقطة تُقفل بالسوق
-// ③ تضييق بالعمر: بعد N دقيقة بلا حسم يُشد الستوب لنسبة من الأصلي
-// القيم الافتراضية هي الفائزة بالامتحان الصادق (بعد سد ثغرة المستوى المتجاوز): تدريب +960 / امتحان +846
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-G_MGMT = "26 ■ إدارة الصفقة — Trade Management"
-useTradeMgmt = input.bool(false, "استخدم إدارة الصفقة", group=G_MGMT)
-mgmtBeArm = input.float(15.0, "① قفل التعادل بعد ربح (نقاط، 0=مطفي)", minval=0.0, step=1.0, group=G_MGMT)
-mgmtBeOffset = input.float(0.0, "① الستوب الجديد = الدخول + (نقاط)", minval=0.0, step=1.0, group=G_MGMT)
-mgmtCutBars = input.int(30, "② بتر الخاسرة بعد (دقائق، 0=مطفي)", minval=0, group=G_MGMT)
-mgmtCutPnl = input.float(40.0, "② البتر إذا الخسارة تجاوزت (نقاط)", minval=1.0, step=1.0, group=G_MGMT)
-mgmtTightenBars = input.int(20, "③ تضييق الستوب بعد (دقائق، 0=مطفي)", minval=0, group=G_MGMT)
-mgmtTightenFrac = input.float(0.3, "③ الستوب الجديد = النسبة من الأصلي", minval=0.05, maxval=1.0, step=0.05, group=G_MGMT)
-// ── بروتوكول البوت (عقد التطابق: سعر إغلاق الموشر = سعر الإغلاق بالبروكر) ──
-// MODIFY_SL {sl_price}: حرّك الستوب النايم للسعر المرفق (تعادل/تضييق) — التنفيذ لاحقاً عند البروكر لحظي
-// CLOSE_AT {price}: أغلق الصفقة بالسعر المرفق: إذا السوق عنده أو أحسن → سوق فوراً؛
-//   إذا تحرك لأسوأ → ضع أمر إغلاق نايم على السعر نفسه وانتظر لمسه — ممنوع الإغلاق بسعر أسوأ
-mgmtOnRmiSrc = input.bool(false, "طبّق الإدارة أيضاً على صفقات رمي المصدر — غير ممتحن ⚠️", group=G_MGMT)
-mgmtSendAlerts = input.bool(true, "أرسل أوامر الإدارة للبوت (MODIFY_SL / CLOSE_AT)", group=G_MGMT)
-var bool tradeBeArmed = false
-var bool tradeStopMoved = false
-
-G_RMIFIX = "25 ■ رمي مصحح الأهداف — RMI Zones Target"
-useRmiTargetFix = input.bool(false, "استخدم رمي مصحح الأهداف", group=G_RMIFIX)
-rmiFixMode = input.string("خروج عند لمس رمي للمنطقة (المعتمد ✓)", "شكل الهدف", options=["خروج عند لمس رمي للمنطقة (المعتمد ✓)", "سعر محطوط عالشارت (رسب بالامتحان ✗)"], group=G_RMIFIX)
-rmiFixBuyZone = input.float(20.0, "منطقة الشراء (تدخل إذا رمي ≤)", minval=1.0, maxval=49.0, step=1.0, group=G_RMIFIX)
-rmiFixSellZone = input.float(78.0, "منطقة البيع (تدخل إذا رمي ≥)", minval=51.0, maxval=99.0, step=1.0, group=G_RMIFIX)
-rmiFixOnRmiSrc = input.bool(false, "طبّق أيضاً على صفقات رمي المصدر — غير ممتحن ⚠️", group=G_RMIFIX)
-rmiFixEventMode = rmiFixMode == "خروج عند لمس رمي للمنطقة (المعتمد ✓)"
-var bool tradeRmiFix = false
 
 canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy)
 canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and ourSellOK and ourSoloOK) or rsrcDirectSell)
@@ -2922,16 +2870,8 @@ if canEnterLong or canEnterShort
     tradeRiskState := useDirectionalAdaptiveExit ? "DIR " + exitModeText + " HARD" : "BASE HARD"
     tradeTargetSource := useDirectionalAdaptiveExit ? "M1/M5/M15 + LIQ" : "BASE PLAN"
     if useMainFixedRisk
-        bool geoAligned = (side == 1 and ourTrendUp) or (side == -1 and ourTrendDown)
-        if not useSideGeometry
-            tradeTargetPts := targetPoints
-            tradeStopPts := stopPoints
-        else if sideGeoMode == "By Trend Alignment"
-            tradeTargetPts := geoAligned ? alignedTargetPts : counterTargetPts
-            tradeStopPts := geoAligned ? alignedStopPts : counterStopPts
-        else
-            tradeTargetPts := side == 1 ? mainBuyTargetPts : mainSellTargetPts
-            tradeStopPts := side == 1 ? mainBuyStopPts : mainSellStopPts
+        tradeTargetPts := targetPoints
+        tradeStopPts := stopPoints
         tradeRiskState := "FIXED 1:1 HARD"
         tradeTargetSource := "MAIN ③"
     // أهداف رمي الخاصة تشتغل فقط عندما يكون خيار القسم ① مطفي —
@@ -2941,47 +2881,11 @@ if canEnterLong or canEnterShort
         tradeStopPts := rsrcStopPts
         tradeRiskState := "RMI HARD"
         tradeTargetSource := "RMI 130/70"
-    tradeRmiFix := false
-    if useRmiTargetFix and not useMainFixedRisk and (tradeEntrySourceCode != 7 or rmiFixOnRmiSrc)
-        bool rmiFixZoneOK = side == 1 ? rsrcRmi <= rmiFixBuyZone : rsrcRmi >= rmiFixSellZone
-        if rmiFixZoneOK
-            if rmiFixEventMode
-                // المعتمد: الهدف وصول رمي للمنطقة المعاكسة — خروج عند إغلاق شمعة اللمس
-                tradeRmiFix := true
-                tradeTargetPts := 100000
-                tradeRiskState := "RMI ZONE"
-                tradeTargetSource := "رمي → منطقة " + str.tostring(side == 1 ? rmiFixSellZone : rmiFixBuyZone, "#")
-            else
-                // سعر محطوط: معادلة رمي العكسية (رسب بالامتحان المقفول — للاطلاع)
-                float rmiFixRatio = side == 1 ? rmiFixSellZone / (100.0 - rmiFixSellZone) : rmiFixBuyZone / (100.0 - rmiFixBuyZone)
-                float rmiFixRef = close[rsrcMomentum - 1]
-                float rmiFixTgt = side == 1 ? rmiFixRef + (rsrcLength - 1) * (rmiFixRatio * rsrcDnMom - rsrcUpMom) : rmiFixRef - (rsrcLength - 1) * (rsrcUpMom / rmiFixRatio - rsrcDnMom)
-                bool rmiFixValid = side == 1 ? rmiFixTgt > entryPrice + pointUnit : rmiFixTgt < entryPrice - pointUnit
-                if rmiFixValid
-                    tradeRmiFix := true
-                    tpPrice := rmiFixTgt
-                    tradeTargetPts := side == 1 ? (tpPrice - entryPrice) / pointUnit : (entryPrice - tpPrice) / pointUnit
-                    tradeRiskState := "RMI ZONE PRICE"
-                    tradeTargetSource := "رمي عكسية → " + str.tostring(side == 1 ? rmiFixSellZone : rmiFixBuyZone, "#")
-    if tradeEntrySourceCode == 1
-        m1LiveOwnTrades += 1
-    else if tradeEntrySourceCode == 2
-        m1LiveSameTrades += 1
-    else if tradeEntrySourceCode == 3
-        m1LiveTakeTrades += 1
-    else if tradeEntrySourceCode == 5
-        trendVoteLiveTrades += 1
-    else if tradeEntrySourceCode == 6
-        finalFusionLiveTrades += 1
-    else if tradeEntrySourceCode == 7
-        rmiSrcLiveTrades += 1
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
     entryBar := bar_index
     lastTradeBar := bar_index
-    tradeBeArmed := false
-    tradeStopMoved := false
     sy999TradeMFE := 0.0
     sy999TradeMAE := 0.0
     sy999TradeRegime := sy999SignalRegime
@@ -3055,68 +2959,6 @@ if active and bar_index > entryBar
         alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
 
     earlyExit = false
-    if tradeRmiFix and rmiFixEventMode and barstate.isconfirmed and not hardExit
-        bool rmiFixTargetHit = side == 1 ? rsrcRmi >= rmiFixSellZone : rsrcRmi <= rmiFixBuyZone
-        if rmiFixTargetHit
-            earlyExit := true
-            sy999IntrabarExitPrice := close
-            if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"RMI_ZONE_EXIT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-    if useTradeMgmt and (tradeEntrySourceCode != 7 or mgmtOnRmiSrc) and mgmtCutBars > 0 and barstate.isconfirmed and not hardExit and not earlyExit
-        if bar_index - entryBar >= mgmtCutBars and currentPnl <= -mgmtCutPnl
-            earlyExit := true
-            sy999IntrabarExitPrice := close
-            if showSignals
-                label.new(bar_index, close, "✂️ بتر", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.orange, 20), textcolor=color.black, size=size.tiny)
-            if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_CUT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-    // تحريك الستوب (يسري من الشمعة التالية — فحوصات هذه الشمعة تمت فوق)
-    if useTradeMgmt and (tradeEntrySourceCode != 7 or mgmtOnRmiSrc) and not hardExit and not earlyExit
-        if mgmtTightenBars > 0 and bar_index - entryBar == mgmtTightenBars
-            float mgmtNewSl = side == 1 ? entryPrice - tradeStopPts * mgmtTightenFrac * pointUnit : entryPrice + tradeStopPts * mgmtTightenFrac * pointUnit
-            bool mgmtTightenSafe = side == 1 ? mgmtNewSl < close : mgmtNewSl > close
-            if not mgmtTightenSafe and barstate.isconfirmed
-                // السعر تجاوز المستوى الجديد أصلاً → خروج صادق فوري بسعر الإغلاق الحقيقي
-                earlyExit := true
-                sy999IntrabarExitPrice := close
-                if showSignals
-                    label.new(bar_index, close, "⏱ تضييق-خروج", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.orange, 20), textcolor=color.black, size=size.tiny)
-                if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                    alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_TIGHTEN_EXIT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-            else if mgmtTightenSafe and (side == 1 ? mgmtNewSl > slPrice : mgmtNewSl < slPrice)
-                slPrice := mgmtNewSl
-                tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
-                tradeStopMoved := true
-                if showTradeLines and not na(sy348SLLine)
-                    line.set_y1(sy348SLLine, slPrice)
-                    line.set_y2(sy348SLLine, slPrice)
-                if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                    alert('{"key":"' + sy963WebhookKey + '","action":"MODIFY_SL","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","sl_price":' + str.tostring(slPrice, format.mintick) + ',"reason":"MGMT_TIGHTEN","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-        if mgmtBeArm > 0 and not tradeBeArmed
-            float mgmtFav = side == 1 ? (high - entryPrice) / pointUnit : (entryPrice - low) / pointUnit
-            if mgmtFav >= mgmtBeArm
-                tradeBeArmed := true
-                float mgmtBeSl = side == 1 ? entryPrice + mgmtBeOffset * pointUnit : entryPrice - mgmtBeOffset * pointUnit
-                bool mgmtBeSafe = side == 1 ? mgmtBeSl < close : mgmtBeSl > close
-                if not mgmtBeSafe and barstate.isconfirmed
-                    // لمس +10 بس رجع سكّر تحت مستوى التعادل → خروج صادق بسعر الإغلاق
-                    earlyExit := true
-                    sy999IntrabarExitPrice := close
-                    if showSignals
-                        label.new(bar_index, close, "⚖️ تعادل-خروج", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.teal, 20), textcolor=color.white, size=size.tiny)
-                    if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                        alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_BE_EXIT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-                else if mgmtBeSafe and (side == 1 ? mgmtBeSl > slPrice : mgmtBeSl < slPrice)
-                    slPrice := mgmtBeSl
-                    tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
-                    tradeStopMoved := true
-                    if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
-                        alert('{"key":"' + sy963WebhookKey + '","action":"MODIFY_SL","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","sl_price":' + str.tostring(slPrice, format.mintick) + ',"reason":"MGMT_BREAKEVEN","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-                    if showTradeLines and not na(sy348SLLine)
-                        line.set_y1(sy348SLLine, slPrice)
-                        line.set_y2(sy348SLLine, slPrice)
-                    if showSignals
-                        label.new(bar_index, slPrice, "⚖️ تعادل", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.teal, 20), textcolor=color.white, size=size.tiny)
     if hardExit or earlyExit
         exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
         exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)
@@ -3185,8 +3027,6 @@ if active and bar_index > entryBar
                     lastSellTrendStopBar := bar_index
             if not earlyExit and statsCounted
                 sy348ExitSLPlot := true
-            if useTradeMgmt and mgmtSendAlerts and tradeStopMoved and sy963UseAlertFunction and barstate.isrealtime
-                alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(slPrice, format.mintick) + ',"reason":"MGMT_STOP","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
 
         if earlyExit
             if statsActive
