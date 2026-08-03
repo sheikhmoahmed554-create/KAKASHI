@@ -1,0 +1,156 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════════════
+//  WAVE RIDER 🌊 — راكب الموجة (باي + سيل)
+//  فكرة المؤشر من أطروحتك: "بكل يوم بيصير عنا كل انواع السوق — صاعد هابط رينج"
+//  المحرك: يكشف موجة الدقيقة (EMA سريع فوق/تحت بطيء + ميل البطيء)
+//  يركب الموجة من ولادتها ويظل فيها حتى تموت — بالاتجاهين، شراء وبيع
+//  التربية (المدرسة): تأكيد شمعتين + فجوة ٥٠ نقطة (موجة قوية فقط) + ستوب حماية ١٠٠
+//  كل قاعدة قابلة للتنفيذ لحظياً على إغلاق الشمعة — بدون أي معرفة مستقبلية
+// ═══════════════════════════════════════════════════════════════════════════
+indicator("WAVE RIDER 🌊 — راكب الموجة (باي + سيل)", "WAVE_RIDER", overlay=true, max_labels_count=500)
+
+// ─── ① محرك الموجة ───
+G1 = "① محرك الموجة"
+wrFast  = input.int(20, "EMA سريع", minval=2, group=G1)
+wrSlow  = input.int(60, "EMA بطيء", minval=5, group=G1)
+wrSlope = input.int(5,  "شموع قياس ميل البطيء", minval=1, group=G1)
+
+// ─── ② التربية (فلاتر الدخول والخروج) ───
+G2 = "② التربية — فلاتر الموجة"
+wrConfirm  = input.int(2,     "شموع تأكيد الموجة قبل الدخول", minval=1, group=G2)
+wrGap      = input.float(50,  "أقل فجوة بين المتوسطين (نقاط) — قوة الموجة", minval=0, step=5, group=G2)
+wrExitBars = input.int(2,     "شموع تأكيد موت الموجة للخروج", minval=1, group=G2)
+wrStop     = input.float(100, "ستوب حماية (نقاط، 0 = بدون)", minval=0, step=10, group=G2)
+
+// ─── ③ الإحصائيات ───
+G3 = "③ الإحصائيات"
+wrCost     = input.float(3, "كلفة الصفقة سبريد+عمولة (نقاط)", minval=0, group=G3)
+statsStart = input.time(1767312000000, "بداية الإحصاء (UTC)", group=G3)
+showTable  = input.bool(true, "إظهار جدول النتائج", group=G3)
+
+// ─── حساب الموجة ───
+emaF = ta.ema(close, wrFast)
+emaS = ta.ema(close, wrSlow)
+
+int reg = 0
+if emaF > emaS and emaS > emaS[wrSlope]
+    reg := 1
+else if emaF < emaS and emaS < emaS[wrSlope]
+    reg := -1
+
+float gapPts   = math.abs(emaF - emaS) / 0.1
+float stopDist = wrStop * 0.1
+
+// ─── آلة الحالة — تنفَّذ فقط على شمعة مؤكدة ───
+var int   runVal     = 0
+var int   runLen     = 0
+var int   pos        = 0
+var float entryPx    = na
+var int   awayCnt    = 0
+var int   blockedDir = 0
+
+bool  entryBuyEvt  = false
+bool  entrySellEvt = false
+bool  exitEvt      = false
+bool  stopEvt      = false
+float exitPts      = na
+int   closedSide   = 0
+
+if barstate.isconfirmed
+    // عدّاد عمر الموجة الحالية
+    if reg == runVal
+        runLen += 1
+    else
+        runVal := reg
+        runLen := 1
+    // فك الحظر إذا غادرت السوق الموجة التي ضربنا ستوبها
+    if blockedDir != 0 and reg != blockedDir
+        blockedDir := 0
+    // ستوب الحماية (يُفحص قبل الإغلاق — أسوأ فرضية)
+    if pos != 0 and wrStop > 0
+        bool stopHit = pos == 1 ? low <= entryPx - stopDist : high >= entryPx + stopDist
+        if stopHit
+            exitEvt    := true
+            stopEvt    := true
+            exitPts    := -wrStop - wrCost
+            closedSide := pos
+            blockedDir := pos
+            pos        := 0
+            awayCnt    := 0
+    // خروج بموت الموجة (شموع تأكيد متتالية خارج الموجة)
+    if pos != 0
+        if reg != pos
+            awayCnt += 1
+            if awayCnt >= wrExitBars
+                exitEvt    := true
+                exitPts    := math.round(pos * (close - entryPx) / 0.1) - wrCost
+                closedSide := pos
+                pos        := 0
+                awayCnt    := 0
+        else
+            awayCnt := 0
+    // دخول: موجة حية + عمرها كافٍ + فجوة كافية + غير محظورة
+    if pos == 0 and reg != 0 and reg != blockedDir and runLen >= wrConfirm and gapPts >= wrGap
+        pos     := reg
+        entryPx := close
+        awayCnt := 0
+        if reg == 1
+            entryBuyEvt := true
+        else
+            entrySellEvt := true
+
+// ─── الإحصائيات ───
+bool statsOn = time >= statsStart
+var int   nB = 0
+var int   wB = 0
+var float netB = 0.0
+var int   nS = 0
+var int   wS = 0
+var float netS = 0.0
+if statsOn and exitEvt
+    if closedSide == 1
+        nB   += 1
+        netB += exitPts
+        wB   += exitPts > 0 ? 1 : 0
+    else
+        nS   += 1
+        netS += exitPts
+        wS   += exitPts > 0 ? 1 : 0
+
+// ─── الرسم ───
+plot(emaF, "EMA سريع", color=color.new(color.aqua, 40))
+plot(emaS, "EMA بطيء", color=color.new(color.orange, 40), linewidth=2)
+bgcolor(reg == 1 ? color.new(color.green, 92) : reg == -1 ? color.new(color.red, 92) : na)
+plotshape(entryBuyEvt,  "دخول شراء", shape.triangleup,   location.belowbar, color.new(color.green, 0), size=size.small, text="🌊باي")
+plotshape(entrySellEvt, "دخول بيع",  shape.triangledown, location.abovebar, color.new(color.red, 0),   size=size.small, text="🌊سيل")
+plotshape(exitEvt and not stopEvt, "خروج (موت الموجة)", shape.xcross,  location.absolute, color.new(color.gray, 0), size=size.tiny)
+plotshape(stopEvt, "خروج ستوب", shape.xcross, location.absolute, color.new(color.fuchsia, 0), size=size.small)
+plot(pos == 1 ? entryPx - stopDist : pos == -1 ? entryPx + stopDist : na, "خط الستوب", color=color.new(color.fuchsia, 30), style=plot.style_linebr)
+
+// ─── جدول النتائج ───
+var table tb = table.new(position.top_right, 4, 4, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 60))
+if showTable and barstate.islast
+    int   nT   = nB + nS
+    int   wT   = wB + wS
+    float netT = netB + netS
+    table.cell(tb, 0, 0, "🌊 WAVE RIDER", text_color=color.yellow, text_size=size.small)
+    table.cell(tb, 1, 0, "صفقات", text_color=color.white, text_size=size.small)
+    table.cell(tb, 2, 0, "نجاح", text_color=color.white, text_size=size.small)
+    table.cell(tb, 3, 0, "صافي نقاط", text_color=color.white, text_size=size.small)
+    table.cell(tb, 0, 1, "الكل", text_color=color.white, text_size=size.small)
+    table.cell(tb, 1, 1, str.tostring(nT), text_color=color.white, text_size=size.small)
+    table.cell(tb, 2, 1, str.tostring(nT > 0 ? math.round(100.0 * wT / nT) : 0) + "%", text_color=color.white, text_size=size.small)
+    table.cell(tb, 3, 1, str.tostring(math.round(netT)), text_color=netT >= 0 ? color.lime : color.red, text_size=size.small)
+    table.cell(tb, 0, 2, "🟢 شراء", text_color=color.green, text_size=size.small)
+    table.cell(tb, 1, 2, str.tostring(nB), text_color=color.white, text_size=size.small)
+    table.cell(tb, 2, 2, str.tostring(nB > 0 ? math.round(100.0 * wB / nB) : 0) + "%", text_color=color.white, text_size=size.small)
+    table.cell(tb, 3, 2, str.tostring(math.round(netB)), text_color=netB >= 0 ? color.lime : color.red, text_size=size.small)
+    table.cell(tb, 0, 3, "🔴 بيع", text_color=color.red, text_size=size.small)
+    table.cell(tb, 1, 3, str.tostring(nS), text_color=color.white, text_size=size.small)
+    table.cell(tb, 2, 3, str.tostring(nS > 0 ? math.round(100.0 * wS / nS) : 0) + "%", text_color=color.white, text_size=size.small)
+    table.cell(tb, 3, 3, str.tostring(math.round(netS)), text_color=netS >= 0 ? color.lime : color.red, text_size=size.small)
+
+// ─── تنبيهات ───
+alertcondition(entryBuyEvt,  "🌊 دخول شراء", "WAVE RIDER: موجة صاعدة قوية — دخول شراء عند الإغلاق")
+alertcondition(entrySellEvt, "🌊 دخول بيع",  "WAVE RIDER: موجة نازلة قوية — دخول بيع عند الإغلاق")
+alertcondition(exitEvt,      "خروج",         "WAVE RIDER: خروج من الصفقة")
