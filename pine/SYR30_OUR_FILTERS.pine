@@ -96,7 +96,7 @@ G_SYR30_AUCT = "20 ■ SYR30 Dead Auction Reclaim"
 // 01 ■ Main / General
 tradeSide = input.string("BOTH", "Trade Side", options=["BOTH", "LONG", "SHORT"], group=G_MAIN_NEW)
 mode = input.string("More Trades", "Mode", options=["Best Net", "Higher WR", "More Trades"], group=G_MAIN_NEW)
-useResearchGate = input.bool(false, "Use Research Vote Gate", group=G_MAIN_NEW)
+useResearchGate = input.bool(true, "Use Research Vote Gate", group=G_MAIN_NEW)
 minVotes = input.float(2.0, "Minimum Research Votes", step=0.01, group=G_MAIN_NEW)
 
 // 02 ■ Trend / HTF Map
@@ -107,7 +107,7 @@ emaFastLen = input.int(20, "EMA Fast", minval=1, group=G_TREND_NEW)
 emaMidLen = input.int(67, "EMA Mid", minval=1, group=G_TREND_NEW)
 emaSlowLen = input.int(60, "EMA Slow", minval=1, group=G_TREND_NEW)
 localSwingLen = input.int(100, "Local Range Lookback", minval=20, maxval=800, group=G_TREND_NEW)
-useRealMapDirectGate = input.bool(false, "Use Real Map Directly In Router", group=G_TREND_NEW)
+useRealMapDirectGate = input.bool(true, "Use Real Map Directly In Router", group=G_TREND_NEW)
 useSY389BiasEngine = input.bool(true, "Use Real Bias Trend Engine", group=G_TREND_NEW)
 sy389BiasMode = input.string("Aggressive", "Bias Mode", options=["Conservative", "Balanced", "Aggressive"], group=G_TREND_NEW)
 sy389BiasTF = "1"
@@ -161,7 +161,7 @@ useSY320SellTrixBlock = false
 sy320Trix34BlockLevel = 0.10
 sy325AllowRealReversal = false
 k3CacheOpposeLimit = input.float(3.0, "K3 Cache Opposite Trend Limit", step=0.01, minval=0.0, group=G_COUNTER_NEW)
-pbRequireSlowTrend = input.bool(false, "Block Opposite Slow Structure", group=G_COUNTER_NEW)
+pbRequireSlowTrend = input.bool(true, "Block Opposite Slow Structure", group=G_COUNTER_NEW)
 baseBlockOppositePower = false
 baseAllowRealReversalBypass = false
 
@@ -251,7 +251,7 @@ baseFibSellMax = 79.0
 
 // 09 ■ Range / Chop / Volatility
 useVTZ = true
-vtzMode = input.string("Off", "VTZ Mode", options=["Off", "Assist Only", "Zone Guard", "Retest Guard"], group=G_RANGE_NEW)
+vtzMode = input.string("Assist Only", "VTZ Mode", options=["Off", "Assist Only", "Zone Guard", "Retest Guard"], group=G_RANGE_NEW)
 vtzBoxLookback = input.int(45, "Compression Box Lookback", minval=10, maxval=120, group=G_RANGE_NEW)
 vtzATRLenFast = 5
 vtzATRLenSlow = 120
@@ -265,12 +265,12 @@ vtzLateChasePts = input.float(30.0, "Late Chase Max Points", minval=10.0, maxval
 vtzBlockMiddleFade = true
 sy337SellUseRange = true
 squeezeLookback = 60
-useSY322RegimeGuard = input.bool(false, "Use SY322 Regime Guard", group=G_RANGE_NEW)
+useSY322RegimeGuard = input.bool(true, "Use SY322 Regime Guard", group=G_RANGE_NEW)
 useSY322ShockATRBlock = false
 sy322MaxAtrRatio = 3.0
-useSY322DeadATRWeakHTF = input.bool(false, "Use SY322 Dead ATR Weak HTF", group=G_RANGE_NEW)
+useSY322DeadATRWeakHTF = input.bool(true, "Use SY322 Dead ATR Weak HTF", group=G_RANGE_NEW)
 sy322DeadAtrRatio = input.float(0.90, "Sy322 Dead ATR Ratio", step=0.01, group=G_RANGE_NEW)
-useSY324QuietFix = input.bool(false, "Use SY324 Quiet Fix", group=G_RANGE_NEW)
+useSY324QuietFix = input.bool(true, "Use SY324 Quiet Fix", group=G_RANGE_NEW)
 sy324ImpulseLookback = 120
 sy324CompressionLookback = 40
 sy324MinImpulseATR = 8.0
@@ -352,7 +352,7 @@ trendVoteShowMarks = input.bool(false, "Show Trend Vote Add-On Marks", group=G_R
 useFinalSchoolFusion = input.bool(true, "Use Final School Fusion", group=G_ROUTER_NEW)
 useSY337QuickRouter = input.bool(true, "Use SY339 Active Router", group=G_ROUTER_NEW)
 sy337RouterModeAffects = input.bool(true, "Mode Changes Router Sensitivity", group=G_ROUTER_NEW)
-sy337UseNotLate = input.bool(false, "Use Not-Late Guard", group=G_ROUTER_NEW)
+sy337UseNotLate = input.bool(true, "Use Not-Late Guard", group=G_ROUTER_NEW)
 sy337LateLookback = input.int(9, "Late Move Lookback", minval=2, maxval=50, group=G_ROUTER_NEW)
 sy337MaxLateMovePts = input.int(37, "Max Late Move Points", minval=10, maxval=300, group=G_ROUTER_NEW)
 sy337Cooldown = input.int(8, "Router Cooldown", minval=0, maxval=500, group=G_ROUTER_NEW)
@@ -364,9 +364,9 @@ sy354RequireReaction = input.bool(true, "Require Rejection/Momentum Candle", gro
 sy337SellUseTrend = true  // أصلي شغال — المحكمة التدريبية اقترحت إطفاءه (-450، 1/4 أشهر)
 sy337SellUseSY336Best = true  // أصلي شغال — المحكمة التدريبية اقترحت إطفاءه (-450، 1/4 أشهر)
 sy337SellUseBase = true
-k3UseCacheGateBase = input.bool(false, "Apply Cache Gate To Base", group=G_ROUTER_NEW)
-k3UseCacheGateTrendVote = input.bool(false, "Apply Cache Gate To Trend Vote", group=G_ROUTER_NEW)
-k3UseCacheGateFusion = input.bool(false, "Apply Cache Gate To Fusion", group=G_ROUTER_NEW)
+k3UseCacheGateBase = input.bool(true, "Apply Cache Gate To Base", group=G_ROUTER_NEW)
+k3UseCacheGateTrendVote = input.bool(true, "Apply Cache Gate To Trend Vote", group=G_ROUTER_NEW)
+k3UseCacheGateFusion = input.bool(true, "Apply Cache Gate To Fusion", group=G_ROUTER_NEW)
 k3SourcePriority = input.string("Fusion > Trend Vote > Base", "Final Source Priority", options=["Fusion > Trend Vote > Base", "Trend Vote > Fusion > Base", "Base > Fusion > Trend Vote", "Base > Trend Vote > Fusion"], group=G_ROUTER_NEW)
 trendVoteBuyMinVotes = input.int(2, "Trend Vote BUY Minimum Votes", minval=1, group=G_ROUTER_NEW)
 trendVoteSellMinVotes = input.int(2, "Trend Vote SELL Minimum Votes", minval=1, group=G_ROUTER_NEW)
@@ -437,7 +437,7 @@ tvSellImpulseClosePos = 0.76
 
 // 13 ■ Risk / TP / SL
 pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK_NEW)
-stopPoints = input.int(50, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
+stopPoints = input.int(65, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
 targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
 useMainFixedRisk = input.bool(false, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
 useSideGeometry = input.bool(false, "③ هندسة ذكية للأهداف", group=G_MAIN_NEW)
@@ -451,7 +451,7 @@ mainBuyStopPts = input.int(50, "③ BUY Stop", minval=1, group=G_MAIN_NEW)
 mainSellTargetPts = input.int(130, "③ SELL Target", minval=1, group=G_MAIN_NEW)
 mainSellStopPts = input.int(70, "③ SELL Stop", minval=1, group=G_MAIN_NEW)
 sameCandleRule = input.string("Skip", "If TP and SL Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK_NEW)
-trendAlignFilter = input.string("Off", "R4 Trend Alignment Filter", options=["Off", "Light (max 4 oppose)", "Medium (max 3 oppose) — R10", "Balanced (max 2 + Sweep)", "Strict (max 2 oppose)"], group=G_RISK_NEW)
+trendAlignFilter = input.string("Medium (max 3 oppose) — R10", "R4 Trend Alignment Filter", options=["Off", "Light (max 4 oppose)", "Medium (max 3 oppose) — R10", "Balanced (max 2 + Sweep)", "Strict (max 2 oppose)"], group=G_RISK_NEW)
 useDirectionalAdaptiveExit = input.bool(true, "Use M1 Directional Adaptive Exit", group=G_RISK_NEW)
 daeM5TF = input.timeframe("3", "Exit Direction TF 1", group=G_RISK_NEW)
 daeM15TF = input.timeframe("15", "Exit Direction TF 2", group=G_RISK_NEW)
@@ -476,8 +476,8 @@ daeBuyLateTargetPts = input.float(60.0, "R16 BUY Late Target", minval=30.0, maxv
 daeBuyLateStopPts = input.float(60.0, "R16 BUY Late Stop", minval=1.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
 daeSellLateTargetPts = input.float(45.0, "R16 SELL Late Target", minval=30.0, maxval=100.0, step=1.0, group=G_RISK_NEW)
 daeSellLateStopPts = input.float(60.0, "R16 SELL Late Stop", minval=1.0, maxval=150.0, step=1.0, group=G_RISK_NEW)
-r6UseObSellFilter = input.bool(false, "R6 Block SELL inside Bearish OB (experimental — feed-fragile)", group=G_RISK_NEW)
-r6UseObBuyFilter = input.bool(false, "R6 Block BUY inside Bullish OB", group=G_RISK_NEW)
+r6UseObSellFilter = input.bool(true, "R6 Block SELL inside Bearish OB (experimental — feed-fragile)", group=G_RISK_NEW)
+r6UseObBuyFilter = input.bool(true, "R6 Block BUY inside Bullish OB", group=G_RISK_NEW)
 r6ObSize = 5
 r6ObMax = 60
 r8UseExtraSources = input.bool(true, "R8 Extra Sources (UT Bot+WaveTrend+BB) — test first!", group=G_RISK_NEW)
@@ -541,7 +541,7 @@ syr30AuctionMinValueDistancePts = input.float(32.0, "Minimum Distance From Rolli
 syr30AuctionMinClosePos = input.float(0.62, "Reclaim Close Position", minval=0.50, maxval=0.90, step=0.01, group=G_SYR30_AUCT)
 syr30AuctionMinBodyATR = input.float(0.10, "Minimum Reclaim Body ATR", minval=0.05, maxval=0.80, step=0.05, group=G_SYR30_AUCT)
 syr30AuctionMaxBodyATR = input.float(0.80, "Maximum Reclaim Body ATR", minval=0.20, maxval=1.50, step=0.05, group=G_SYR30_AUCT)
-useRoomFilter = input.bool(false, "Require Room For TP", group=G_RISK_NEW)
+useRoomFilter = input.bool(true, "Require Room For TP", group=G_RISK_NEW)
 smartShowExitState = input.bool(false, "Show TP/SL Plan On Entry", group=G_RISK_NEW)
 smartMinStopPts = 60.0
 smartMaxStopPts = 65.0
@@ -2525,7 +2525,7 @@ sfBlockH1 = input.int(3, "Block hour #1 (-1=off)", minval=-1, maxval=23, group=G
 sfBlockH2 = input.int(5, "Block hour #2 (-1=off)", minval=-1, maxval=23, group=G_SMART)
 sfBlockH3 = input.int(8, "Block hour #3 (-1=off)", minval=-1, maxval=23, group=G_SMART)
 sfBlockH4 = input.int(10, "Block hour #4 (-1=off)", minval=-1, maxval=23, group=G_SMART)
-sfUseAtrFilter = input.bool(false, "ATR Filter: block extreme volatility", group=G_SMART)
+sfUseAtrFilter = input.bool(true, "ATR Filter: block extreme volatility", group=G_SMART)
 sfAtrMaxRatio = input.float(2.8, "Max ATR ratio (ATR14 / ATR avg 240)", minval=1.0, maxval=5.0, step=0.1, group=G_SMART)
 sfServerHour = (hour(time, "Etc/UTC") + sfTzOffset + 24) % 24
 sfBlockedHour = sfUseTimeFilter and (sfServerHour == sfBlockH1 or sfServerHour == sfBlockH2 or sfServerHour == sfBlockH3 or sfServerHour == sfBlockH4)
