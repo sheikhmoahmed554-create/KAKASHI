@@ -2870,7 +2870,6 @@ G_RMIFIX = "25 ■ رمي مصحح الأهداف — RMI Zones Target"
 useRmiTargetFix = input.bool(false, "استخدم رمي مصحح الأهداف", group=G_RMIFIX)
 rmiFixBuyZone = input.float(20.0, "منطقة الشراء (تدخل إذا رمي ≤)", minval=1.0, maxval=49.0, step=1.0, group=G_RMIFIX)
 rmiFixSellZone = input.float(80.0, "منطقة البيع (تدخل إذا رمي ≥)", minval=51.0, maxval=99.0, step=1.0, group=G_RMIFIX)
-rmiFixOnRmiSrc = input.bool(false, "يتدخل أيضاً بصفقات رمي المصدر (قسم 24)", group=G_RMIFIX)
 var bool tradeRmiFix = false
 
 canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy)
@@ -2915,7 +2914,7 @@ if canEnterLong or canEnterShort
         tradeRiskState := "RMI HARD"
         tradeTargetSource := "RMI 130/70"
     tradeRmiFix := false
-    if useRmiTargetFix and not useMainFixedRisk and (tradeEntrySourceCode != 7 or rmiFixOnRmiSrc)
+    if useRmiTargetFix and not useMainFixedRisk
         bool rmiFixZoneOK = side == 1 ? rsrcRmi <= rmiFixBuyZone : rsrcRmi >= rmiFixSellZone
         if rmiFixZoneOK
             tradeRmiFix := true
