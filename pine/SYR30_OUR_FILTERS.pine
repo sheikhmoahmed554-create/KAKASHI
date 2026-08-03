@@ -2882,7 +2882,9 @@ mgmtCutBars = input.int(30, "② بتر الخاسرة بعد (دقائق، 0=م
 mgmtCutPnl = input.float(40.0, "② البتر إذا الخسارة تجاوزت (نقاط)", minval=1.0, step=1.0, group=G_MGMT)
 mgmtTightenBars = input.int(20, "③ تضييق الستوب بعد (دقائق، 0=مطفي)", minval=0, group=G_MGMT)
 mgmtTightenFrac = input.float(0.3, "③ الستوب الجديد = النسبة من الأصلي", minval=0.05, maxval=1.0, step=0.05, group=G_MGMT)
+mgmtSendAlerts = input.bool(true, "أرسل أوامر الإدارة للبوت (MODIFY_SL / CLOSE)", group=G_MGMT)
 var bool tradeBeArmed = false
+var bool tradeStopMoved = false
 
 G_RMIFIX = "25 ■ رمي مصحح الأهداف — RMI Zones Target"
 useRmiTargetFix = input.bool(false, "استخدم رمي مصحح الأهداف", group=G_RMIFIX)
@@ -2973,6 +2975,7 @@ if canEnterLong or canEnterShort
     entryBar := bar_index
     lastTradeBar := bar_index
     tradeBeArmed := false
+    tradeStopMoved := false
     sy999TradeMFE := 0.0
     sy999TradeMAE := 0.0
     sy999TradeRegime := sy999SignalRegime
@@ -3057,6 +3060,8 @@ if active and bar_index > entryBar
             sy999IntrabarExitPrice := close
             if showSignals
                 label.new(bar_index, close, "✂️ بتر", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.orange, 20), textcolor=color.black, size=size.tiny)
+            if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
+                alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_CUT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
     // تحريك الستوب (يسري من الشمعة التالية — فحوصات هذه الشمعة تمت فوق)
     if useTradeMgmt and not hardExit and not earlyExit
         if mgmtTightenBars > 0 and bar_index - entryBar == mgmtTightenBars
@@ -3064,9 +3069,12 @@ if active and bar_index > entryBar
             if side == 1 ? mgmtNewSl > slPrice : mgmtNewSl < slPrice
                 slPrice := mgmtNewSl
                 tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
+                tradeStopMoved := true
                 if showTradeLines and not na(sy348SLLine)
                     line.set_y1(sy348SLLine, slPrice)
                     line.set_y2(sy348SLLine, slPrice)
+                if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
+                    alert('{"key":"' + sy963WebhookKey + '","action":"MODIFY_SL","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","sl_price":' + str.tostring(slPrice, format.mintick) + ',"reason":"MGMT_TIGHTEN","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
         if mgmtBeArm > 0 and not tradeBeArmed
             float mgmtFav = side == 1 ? (high - entryPrice) / pointUnit : (entryPrice - low) / pointUnit
             if mgmtFav >= mgmtBeArm
@@ -3075,6 +3083,9 @@ if active and bar_index > entryBar
                 if side == 1 ? mgmtBeSl > slPrice : mgmtBeSl < slPrice
                     slPrice := mgmtBeSl
                     tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
+                    tradeStopMoved := true
+                    if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
+                        alert('{"key":"' + sy963WebhookKey + '","action":"MODIFY_SL","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","sl_price":' + str.tostring(slPrice, format.mintick) + ',"reason":"MGMT_BREAKEVEN","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
                     if showTradeLines and not na(sy348SLLine)
                         line.set_y1(sy348SLLine, slPrice)
                         line.set_y2(sy348SLLine, slPrice)
@@ -3148,6 +3159,8 @@ if active and bar_index > entryBar
                     lastSellTrendStopBar := bar_index
             if not earlyExit and statsCounted
                 sy348ExitSLPlot := true
+            if useTradeMgmt and mgmtSendAlerts and tradeStopMoved and sy963UseAlertFunction and barstate.isrealtime
+                alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(slPrice, format.mintick) + ',"reason":"MGMT_STOP","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
 
         if earlyExit
             if statsActive
