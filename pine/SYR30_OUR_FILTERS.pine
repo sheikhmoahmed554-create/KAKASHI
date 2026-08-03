@@ -2991,7 +2991,9 @@ if canEnterLong or canEnterShort
             tradeStopPts := side == 1 ? mainBuyStopPts : mainSellStopPts
         tradeRiskState := "FIXED 1:1 HARD"
         tradeTargetSource := "MAIN ③"
-    if tradeEntrySourceCode == 7 and rsrcUseOwnTargets
+    // أهداف رمي الخاصة تشتغل فقط عندما يكون خيار القسم ① مطفي —
+    // إذا شغّلت "③ TEST 1:1 أهداف القسم الأول" فهو يلغي كل أنظمة الخروج بما فيها أهداف رمي
+    if tradeEntrySourceCode == 7 and rsrcUseOwnTargets and not useMainFixedRisk
         tradeTargetPts := rsrcTargetPts
         tradeStopPts := rsrcStopPts
         tradeRiskState := "RMI HARD"
