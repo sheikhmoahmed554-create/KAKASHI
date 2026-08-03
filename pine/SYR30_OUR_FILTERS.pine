@@ -361,8 +361,8 @@ sy354UseDirectGates = input.bool(false, "Use Direct Active Gates", group=G_ROUTE
 sy354BuyMaxRange = input.float(90.0, "BUY Allowed Under Range %", minval=1.0, maxval=90.0, step=1.0, group=G_ROUTER_NEW)
 sy354SellMinRange = input.float(10.0, "SELL Allowed Over Range %", minval=10.0, maxval=99.0, step=1.0, group=G_ROUTER_NEW)
 sy354RequireReaction = input.bool(true, "Require Rejection/Momentum Candle", group=G_ROUTER_NEW)
-sy337SellUseTrend = false  // محاكمة تدريبية: -450 (1/4 أشهر)
-sy337SellUseSY336Best = false  // محاكمة تدريبية: -450 (1/4 أشهر)
+sy337SellUseTrend = true  // أصلي شغال — المحكمة التدريبية اقترحت إطفاءه (-450، 1/4 أشهر)
+sy337SellUseSY336Best = true  // أصلي شغال — المحكمة التدريبية اقترحت إطفاءه (-450، 1/4 أشهر)
 sy337SellUseBase = true
 k3UseCacheGateBase = input.bool(false, "Apply Cache Gate To Base", group=G_ROUTER_NEW)
 k3UseCacheGateTrendVote = input.bool(false, "Apply Cache Gate To Trend Vote", group=G_ROUTER_NEW)
@@ -439,7 +439,7 @@ tvSellImpulseClosePos = 0.76
 pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK_NEW)
 stopPoints = input.int(50, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
 targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
-useMainFixedRisk = input.bool(true, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
+useMainFixedRisk = input.bool(false, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
 useSideGeometry = input.bool(false, "③ هندسة ذكية للأهداف", group=G_MAIN_NEW)
 sideGeoMode = input.string("By Trend Alignment", "③ الهندسة حسب", options=["By Trend Alignment", "By Side"], group=G_MAIN_NEW)
 alignedTargetPts = input.int(130, "③ هدف الصفقة الماشية مع الترند", minval=1, group=G_MAIN_NEW)
@@ -2421,19 +2421,19 @@ r8XBuy = r8ExtraOK and (r8UtBuy or r8WtBuy or r8BbBuy)
 r8XSell = r8ExtraOK and (r8UtSell or r8WtSell or r8BbSell)
 // ━━━ 21 ■ Court Verdicts — أحكام محكمة المدارس (6.5 أشهر، 13,730 صفقة، 1:1) ━━━
 G_COURT = "21 ■ Court Verdicts (أحكام المحكمة)"
-courtCldB = input.bool(false, "chCld BUY (حكم: -4700)", group=G_COURT)
+courtCldB = input.bool(true, "chCld BUY (حكم: -4700)", group=G_COURT)
 courtUoB = input.bool(true, "chUo BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtRibB = input.bool(true, "chRib BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
-courtCvdB = input.bool(false, "chCvd BUY (حكم: -1800)", group=G_COURT)
-courtUls2S = input.bool(false, "chUls2 SELL (حكم: -1500)", group=G_COURT)
-courtVzS = input.bool(false, "chVz SELL (حكم: -1150)", group=G_COURT)
-courtCmoS = input.bool(false, "chCmo SELL (حكم: -900)", group=G_COURT)
-courtWtS = input.bool(false, "chWt SELL (حكم: -600)", group=G_COURT)
+courtCvdB = input.bool(true, "chCvd BUY (حكم: -1800)", group=G_COURT)
+courtUls2S = input.bool(true, "chUls2 SELL (حكم: -1500)", group=G_COURT)
+courtVzS = input.bool(true, "chVz SELL (حكم: -1150)", group=G_COURT)
+courtCmoS = input.bool(true, "chCmo SELL (حكم: -900)", group=G_COURT)
+courtWtS = input.bool(true, "chWt SELL (حكم: -600)", group=G_COURT)
 courtUtS = input.bool(true, "chUt SELL (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtPsS = input.bool(true, "chPs SELL (نجا — عينة صغيرة)", group=G_COURT)
 courtTriS = input.bool(true, "chTri SELL (نجا — عينة صغيرة)", group=G_COURT)
 courtPsB = input.bool(true, "chPs BUY (نجا — عينة صغيرة)", group=G_COURT)
-courtRibS = input.bool(false, "chRib SELL (حكم تدريبي: -1100)", group=G_COURT)
+courtRibS = input.bool(true, "chRib SELL (حكم تدريبي: -1100)", group=G_COURT)
 buySignal := buySignal or r8XBuy
 sellSignal := sellSignal or r8XSell
 // ━━━ R9 اختياري: مصدر QQE-RSI28 ━━━
@@ -2737,7 +2737,7 @@ rmiFTrendADX = input.float(28.0, "③ Strong Trend Min ADX", minval=5.0, maxval=
 rmiFZoneOnly = input.bool(true, "④ Zone-Only Mode: BUY Low / SELL High", group=G_RMIF)
 rmiFBuyMax = input.float(45.0, "④ BUY Only Below RMI", minval=10.0, maxval=90.0, step=1.0, group=G_RMIF)
 rmiFSellMin = input.float(60.0, "④ SELL Only Above RMI", minval=10.0, maxval=90.0, step=1.0, group=G_RMIF)
-rmiFShowBlocked = input.bool(true, "Show Blocked X Marks", group=G_RMIF)
+rmiFShowBlocked = input.bool(false, "Show Blocked X Marks", group=G_RMIF)
 
 // Exact TheLark RMI formula (EMA smoothing, dn==0 -> 0 guard)
 f_rmi_filter_val(_len, _mom) =>
@@ -2783,7 +2783,7 @@ plotshape(rmiFBlockedSell, title="RMI BLOCKED SELL", style=shape.xcross, locatio
 // (RMI Filter, Our Regime Gate, Solo Test, cooldowns, Trade Side).
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_RSRC = "22 ■ رمي مصدر دخول — RMI Source"
-useRmiSource = input.bool(true, "استخدم رمي كمصدر دخول", group=G_RSRC)
+useRmiSource = input.bool(false, "استخدم رمي كمصدر دخول", group=G_RSRC)
 rsrcOnlyMode = input.bool(false, "رمي لحاله — يطفي باقي المصادر", group=G_RSRC)
 rsrcRespectFilters = input.bool(false, "النسخة ②: رمي يمر عبر كل الفلاتر (مطفي = يتجاوزها ويحترم فقط الصفقة الواحدة)", group=G_RSRC)
 rsrcSellOn = input.bool(true, "بيع من رمي (المعتمد)", group=G_RSRC)
@@ -2922,13 +2922,13 @@ if useRmiSource and rmiSrcIsNew
 // Applied at the FINAL entry gate — no signal source can bypass it.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_OURF = "19 ■ Our Regime Gate (فلترنا)"
-useOurRegimeGate = input.bool(true, "Use Our Regime Gate", group=G_OURF)
+useOurRegimeGate = input.bool(false, "Use Our Regime Gate", group=G_OURF)
 ourTrendADX = input.float(25.0, "Trend Min ADX", minval=5.0, maxval=60.0, step=1.0, group=G_OURF)
 ourTrendNeedHTF = input.bool(true, "Trend Needs HTF Agreement", group=G_OURF)
 ourRangeBuyMax = input.float(35.0, "Range: BUY Only Below %", minval=5.0, maxval=50.0, step=1.0, group=G_OURF)
 ourRangeSellMin = input.float(65.0, "Range: SELL Only Above %", minval=50.0, maxval=95.0, step=1.0, group=G_OURF)
-ourShowRegimeBg = input.bool(true, "Show Trend Background", group=G_OURF)
-ourShowBlocked = input.bool(true, "Show Blocked X Marks", group=G_OURF)
+ourShowRegimeBg = input.bool(false, "Show Trend Background", group=G_OURF)
+ourShowBlocked = input.bool(false, "Show Blocked X Marks", group=G_OURF)
 
 ourTrendUpRaw = adx >= ourTrendADX and ema20 > ema50 and close > ema50 and pDI > mDI
 ourTrendDownRaw = adx >= ourTrendADX and ema20 < ema50 and close < ema50 and mDI > pDI
