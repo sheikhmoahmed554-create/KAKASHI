@@ -2719,9 +2719,9 @@ ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1Se
 // (RMI Filter, Our Regime Gate, Solo Test, cooldowns, Trade Side).
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_RSRC = "24 ■ رمي مصدر دخول — RMI Source"
-useRmiSource = input.bool(false, "استخدم رمي كمصدر دخول", group=G_RSRC)
+useRmiSource = input.bool(true, "استخدم رمي كمصدر دخول", group=G_RSRC)
 rsrcOnlyMode = input.bool(false, "رمي لحاله — يطفي باقي المصادر", group=G_RSRC)
-rsrcRespectFilters = input.bool(false, "النسخة ②: رمي يمر عبر كل الفلاتر (مطفي = يتجاوزها ويحترم فقط الصفقة الواحدة)", group=G_RSRC)
+rsrcRespectFilters = input.bool(true, "النسخة ②: رمي يمر عبر كل الفلاتر (مطفي = يتجاوزها ويحترم فقط الصفقة الواحدة)", group=G_RSRC)
 rsrcSellOn = input.bool(true, "بيع من رمي (المعتمد)", group=G_RSRC)
 rsrcBuyOn = input.bool(false, "شراء من رمي (غير معتمد)", group=G_RSRC)
 rsrcLength = input.int(18, "RMI Length", minval=1, group=G_RSRC)
@@ -2733,11 +2733,11 @@ rsrcReactionBars = input.int(2, "Consecutive Reaction Candles", minval=1, maxval
 rsrcMaxWaitBars = input.int(12, "Maximum Bars After Zone", minval=1, maxval=50, group=G_RSRC)
 rsrcNeedPriceReaction = input.bool(true, "Require Price Reaction", group=G_RSRC)
 rsrcNeedSignalCross = input.bool(false, "Require RMI / Signal Cross", group=G_RSRC)
-rsrcExtremeLookback = input.int(40, "Previous High/Low Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
+rsrcExtremeLookback = input.int(60, "Previous High/Low Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
 rsrcSweepLookback = input.int(0, "Liquidity Sweep Lookback (0 = Off)", minval=0, maxval=500, group=G_RSRC)
 rsrcUseOwnTargets = input.bool(true, "أهداف رمي الخاصة (130/70)", group=G_RSRC)
-rsrcTargetPts = input.float(130.0, "RMI Target Points", minval=1.0, step=1.0, group=G_RSRC)
-rsrcStopPts = input.float(70.0, "RMI Stop Points", minval=1.0, step=1.0, group=G_RSRC)
+rsrcTargetPts = input.float(200.0, "RMI Target Points", minval=1.0, step=1.0, group=G_RSRC)
+rsrcStopPts = input.float(90.0, "RMI Stop Points", minval=1.0, step=1.0, group=G_RSRC)
 
 rsrcUpMom = ta.ema(math.max(close - close[rsrcMomentum], 0.0), rsrcLength)
 rsrcDnMom = ta.ema(math.max(close[rsrcMomentum] - close, 0.0), rsrcLength)
@@ -2831,6 +2831,10 @@ if rsrcRawBuy or rsrcRawSell
     rsrcBuyReact := 0
     rsrcSellReact := 0
 
+// توصيل مدارس SYR30 (أقسام 18/19/20) بالراوتر — كان ناتجها معلقاً بلا استخدام
+buySignal := buySignal or syr30ReplacementBuy
+sellSignal := sellSignal or syr30ReplacementSell
+
 bool preRmiBuySignal = buySignal
 bool preRmiSellSignal = sellSignal
 if useRmiSource and rsrcOnlyMode
@@ -2854,12 +2858,12 @@ if useRmiSource and rmiSrcIsNew
 // هدف = 1.5 × ارتفاع الرينج، حد صفقتين بالجلسة، إغلاق قسري 13:00 UTC.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_ORB = "27 ■ اختراق افتتاح لندن — ORB London"
-useOrbLondon = input.bool(false, "استخدم اختراق افتتاح لندن", group=G_ORB)
-orbBufPts = input.float(15.0, "هامش الكسر (نقاط)", minval=0.0, step=1.0, group=G_ORB)
-orbTgtMult = input.float(1.5, "الهدف = مضاعف ارتفاع الرينج", minval=0.5, step=0.25, group=G_ORB)
-orbMaxTrades = input.int(2, "أقصى صفقات بالجلسة", minval=1, maxval=5, group=G_ORB)
-orbMinRangePts = input.float(20.0, "أصغر رينج مقبول (نقاط)", minval=5.0, group=G_ORB)
-orbMaxRangePts = input.float(300.0, "أكبر رينج مقبول (نقاط)", minval=50.0, group=G_ORB)
+useOrbLondon = input.bool(true, "استخدم اختراق افتتاح لندن", group=G_ORB)
+orbBufPts = input.float(10.0, "هامش الكسر (نقاط)", minval=0.0, step=1.0, group=G_ORB)
+orbTgtMult = input.float(1.0, "الهدف = مضاعف ارتفاع الرينج", minval=0.5, step=0.25, group=G_ORB)
+orbMaxTrades = input.int(4, "أقصى صفقات بالجلسة", minval=1, maxval=5, group=G_ORB)
+orbMinRangePts = input.float(40.0, "أصغر رينج مقبول (نقاط)", minval=5.0, group=G_ORB)
+orbMaxRangePts = input.float(200.0, "أكبر رينج مقبول (نقاط)", minval=50.0, group=G_ORB)
 
 utcHourNow = int((time % 86400000) / 3600000)
 utcMinInHour = int((time % 3600000) / 60000)
@@ -2904,10 +2908,10 @@ if orbDirectBuy or orbDirectSell
 // هدف منتصف رينج آسيا.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_KZ = "28 ■ كنسة لندن — Asia Sweep"
-useKzLondon = input.bool(false, "استخدم كنسة لندن", group=G_KZ)
+useKzLondon = input.bool(true, "استخدم كنسة لندن", group=G_KZ)
 kzBreakPts = input.float(5.0, "كسر رينج آسيا (نقاط)", minval=0.0, step=1.0, group=G_KZ)
-kzWaitBars = input.int(30, "مهلة الرجوع داخل الرينج (شموع)", minval=3, group=G_KZ)
-kzStopBufPts = input.float(10.0, "هامش الستوب خلف رأس الكنسة (نقاط)", minval=0.0, step=1.0, group=G_KZ)
+kzWaitBars = input.int(20, "مهلة الرجوع داخل الرينج (شموع)", minval=3, group=G_KZ)
+kzStopBufPts = input.float(20.0, "هامش الستوب خلف رأس الكنسة (نقاط)", minval=0.0, step=1.0, group=G_KZ)
 var int kzDay = -1
 var float kzAsiaHi = na
 var float kzAsiaLo = na
