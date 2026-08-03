@@ -2866,6 +2866,24 @@ if useRmiSource and rmiSrcIsNew
 // الستوب يبقى ستوب الصفقة الأصلي. إذا رمي بنص رينجه لحظة الدخول — لا تدخّل.
 // (يستخدم نفس حساب رمي المزروع في قسم 24: طول 18 / زخم 6)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 26 ■ TRADE MANAGEMENT — إدارة الصفقة (نفس الصفقات، مصير أحسن)
+// ثلاث أدوات تشتغل بعد الدخول، كل صفقات المؤشر تبقى كما هي:
+// ① قفل التعادل: بعد ربح X نقطة ينتقل الستوب للدخول+Y
+// ② بتر الخاسرة: صفقة عمرها N دقيقة وواقفة تحت -P نقطة تُقفل بالسوق
+// ③ تضييق بالعمر: بعد N دقيقة بلا حسم يُشد الستوب لنسبة من الأصلي
+// القيم الافتراضية هي الفائزة بالامتحان المقفول (تدريب +13.8k / امتحان +6.0k تحسين)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+G_MGMT = "26 ■ إدارة الصفقة — Trade Management"
+useTradeMgmt = input.bool(false, "استخدم إدارة الصفقة", group=G_MGMT)
+mgmtBeArm = input.float(10.0, "① قفل التعادل بعد ربح (نقاط، 0=مطفي)", minval=0.0, step=1.0, group=G_MGMT)
+mgmtBeOffset = input.float(5.0, "① الستوب الجديد = الدخول + (نقاط)", minval=0.0, step=1.0, group=G_MGMT)
+mgmtCutBars = input.int(30, "② بتر الخاسرة بعد (دقائق، 0=مطفي)", minval=0, group=G_MGMT)
+mgmtCutPnl = input.float(40.0, "② البتر إذا الخسارة تجاوزت (نقاط)", minval=1.0, step=1.0, group=G_MGMT)
+mgmtTightenBars = input.int(20, "③ تضييق الستوب بعد (دقائق، 0=مطفي)", minval=0, group=G_MGMT)
+mgmtTightenFrac = input.float(0.3, "③ الستوب الجديد = النسبة من الأصلي", minval=0.05, maxval=1.0, step=0.05, group=G_MGMT)
+var bool tradeBeArmed = false
+
 G_RMIFIX = "25 ■ رمي مصحح الأهداف — RMI Zones Target"
 useRmiTargetFix = input.bool(false, "استخدم رمي مصحح الأهداف", group=G_RMIFIX)
 rmiFixMode = input.string("خروج عند لمس رمي للمنطقة (المعتمد ✓)", "شكل الهدف", options=["خروج عند لمس رمي للمنطقة (المعتمد ✓)", "سعر محطوط عالشارت (رسب بالامتحان ✗)"], group=G_RMIFIX)
@@ -2954,6 +2972,7 @@ if canEnterLong or canEnterShort
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
     entryBar := bar_index
     lastTradeBar := bar_index
+    tradeBeArmed := false
     sy999TradeMFE := 0.0
     sy999TradeMAE := 0.0
     sy999TradeRegime := sy999SignalRegime
@@ -3032,6 +3051,25 @@ if active and bar_index > entryBar
         if rmiFixTargetHit
             earlyExit := true
             sy999IntrabarExitPrice := close
+    if useTradeMgmt and mgmtCutBars > 0 and barstate.isconfirmed and not hardExit and not earlyExit
+        if bar_index - entryBar >= mgmtCutBars and currentPnl <= -mgmtCutPnl
+            earlyExit := true
+            sy999IntrabarExitPrice := close
+    // تحريك الستوب (يسري من الشمعة التالية — فحوصات هذه الشمعة تمت فوق)
+    if useTradeMgmt and not hardExit and not earlyExit
+        if mgmtTightenBars > 0 and bar_index - entryBar == mgmtTightenBars
+            float mgmtNewSl = side == 1 ? entryPrice - tradeStopPts * mgmtTightenFrac * pointUnit : entryPrice + tradeStopPts * mgmtTightenFrac * pointUnit
+            if side == 1 ? mgmtNewSl > slPrice : mgmtNewSl < slPrice
+                slPrice := mgmtNewSl
+                tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
+        if mgmtBeArm > 0 and not tradeBeArmed
+            float mgmtFav = side == 1 ? (high - entryPrice) / pointUnit : (entryPrice - low) / pointUnit
+            if mgmtFav >= mgmtBeArm
+                tradeBeArmed := true
+                float mgmtBeSl = side == 1 ? entryPrice + mgmtBeOffset * pointUnit : entryPrice - mgmtBeOffset * pointUnit
+                if side == 1 ? mgmtBeSl > slPrice : mgmtBeSl < slPrice
+                    slPrice := mgmtBeSl
+                    tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
     if hardExit or earlyExit
         exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
         exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)
