@@ -3055,6 +3055,8 @@ if active and bar_index > entryBar
         if bar_index - entryBar >= mgmtCutBars and currentPnl <= -mgmtCutPnl
             earlyExit := true
             sy999IntrabarExitPrice := close
+            if showSignals
+                label.new(bar_index, close, "✂️ بتر", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.orange, 20), textcolor=color.black, size=size.tiny)
     // تحريك الستوب (يسري من الشمعة التالية — فحوصات هذه الشمعة تمت فوق)
     if useTradeMgmt and not hardExit and not earlyExit
         if mgmtTightenBars > 0 and bar_index - entryBar == mgmtTightenBars
@@ -3062,6 +3064,9 @@ if active and bar_index > entryBar
             if side == 1 ? mgmtNewSl > slPrice : mgmtNewSl < slPrice
                 slPrice := mgmtNewSl
                 tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
+                if showTradeLines and not na(sy348SLLine)
+                    line.set_y1(sy348SLLine, slPrice)
+                    line.set_y2(sy348SLLine, slPrice)
         if mgmtBeArm > 0 and not tradeBeArmed
             float mgmtFav = side == 1 ? (high - entryPrice) / pointUnit : (entryPrice - low) / pointUnit
             if mgmtFav >= mgmtBeArm
@@ -3070,6 +3075,11 @@ if active and bar_index > entryBar
                 if side == 1 ? mgmtBeSl > slPrice : mgmtBeSl < slPrice
                     slPrice := mgmtBeSl
                     tradeStopPts := side == 1 ? (entryPrice - slPrice) / pointUnit : (slPrice - entryPrice) / pointUnit
+                    if showTradeLines and not na(sy348SLLine)
+                        line.set_y1(sy348SLLine, slPrice)
+                        line.set_y2(sy348SLLine, slPrice)
+                    if showSignals
+                        label.new(bar_index, slPrice, "⚖️ تعادل", style=side == 1 ? label.style_label_up : label.style_label_down, color=color.new(color.teal, 20), textcolor=color.white, size=size.tiny)
     if hardExit or earlyExit
         exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
         exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)
