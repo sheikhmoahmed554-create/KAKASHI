@@ -2886,6 +2886,7 @@ mgmtTightenFrac = input.float(0.3, "③ الستوب الجديد = النسبة
 // MODIFY_SL {sl_price}: حرّك الستوب النايم للسعر المرفق (تعادل/تضييق) — التنفيذ لاحقاً عند البروكر لحظي
 // CLOSE_AT {price}: أغلق الصفقة بالسعر المرفق: إذا السوق عنده أو أحسن → سوق فوراً؛
 //   إذا تحرك لأسوأ → ضع أمر إغلاق نايم على السعر نفسه وانتظر لمسه — ممنوع الإغلاق بسعر أسوأ
+mgmtOnRmiSrc = input.bool(false, "طبّق الإدارة أيضاً على صفقات رمي المصدر — غير ممتحن ⚠️", group=G_MGMT)
 mgmtSendAlerts = input.bool(true, "أرسل أوامر الإدارة للبوت (MODIFY_SL / CLOSE_AT)", group=G_MGMT)
 var bool tradeBeArmed = false
 var bool tradeStopMoved = false
@@ -2895,6 +2896,7 @@ useRmiTargetFix = input.bool(false, "استخدم رمي مصحح الأهداف
 rmiFixMode = input.string("خروج عند لمس رمي للمنطقة (المعتمد ✓)", "شكل الهدف", options=["خروج عند لمس رمي للمنطقة (المعتمد ✓)", "سعر محطوط عالشارت (رسب بالامتحان ✗)"], group=G_RMIFIX)
 rmiFixBuyZone = input.float(20.0, "منطقة الشراء (تدخل إذا رمي ≤)", minval=1.0, maxval=49.0, step=1.0, group=G_RMIFIX)
 rmiFixSellZone = input.float(78.0, "منطقة البيع (تدخل إذا رمي ≥)", minval=51.0, maxval=99.0, step=1.0, group=G_RMIFIX)
+rmiFixOnRmiSrc = input.bool(false, "طبّق أيضاً على صفقات رمي المصدر — غير ممتحن ⚠️", group=G_RMIFIX)
 rmiFixEventMode = rmiFixMode == "خروج عند لمس رمي للمنطقة (المعتمد ✓)"
 var bool tradeRmiFix = false
 
@@ -2940,7 +2942,7 @@ if canEnterLong or canEnterShort
         tradeRiskState := "RMI HARD"
         tradeTargetSource := "RMI 130/70"
     tradeRmiFix := false
-    if useRmiTargetFix and not useMainFixedRisk
+    if useRmiTargetFix and not useMainFixedRisk and (tradeEntrySourceCode != 7 or rmiFixOnRmiSrc)
         bool rmiFixZoneOK = side == 1 ? rsrcRmi <= rmiFixBuyZone : rsrcRmi >= rmiFixSellZone
         if rmiFixZoneOK
             if rmiFixEventMode
@@ -3060,7 +3062,7 @@ if active and bar_index > entryBar
             sy999IntrabarExitPrice := close
             if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
                 alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"RMI_ZONE_EXIT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
-    if useTradeMgmt and mgmtCutBars > 0 and barstate.isconfirmed and not hardExit and not earlyExit
+    if useTradeMgmt and (tradeEntrySourceCode != 7 or mgmtOnRmiSrc) and mgmtCutBars > 0 and barstate.isconfirmed and not hardExit and not earlyExit
         if bar_index - entryBar >= mgmtCutBars and currentPnl <= -mgmtCutPnl
             earlyExit := true
             sy999IntrabarExitPrice := close
@@ -3069,7 +3071,7 @@ if active and bar_index > entryBar
             if mgmtSendAlerts and sy963UseAlertFunction and barstate.isrealtime
                 alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"MGMT_CUT","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
     // تحريك الستوب (يسري من الشمعة التالية — فحوصات هذه الشمعة تمت فوق)
-    if useTradeMgmt and not hardExit and not earlyExit
+    if useTradeMgmt and (tradeEntrySourceCode != 7 or mgmtOnRmiSrc) and not hardExit and not earlyExit
         if mgmtTightenBars > 0 and bar_index - entryBar == mgmtTightenBars
             float mgmtNewSl = side == 1 ? entryPrice - tradeStopPts * mgmtTightenFrac * pointUnit : entryPrice + tradeStopPts * mgmtTightenFrac * pointUnit
             bool mgmtTightenSafe = side == 1 ? mgmtNewSl < close : mgmtNewSl > close
