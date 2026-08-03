@@ -2862,14 +2862,16 @@ if useRmiSource and rmiSrcIsNew
 // رمي يتدخل فقط إذا فتحت الصفقة وهو داخل إحدى مناطقه:
 // باي ورمي بمنطقة 20 (وتحت) → هدف الصفقة وصول رمي لمنطقة 80 المعاكسة.
 // سيل ورمي بمنطقة 80 (وفوق) → هدفه رجوع رمي لمنطقة 20.
-// الخروج عند إغلاق أول شمعة يلمس فيها رمي المنطقة المعاكسة.
+// الهدف سعرٌ يوضع على الشارت لحظة الدخول (معادلة رمي العكسية) ولا يتحرك — TP عادي باللمس.
 // الستوب يبقى ستوب الصفقة الأصلي. إذا رمي بنص رينجه لحظة الدخول — لا تدخّل.
 // (يستخدم نفس حساب رمي المزروع في قسم 24: طول 18 / زخم 6)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 G_RMIFIX = "25 ■ رمي مصحح الأهداف — RMI Zones Target"
 useRmiTargetFix = input.bool(false, "استخدم رمي مصحح الأهداف", group=G_RMIFIX)
+rmiFixMode = input.string("خروج عند لمس رمي للمنطقة (المعتمد ✓)", "شكل الهدف", options=["خروج عند لمس رمي للمنطقة (المعتمد ✓)", "سعر محطوط عالشارت (رسب بالامتحان ✗)"], group=G_RMIFIX)
 rmiFixBuyZone = input.float(20.0, "منطقة الشراء (تدخل إذا رمي ≤)", minval=1.0, maxval=49.0, step=1.0, group=G_RMIFIX)
-rmiFixSellZone = input.float(80.0, "منطقة البيع (تدخل إذا رمي ≥)", minval=51.0, maxval=99.0, step=1.0, group=G_RMIFIX)
+rmiFixSellZone = input.float(78.0, "منطقة البيع (تدخل إذا رمي ≥)", minval=51.0, maxval=99.0, step=1.0, group=G_RMIFIX)
+rmiFixEventMode = rmiFixMode == "خروج عند لمس رمي للمنطقة (المعتمد ✓)"
 var bool tradeRmiFix = false
 
 canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy)
@@ -2917,11 +2919,24 @@ if canEnterLong or canEnterShort
     if useRmiTargetFix and not useMainFixedRisk
         bool rmiFixZoneOK = side == 1 ? rsrcRmi <= rmiFixBuyZone : rsrcRmi >= rmiFixSellZone
         if rmiFixZoneOK
-            tradeRmiFix := true
-            tpPrice := na
-            tradeTargetPts := 100000
-            tradeRiskState := "RMI ZONE"
-            tradeTargetSource := "رمي → منطقة " + str.tostring(side == 1 ? rmiFixSellZone : rmiFixBuyZone, "#")
+            if rmiFixEventMode
+                // المعتمد: الهدف وصول رمي للمنطقة المعاكسة — خروج عند إغلاق شمعة اللمس
+                tradeRmiFix := true
+                tradeTargetPts := 100000
+                tradeRiskState := "RMI ZONE"
+                tradeTargetSource := "رمي → منطقة " + str.tostring(side == 1 ? rmiFixSellZone : rmiFixBuyZone, "#")
+            else
+                // سعر محطوط: معادلة رمي العكسية (رسب بالامتحان المقفول — للاطلاع)
+                float rmiFixRatio = side == 1 ? rmiFixSellZone / (100.0 - rmiFixSellZone) : rmiFixBuyZone / (100.0 - rmiFixBuyZone)
+                float rmiFixRef = close[rsrcMomentum - 1]
+                float rmiFixTgt = side == 1 ? rmiFixRef + (rsrcLength - 1) * (rmiFixRatio * rsrcDnMom - rsrcUpMom) : rmiFixRef - (rsrcLength - 1) * (rsrcUpMom / rmiFixRatio - rsrcDnMom)
+                bool rmiFixValid = side == 1 ? rmiFixTgt > entryPrice + pointUnit : rmiFixTgt < entryPrice - pointUnit
+                if rmiFixValid
+                    tradeRmiFix := true
+                    tpPrice := rmiFixTgt
+                    tradeTargetPts := side == 1 ? (tpPrice - entryPrice) / pointUnit : (entryPrice - tpPrice) / pointUnit
+                    tradeRiskState := "RMI ZONE PRICE"
+                    tradeTargetSource := "رمي عكسية → " + str.tostring(side == 1 ? rmiFixSellZone : rmiFixBuyZone, "#")
     if tradeEntrySourceCode == 1
         m1LiveOwnTrades += 1
     else if tradeEntrySourceCode == 2
@@ -3012,7 +3027,7 @@ if active and bar_index > entryBar
         alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
 
     earlyExit = false
-    if tradeRmiFix and barstate.isconfirmed and not hardExit
+    if tradeRmiFix and rmiFixEventMode and barstate.isconfirmed and not hardExit
         bool rmiFixTargetHit = side == 1 ? rsrcRmi >= rmiFixSellZone : rsrcRmi <= rmiFixBuyZone
         if rmiFixTargetHit
             earlyExit := true
