@@ -440,7 +440,12 @@ pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=
 stopPoints = input.int(50, "③ Stop Points (الستوب)", minval=1, group=G_MAIN_NEW)
 targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_MAIN_NEW)
 useMainFixedRisk = input.bool(true, "③ TEST 1:1 — أهداف القسم الأول فقط (يلغي كل أنظمة الخروج)", group=G_MAIN_NEW)
-useSideGeometry = input.bool(false, "③ هندسة منفصلة لكل جهة (شراء نطات / بيع ماراثون)", group=G_MAIN_NEW)
+useSideGeometry = input.bool(false, "③ هندسة ذكية للأهداف", group=G_MAIN_NEW)
+sideGeoMode = input.string("By Trend Alignment", "③ الهندسة حسب", options=["By Trend Alignment", "By Side"], group=G_MAIN_NEW)
+alignedTargetPts = input.int(130, "③ هدف الصفقة الماشية مع الترند", minval=1, group=G_MAIN_NEW)
+alignedStopPts = input.int(70, "③ ستوب الماشية مع الترند", minval=1, group=G_MAIN_NEW)
+counterTargetPts = input.int(50, "③ هدف الصفقة العكسية (نطة)", minval=1, group=G_MAIN_NEW)
+counterStopPts = input.int(50, "③ ستوب العكسية", minval=1, group=G_MAIN_NEW)
 mainBuyTargetPts = input.int(50, "③ BUY Target", minval=1, group=G_MAIN_NEW)
 mainBuyStopPts = input.int(50, "③ BUY Stop", minval=1, group=G_MAIN_NEW)
 mainSellTargetPts = input.int(130, "③ SELL Target", minval=1, group=G_MAIN_NEW)
@@ -2830,8 +2835,16 @@ if canEnterLong or canEnterShort
     else if tradeEntrySourceCode == 6
         finalFusionLiveTrades += 1
     if useMainFixedRisk
-        tradeTargetPts := useSideGeometry ? (side == 1 ? mainBuyTargetPts : mainSellTargetPts) : targetPoints
-        tradeStopPts := useSideGeometry ? (side == 1 ? mainBuyStopPts : mainSellStopPts) : stopPoints
+        bool geoAligned = (side == 1 and ourTrendUp) or (side == -1 and ourTrendDown)
+        if not useSideGeometry
+            tradeTargetPts := targetPoints
+            tradeStopPts := stopPoints
+        else if sideGeoMode == "By Trend Alignment"
+            tradeTargetPts := geoAligned ? alignedTargetPts : counterTargetPts
+            tradeStopPts := geoAligned ? alignedStopPts : counterStopPts
+        else
+            tradeTargetPts := side == 1 ? mainBuyTargetPts : mainSellTargetPts
+            tradeStopPts := side == 1 ? mainBuyStopPts : mainSellStopPts
         tradeRiskState := "FIXED 1:1 HARD"
         tradeTargetSource := "MAIN ③"
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
