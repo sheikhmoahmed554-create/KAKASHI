@@ -2734,10 +2734,18 @@ orbTgtMult = input.float(1.0, "الهدف = مضاعف ارتفاع الرينج
 orbMaxTrades = input.int(4, "أقصى صفقات بالجلسة", minval=1, maxval=5, group=G_ORB)
 orbMinRangePts = input.float(40.0, "أصغر رينج مقبول (نقاط)", minval=5.0, group=G_ORB)
 orbMaxRangePts = input.float(200.0, "أكبر رينج مقبول (نقاط)", minval=50.0, group=G_ORB)
+orbClockMode = input.string("UTC — نفس ساعة الشارت", "ساعة الجلسات (لقسمي 27 و28)", options=["UTC — نفس ساعة الشارت", "ساعة سيرفر البروكر — نيويورك+7"], group=G_ORB)
+orbClockShiftHrs = input.int(0, "تزحيط إضافي للساعة (ساعات)", minval=-12, maxval=12, group=G_ORB)
+orbRangeStartH = input.int(7, "ساعة بناء الرينج", minval=0, maxval=23, group=G_ORB)
+orbRangeMins = input.int(30, "طول الرينج (دقائق)", minval=5, maxval=60, group=G_ORB)
+orbWinStartH = input.int(7, "بداية نافذة التداول (ساعة)", minval=0, maxval=23, group=G_ORB)
+orbWinEndH = input.int(13, "نهاية نافذة التداول والإغلاق القسري (ساعة)", minval=1, maxval=24, group=G_ORB)
 
-utcHourNow = int((time % 86400000) / 3600000)
-utcMinInHour = int((time % 3600000) / 60000)
-utcDayNow = int(time / 86400000)
+sessOffHrs = (orbClockMode == "ساعة سيرفر البروكر — نيويورك+7" ? (((hour(time, "America/New_York") + 7 - hour(time, "Etc/UTC")) % 24) + 24) % 24 : 0) + orbClockShiftHrs
+sessTimeNow = time + sessOffHrs * 3600000
+utcHourNow = int((sessTimeNow % 86400000) / 3600000)
+utcMinInHour = int((sessTimeNow % 3600000) / 60000)
+utcDayNow = int(sessTimeNow / 86400000)
 var int orbDay = -1
 var float orbHi = na
 var float orbLo = na
@@ -2753,7 +2761,7 @@ if utcDayNow != orbDay
     orbReady := false
     orbChecked := false
     orbTradesToday := 0
-bool orbInRangeWindow = utcHourNow == 7 and utcMinInHour < 30
+bool orbInRangeWindow = utcHourNow == orbRangeStartH and utcMinInHour < orbRangeMins
 if orbInRangeWindow and barstate.isconfirmed
     orbHi := na(orbHi) ? high : math.max(orbHi, high)
     orbLo := na(orbLo) ? low : math.min(orbLo, low)
@@ -2765,7 +2773,7 @@ if not orbChecked and not orbInRangeWindow and orbBars > 0
 float orbBuyTrig = na(orbHi) ? na : orbHi + orbBufPts * pointUnit
 float orbSellTrig = na(orbLo) ? na : orbLo - orbBufPts * pointUnit
 float orbMid = na(orbHi) ? na : (orbHi + orbLo) / 2
-bool orbWindow = useOrbLondon and orbReady and utcHourNow >= 7 and utcHourNow < 13 and not orbInRangeWindow
+bool orbWindow = useOrbLondon and orbReady and utcHourNow >= orbWinStartH and utcHourNow < orbWinEndH and not orbInRangeWindow
 orbDirectBuy = orbWindow and orbTradesToday < orbMaxTrades and close[1] < orbBuyTrig and high >= orbBuyTrig and close > orbMid
 orbDirectSell = orbWindow and orbTradesToday < orbMaxTrades and close[1] > orbSellTrig and low <= orbSellTrig and close < orbMid
 if orbDirectBuy or orbDirectSell
@@ -2782,6 +2790,9 @@ useKzLondon = input.bool(true, "استخدم كنسة لندن", group=G_KZ)
 kzBreakPts = input.float(5.0, "كسر رينج آسيا (نقاط)", minval=0.0, step=1.0, group=G_KZ)
 kzWaitBars = input.int(20, "مهلة الرجوع داخل الرينج (شموع)", minval=3, group=G_KZ)
 kzStopBufPts = input.float(20.0, "هامش الستوب خلف رأس الكنسة (نقاط)", minval=0.0, step=1.0, group=G_KZ)
+kzAsiaEndH = input.int(7, "نهاية بناء رينج آسيا (ساعة)", minval=1, maxval=23, group=G_KZ)
+kzWinStartH = input.int(7, "بداية نافذة الكنسة (ساعة)", minval=0, maxval=23, group=G_KZ)
+kzWinEndH = input.int(10, "نهاية نافذة الكنسة (ساعة)", minval=1, maxval=24, group=G_KZ)
 var int kzDay = -1
 var float kzAsiaHi = na
 var float kzAsiaLo = na
@@ -2801,10 +2812,10 @@ if utcDayNow != kzDay
     kzLoBreachBar := -1
     kzLoExt := na
     kzLoDone := false
-if utcHourNow < 7 and barstate.isconfirmed
+if utcHourNow < kzAsiaEndH and barstate.isconfirmed
     kzAsiaHi := na(kzAsiaHi) ? high : math.max(kzAsiaHi, high)
     kzAsiaLo := na(kzAsiaLo) ? low : math.min(kzAsiaLo, low)
-bool kzWindow = useKzLondon and not na(kzAsiaHi) and not na(kzAsiaLo) and utcHourNow >= 7 and utcHourNow < 10
+bool kzWindow = useKzLondon and not na(kzAsiaHi) and not na(kzAsiaLo) and utcHourNow >= kzWinStartH and utcHourNow < kzWinEndH
 bool kzFireSell = false
 bool kzFireBuy = false
 if kzWindow and barstate.isconfirmed
@@ -2958,7 +2969,7 @@ if active and bar_index > entryBar
         alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
 
     earlyExit = false
-    if tradeEntrySourceCode == 8 and utcHourNow >= 13 and barstate.isconfirmed and not hardExit
+    if tradeEntrySourceCode == 8 and utcHourNow >= orbWinEndH and barstate.isconfirmed and not hardExit
         earlyExit := true
         sy999IntrabarExitPrice := close
         if sy963UseAlertFunction and barstate.isrealtime
