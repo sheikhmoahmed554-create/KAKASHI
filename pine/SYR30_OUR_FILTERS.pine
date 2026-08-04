@@ -6,7 +6,7 @@
 // Screenshot settings applied; existing trading logic preserved, including the supplied smart filters.
 // R13: Fast Trend TF is connected to both the base map and the final K3 router.
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
-// Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
+// The three replacement schools (Balance Reset / Asia Break-Retest / Dead Auction) were removed after field testing.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
 // Exact defaults transcribed from the 24 SYR30 settings screenshots supplied on 2026-07-29.
 
@@ -80,10 +80,6 @@ G_EXEC_NEW = "14 ■ Execution / Cooldowns / Real CLOSE"
 G_ALERT_NEW = "15 ■ Alerts / Webhook / Bot"
 G_VIS_NEW = "16 ■ Statistics / Visuals"
 G_R11 = "17 ■ R11 Engines (Connors / Liquidity Sweep)"
-
-G_SYR30_BAL = "18 ■ SYR30 Balance Reset Launch"
-G_SYR30_ASIA = "19 ■ SYR30 Asia Accepted Break-Retest"
-G_SYR30_AUCT = "20 ■ SYR30 Dead Auction Reclaim"
 
 
 // ══════════════════════════════════════════════════════════════════
@@ -481,58 +477,6 @@ r11ConnorsThS = input.float(82.0, "Connors RSI3 Sell Above — UPGRADED", minval
 r11ConnorsCD = input.int(9, "Connors Cooldown Bars", minval=5, maxval=100, group=G_R11)
 
 
-// ━━━ SYR30 replacement-school controls ━━━
-syr30UseSchoolRouter = input.bool(true, "Connect SYR30 Schools To Final Router", group=G_ROUTER_NEW)
-syr30DirectEntry = input.bool(true, "SYR30 Schools: دخول مباشر (يتجاوز الكولداون والفلاتر)", group=G_ROUTER_NEW)
-syr30SoloMode = input.bool(false, "SYR30 Schools: لحالهم — يطفي باقي المصادر", group=G_ROUTER_NEW)
-
-syr30UseBalance = input.bool(false, "Enable Balance Reset Launch", group=G_SYR30_BAL)
-syr30BalanceBuyEnabled = input.bool(true, "Enable BUY", group=G_SYR30_BAL, inline="BAL_SIDE")
-syr30BalanceSellEnabled = input.bool(true, "Enable SELL", group=G_SYR30_BAL, inline="BAL_SIDE")
-syr30BalanceBars = input.int(6, "Balance Bars", minval=3, maxval=12, group=G_SYR30_BAL)
-syr30ImpulseBars = input.int(6, "Pre-Balance Impulse Bars", minval=3, maxval=12, group=G_SYR30_BAL)
-syr30ImpulseMinATR = input.float(0.80, "Minimum Pre-Balance Impulse ATR", minval=0.20, maxval=2.50, step=0.05, group=G_SYR30_BAL)
-syr30BalanceMinWidthATR = input.float(0.55, "Minimum Balance Width ATR", minval=0.20, maxval=2.00, step=0.05, group=G_SYR30_BAL)
-syr30BalanceMaxWidthATR = input.float(1.80, "Maximum Balance Width ATR", minval=0.50, maxval=4.00, step=0.05, group=G_SYR30_BAL)
-syr30BalanceMinADX = input.float(25.0, "Minimum ADX", minval=5.0, maxval=50.0, step=0.5, group=G_SYR30_BAL)
-syr30BalanceMinBodyATR = input.float(0.25, "Launch Minimum Body ATR", minval=0.05, maxval=1.50, step=0.05, group=G_SYR30_BAL)
-syr30BalanceMaxBodyATR = input.float(1.00, "Launch Maximum Body ATR", minval=0.20, maxval=2.50, step=0.05, group=G_SYR30_BAL)
-syr30BalanceMinClosePos = input.float(0.68, "Directional Close Position", minval=0.50, maxval=0.95, step=0.01, group=G_SYR30_BAL)
-syr30BalanceRequireVolumeContract = input.bool(true, "Require Volume Contraction", group=G_SYR30_BAL)
-syr30BalanceVolumeLookback = input.int(30, "Older Volume Lookback", minval=5, maxval=40, group=G_SYR30_BAL)
-
-syr30UseAsia = input.bool(false, "Enable Asia Accepted Break-Retest", group=G_SYR30_ASIA)
-syr30AsiaBuyEnabled = input.bool(true, "Enable BUY", group=G_SYR30_ASIA, inline="ASIA_SIDE")
-syr30AsiaSellEnabled = input.bool(true, "Enable SELL", group=G_SYR30_ASIA, inline="ASIA_SIDE")
-syr30AsiaBuildStartUTC = input.int(0, "Asia Range Start Minute UTC", minval=0, maxval=1439, group=G_SYR30_ASIA)
-syr30AsiaBuildEndUTC = input.int(360, "Asia Range End Minute UTC", minval=1, maxval=1440, group=G_SYR30_ASIA)
-syr30AsiaTradeStartUTC = input.int(390, "Retest Window Start Minute UTC", minval=0, maxval=1439, group=G_SYR30_ASIA)
-syr30AsiaTradeEndUTC = input.int(720, "Retest Window End Minute UTC", minval=1, maxval=1440, group=G_SYR30_ASIA)
-syr30AsiaBreakMemory = input.int(2, "Accepted Break Memory Bars", minval=1, maxval=10, group=G_SYR30_ASIA)
-syr30AsiaBreakBufferATR = input.float(0.08, "Break Buffer ATR", minval=0.00, maxval=0.50, step=0.01, group=G_SYR30_ASIA)
-syr30AsiaRetestToleranceATR = input.float(0.15, "Retest Tolerance ATR", minval=0.02, maxval=0.60, step=0.01, group=G_SYR30_ASIA)
-syr30AsiaMinClosePos = input.float(0.62, "Directional Close Position", minval=0.50, maxval=0.95, step=0.01, group=G_SYR30_ASIA)
-syr30AsiaBuyMinFlowZ = input.float(-0.05, "BUY Minimum Flow Z", minval=-3.0, maxval=3.0, step=0.05, group=G_SYR30_ASIA)
-syr30AsiaSellMaxFlowZ = input.float(0.05, "SELL Maximum Flow Z", minval=-3.0, maxval=3.0, step=0.05, group=G_SYR30_ASIA)
-syr30AsiaRequireFastTrend = input.bool(false, "Require Fast Trend Not Opposite", group=G_SYR30_ASIA)
-
-syr30UseDeadAuction = input.bool(false, "Enable Dead Auction Reclaim", group=G_SYR30_AUCT)
-syr30AuctionBuyEnabled = input.bool(false, "Enable BUY", group=G_SYR30_AUCT, inline="AUCT_SIDE")
-syr30AuctionSellEnabled = input.bool(false, "Enable SELL", group=G_SYR30_AUCT, inline="AUCT_SIDE")
-syr30AuctionLookback = input.int(40, "Auction Lookback", minval=15, maxval=80, group=G_SYR30_AUCT)
-syr30AuctionMaxADX = input.float(15.0, "Maximum ADX", minval=8.0, maxval=35.0, step=0.5, group=G_SYR30_AUCT)
-syr30AuctionMaxER = input.float(0.040, "Maximum Efficiency Ratio", minval=0.01, maxval=0.20, step=0.005, group=G_SYR30_AUCT)
-syr30AuctionMaxMidSlopeATR = input.float(0.65, "Maximum Midpoint Drift ATR", minval=0.10, maxval=1.50, step=0.05, group=G_SYR30_AUCT)
-syr30AuctionMinCenterAcceptance = input.float(0.14, "Minimum Center Acceptance", minval=0.05, maxval=0.60, step=0.01, group=G_SYR30_AUCT)
-syr30AuctionTouchBand = input.float(0.15, "Edge Touch Band Of Auction", minval=0.05, maxval=0.30, step=0.01, group=G_SYR30_AUCT)
-syr30AuctionTouchLookback = input.int(10, "Edge Touch Count Lookback", minval=3, maxval=30, group=G_SYR30_AUCT)
-syr30AuctionMinTouches = input.float(1.0, "Minimum Touches Per Edge", minval=1.0, maxval=8.0, step=1.0, group=G_SYR30_AUCT)
-syr30AuctionMinWidthPts = input.float(60.0, "Minimum Auction Width Points", minval=30.0, maxval=250.0, step=5.0, group=G_SYR30_AUCT)
-syr30AuctionMaxWidthPts = input.float(360.0, "Maximum Auction Width Points", minval=100.0, maxval=800.0, step=10.0, group=G_SYR30_AUCT)
-syr30AuctionMinValueDistancePts = input.float(32.0, "Minimum Distance From Rolling Value", minval=5.0, maxval=150.0, step=1.0, group=G_SYR30_AUCT)
-syr30AuctionMinClosePos = input.float(0.62, "Reclaim Close Position", minval=0.50, maxval=0.90, step=0.01, group=G_SYR30_AUCT)
-syr30AuctionMinBodyATR = input.float(0.10, "Minimum Reclaim Body ATR", minval=0.05, maxval=0.80, step=0.05, group=G_SYR30_AUCT)
-syr30AuctionMaxBodyATR = input.float(0.80, "Maximum Reclaim Body ATR", minval=0.20, maxval=1.50, step=0.05, group=G_SYR30_AUCT)
 useRoomFilter = input.bool(true, "Require Room For TP", group=G_RISK_NEW)
 smartShowExitState = input.bool(false, "Show TP/SL Plan On Entry", group=G_RISK_NEW)
 smartMinStopPts = 60.0
@@ -1490,79 +1434,6 @@ rawSell = not useSY389BiasEngine ? rawSellBase389 : sy389BiasDown ? (rawSellBase
 baseBuySignal = allowLong and rawBuy and not rawSell
 baseSellSignal = allowShort and rawSell and not rawBuy
 
-m1AtrSafe = math.max(atr, syminfo.mintick)
-syr30BodyATR = body / m1AtrSafe
-syr30SignedVolume = (close > open ? 1.0 : close < open ? -1.0 : 0.0) * nz(volume, 0.0)
-syr30FlowFast = ta.ema(syr30SignedVolume, 5)
-syr30FlowSlow = ta.ema(syr30SignedVolume, 20)
-syr30FlowStd = ta.stdev(syr30SignedVolume, 30)
-syr30FlowZ = (syr30FlowFast - syr30FlowSlow) / math.max(nz(syr30FlowStd, 0.0), 0.000001)
-
-// ━━━ SYR30 SCHOOL 1: BALANCE RESET LAUNCH ━━━
-syr30BalanceHigh = ta.highest(high, syr30BalanceBars)[1]
-syr30BalanceLow = ta.lowest(low, syr30BalanceBars)[1]
-syr30BalanceWidthATR = (syr30BalanceHigh - syr30BalanceLow) / m1AtrSafe
-syr30ImpulseUp = close[syr30BalanceBars] - close[syr30BalanceBars + syr30ImpulseBars] > syr30ImpulseMinATR * atr[syr30BalanceBars]
-syr30ImpulseDown = close[syr30BalanceBars + syr30ImpulseBars] - close[syr30BalanceBars] > syr30ImpulseMinATR * atr[syr30BalanceBars]
-syr30RecentBalanceVolume = ta.sma(nz(volume, 0.0), syr30BalanceBars)[1]
-syr30OlderBalanceVolume = ta.sma(nz(volume, 0.0), syr30BalanceVolumeLookback)[syr30BalanceBars + 1]
-syr30BalanceVolumeOK = not syr30BalanceRequireVolumeContract or syr30RecentBalanceVolume < syr30OlderBalanceVolume
-syr30BalanceUpTrend = ema20 > ema50 and tf5Dir == 1 and tf15Dir >= 0 and pDI > mDI
-syr30BalanceDownTrend = ema20 < ema50 and tf5Dir == -1 and tf15Dir <= 0 and mDI > pDI
-syr30BalanceBuy = syr30UseBalance and syr30BalanceBuyEnabled and tradeableBase and syr30BalanceUpTrend and syr30ImpulseUp and syr30BalanceWidthATR >= syr30BalanceMinWidthATR and syr30BalanceWidthATR <= syr30BalanceMaxWidthATR and syr30BalanceVolumeOK and close > syr30BalanceHigh and close > open and closePosBuy > syr30BalanceMinClosePos and syr30BodyATR >= syr30BalanceMinBodyATR and syr30BodyATR <= syr30BalanceMaxBodyATR and adx >= syr30BalanceMinADX
-syr30BalanceSell = syr30UseBalance and syr30BalanceSellEnabled and tradeableBase and syr30BalanceDownTrend and syr30ImpulseDown and syr30BalanceWidthATR >= syr30BalanceMinWidthATR and syr30BalanceWidthATR <= syr30BalanceMaxWidthATR and syr30BalanceVolumeOK and close < syr30BalanceLow and close < open and closePosSell > syr30BalanceMinClosePos and syr30BodyATR >= syr30BalanceMinBodyATR and syr30BodyATR <= syr30BalanceMaxBodyATR and adx >= syr30BalanceMinADX
-
-// ━━━ SYR30 SCHOOL 2: ASIA ACCEPTED BREAK-RETEST ━━━
-syr30UtcMinute = int((time % 86400000) / 60000)
-syr30UtcDay = int(time / 86400000)
-syr30NewUtcDay = ta.change(syr30UtcDay) != 0
-var float syr30AsiaHigh = na
-var float syr30AsiaLow = na
-if syr30NewUtcDay
-    syr30AsiaHigh := na
-    syr30AsiaLow := na
-syr30AsiaBuilding = syr30UtcMinute >= syr30AsiaBuildStartUTC and syr30UtcMinute < syr30AsiaBuildEndUTC
-if syr30AsiaBuilding
-    syr30AsiaHigh := na(syr30AsiaHigh) ? high : math.max(syr30AsiaHigh, high)
-    syr30AsiaLow := na(syr30AsiaLow) ? low : math.min(syr30AsiaLow, low)
-syr30AsiaReady = syr30UtcMinute >= syr30AsiaBuildEndUTC and not na(syr30AsiaHigh) and not na(syr30AsiaLow)
-syr30AsiaBreakBuy = syr30AsiaReady and close > syr30AsiaHigh + syr30AsiaBreakBufferATR * atr
-syr30AsiaBreakSell = syr30AsiaReady and close < syr30AsiaLow - syr30AsiaBreakBufferATR * atr
-syr30AsiaRecentBreakBuy = ta.highest(syr30AsiaBreakBuy ? 1.0 : 0.0, syr30AsiaBreakMemory)[1] > 0
-syr30AsiaRecentBreakSell = ta.highest(syr30AsiaBreakSell ? 1.0 : 0.0, syr30AsiaBreakMemory)[1] > 0
-syr30AsiaWindow = syr30UtcMinute >= syr30AsiaTradeStartUTC and syr30UtcMinute < syr30AsiaTradeEndUTC
-syr30AsiaFastBuyOK = not syr30AsiaRequireFastTrend or tf5Dir >= 0
-syr30AsiaFastSellOK = not syr30AsiaRequireFastTrend or tf5Dir <= 0
-syr30AsiaBuy = syr30UseAsia and syr30AsiaBuyEnabled and tradeableBase and syr30AsiaWindow and syr30AsiaRecentBreakBuy and low <= syr30AsiaHigh + syr30AsiaRetestToleranceATR * atr and close > syr30AsiaHigh and close > open and closePosBuy > syr30AsiaMinClosePos and syr30FlowZ > syr30AsiaBuyMinFlowZ and syr30AsiaFastBuyOK
-syr30AsiaSell = syr30UseAsia and syr30AsiaSellEnabled and tradeableBase and syr30AsiaWindow and syr30AsiaRecentBreakSell and high >= syr30AsiaLow - syr30AsiaRetestToleranceATR * atr and close < syr30AsiaLow and close < open and closePosSell > syr30AsiaMinClosePos and syr30FlowZ < syr30AsiaSellMaxFlowZ and syr30AsiaFastSellOK
-
-// ━━━ SYR30 SCHOOL 3: DEAD AUCTION RECLAIM ━━━
-syr30AuctionHigh = ta.highest(high, syr30AuctionLookback)[1]
-syr30AuctionLow = ta.lowest(low, syr30AuctionLookback)[1]
-syr30AuctionWidth = syr30AuctionHigh - syr30AuctionLow
-syr30AuctionWidthPts = syr30AuctionWidth / pointUnit
-syr30AuctionMid = (syr30AuctionHigh + syr30AuctionLow) * 0.5
-syr30AuctionPosPrev = (close[1] - syr30AuctionLow) / math.max(syr30AuctionWidth, syminfo.mintick)
-syr30AuctionCenterNow = syr30AuctionPosPrev >= 0.30 and syr30AuctionPosPrev <= 0.70
-syr30AuctionCenterAcceptance = ta.sma(syr30AuctionCenterNow ? 1.0 : 0.0, syr30AuctionLookback)
-syr30AuctionLowTouchNow = low[1] <= syr30AuctionLow + syr30AuctionTouchBand * syr30AuctionWidth
-syr30AuctionHighTouchNow = high[1] >= syr30AuctionHigh - syr30AuctionTouchBand * syr30AuctionWidth
-syr30AuctionLowTouches = ta.sma(syr30AuctionLowTouchNow ? 1.0 : 0.0, syr30AuctionTouchLookback) * syr30AuctionTouchLookback
-syr30AuctionHighTouches = ta.sma(syr30AuctionHighTouchNow ? 1.0 : 0.0, syr30AuctionTouchLookback) * syr30AuctionTouchLookback
-syr30AuctionMidSlopeATR = math.abs(syr30AuctionMid - syr30AuctionMid[8]) / m1AtrSafe
-syr30AuctionTypical = hlc3
-syr30AuctionVolumeAvg = ta.sma(nz(volume, 0.0), syr30AuctionLookback)[1]
-syr30AuctionVWAP = ta.sma(syr30AuctionTypical * nz(volume, 0.0), syr30AuctionLookback)[1] / math.max(syr30AuctionVolumeAvg, 0.000001)
-syr30AuctionValueDistancePts = math.abs(syr30AuctionVWAP - close) / pointUnit
-syr30AuctionRegime = syr30UseDeadAuction and tradeableBase and adx <= syr30AuctionMaxADX and sy389LocalER <= syr30AuctionMaxER and syr30AuctionMidSlopeATR <= syr30AuctionMaxMidSlopeATR and syr30AuctionCenterAcceptance >= syr30AuctionMinCenterAcceptance and syr30AuctionLowTouches >= syr30AuctionMinTouches and syr30AuctionHighTouches >= syr30AuctionMinTouches and syr30AuctionWidthPts >= syr30AuctionMinWidthPts and syr30AuctionWidthPts <= syr30AuctionMaxWidthPts and syr30AuctionValueDistancePts >= syr30AuctionMinValueDistancePts
-syr30DeadAuctionBuy = syr30AuctionRegime and syr30AuctionBuyEnabled and low < syr30AuctionLow and close > syr30AuctionLow and close > open and closePosBuy >= syr30AuctionMinClosePos and syr30BodyATR >= syr30AuctionMinBodyATR and syr30BodyATR <= syr30AuctionMaxBodyATR
-syr30DeadAuctionSell = syr30AuctionRegime and syr30AuctionSellEnabled and high > syr30AuctionHigh and close < syr30AuctionHigh and close < open and closePosSell >= syr30AuctionMinClosePos and syr30BodyATR >= syr30AuctionMinBodyATR and syr30BodyATR <= syr30AuctionMaxBodyATR
-
-syr30SchoolBuyVotes = (syr30BalanceBuy ? 1 : 0) + (syr30AsiaBuy ? 1 : 0) + (syr30DeadAuctionBuy ? 1 : 0)
-syr30SchoolSellVotes = (syr30BalanceSell ? 1 : 0) + (syr30AsiaSell ? 1 : 0) + (syr30DeadAuctionSell ? 1 : 0)
-syr30ReplacementBuy = syr30UseSchoolRouter and syr30SchoolBuyVotes > syr30SchoolSellVotes
-syr30ReplacementSell = syr30UseSchoolRouter and syr30SchoolSellVotes > syr30SchoolBuyVotes
-syr30ReplacementSide = syr30ReplacementBuy ? 1 : syr30ReplacementSell ? -1 : 0
 
 // The removed M1 Compression source no longer competes with the base branch.
 m1BaseSide = baseBuySignal and not baseSellSignal ? 1 : baseSellSignal and not baseBuySignal ? -1 : 0
@@ -1716,12 +1587,12 @@ f_final_school_side(_buy, _sell) =>
 finalS06 = fusionUseMomentum ? f_final_school_side(capMomUltraBuy, capMomUltraSell) : 0
 finalS09 = fusionUseBBKC ? f_final_school_side(capBBKCExactBuy, false) : 0
 finalS11 = fusionUseQQEVortex ? f_final_school_side(capQVUltraBuy, capQVUltraSell) : 0
-finalS12 = syr30UseSchoolRouter ? f_final_school_side(syr30BalanceBuy, syr30BalanceSell) : 0
-finalS17 = syr30UseSchoolRouter ? f_final_school_side(syr30DeadAuctionBuy, syr30DeadAuctionSell) : 0
+finalS12 = 0
+finalS17 = 0
 finalS18 = fusionUseIchimoku ? f_final_school_side(capIchiUltraBuy, capIchiMidSell) : 0
 finalS19 = fusionUseSidePack ? f_final_school_side(cap331UltraBuy, cap331MidSell) : 0
 finalS22 = fusionUseLiquidity ? f_final_school_side(capLiqExactBuy, capLiqExactSell) : 0
-finalS23 = syr30UseSchoolRouter ? f_final_school_side(syr30AsiaBuy, syr30AsiaSell) : 0
+finalS23 = 0
 
 finalFusionBuyVotes = (finalS06 == 1 ? 1 : 0) + (finalS09 == 1 ? 1 : 0) + (finalS11 == 1 ? 1 : 0) + (finalS12 == 1 ? 1 : 0) + (finalS17 == 1 ? 1 : 0) + (finalS18 == 1 ? 1 : 0) + (finalS19 == 1 ? 1 : 0) + (finalS22 == 1 ? 1 : 0) + (finalS23 == 1 ? 1 : 0)
 finalFusionSellVotes = (finalS06 == -1 ? 1 : 0) + (finalS09 == -1 ? 1 : 0) + (finalS11 == -1 ? 1 : 0) + (finalS12 == -1 ? 1 : 0) + (finalS17 == -1 ? 1 : 0) + (finalS18 == -1 ? 1 : 0) + (finalS19 == -1 ? 1 : 0) + (finalS22 == -1 ? 1 : 0) + (finalS23 == -1 ? 1 : 0)
@@ -1770,8 +1641,8 @@ else
 // R13 FIX: apply Fast Trend TF to every final source (Base / Trend Vote / Fusion),
 // not only to the legacy base path. It blocks only when Fast agrees with Mid or Bias
 // against the selected side. Real sweep/reversal setups remain allowed.
-fastFinalBuyBypass = sy338TrueCounterBuy or sweepLow or realRevBuy or sy360FibBoostBuy or sy361LiqBoostBuy or syr30DeadAuctionBuy
-fastFinalSellBypass = sy338TrueCounterSell or sweepHigh or realRevSell or sy360FibBoostSell or sy361LiqBoostSell or syr30DeadAuctionSell
+fastFinalBuyBypass = sy338TrueCounterBuy or sweepLow or realRevBuy or sy360FibBoostBuy or sy361LiqBoostBuy
+fastFinalSellBypass = sy338TrueCounterSell or sweepHigh or realRevSell or sy360FibBoostSell or sy361LiqBoostSell
 fastFinalBuyBlock = useRealMapDirectGate and tf5Dir == -1 and (tf15Dir == -1 or k3CacheBiasDir == -1) and not fastFinalBuyBypass
 fastFinalSellBlock = useRealMapDirectGate and tf5Dir == 1 and (tf15Dir == 1 or k3CacheBiasDir == 1) and not fastFinalSellBypass
 
@@ -2409,15 +2280,15 @@ sellSignal := sellSignal or r11ConnS
 // including R8/R9/R11 sources that previously bypassed the router.
 qaRawBuy = buySignal
 qaRawSell = sellSignal
-qaBuyReversal = qaAllowStrongReversal and (realRevBuy or sy338TrueCounterBuy or syr30DeadAuctionBuy or (sweepLow and (bullReject or bullMomentum)))
-qaSellReversal = qaAllowStrongReversal and (realRevSell or sy338TrueCounterSell or syr30DeadAuctionSell or (sweepHigh and (bearReject or bearMomentum)))
+qaBuyReversal = qaAllowStrongReversal and (realRevBuy or sy338TrueCounterBuy or (sweepLow and (bullReject or bullMomentum)))
+qaSellReversal = qaAllowStrongReversal and (realRevSell or sy338TrueCounterSell or (sweepHigh and (bearReject or bearMomentum)))
 qaBuyRoomOK = not qaRequireRoom or roomBuy or qaBuyReversal
 qaSellRoomOK = not qaRequireRoom or roomSell or qaSellReversal
 qaBuyLate = sy337UpMovePts > qaMaxLatePts and not qaBuyReversal
 qaSellLate = sy337DownMovePts > qaMaxLatePts and not qaSellReversal
 
-qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (syr30BalanceBuy ? 1.10 : 0.0) + (syr30AsiaBuy ? 0.95 : 0.0) + (syr30DeadAuctionBuy ? 1.05 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0)
-qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (syr30BalanceSell ? 1.10 : 0.0) + (syr30AsiaSell ? 0.95 : 0.0) + (syr30DeadAuctionSell ? 1.05 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0)
+qaBuySourceScore = (syFinalSelectedSide == 1 ? 1.20 : 0.0) + (k3FusionSide == 1 ? 0.55 + math.min(finalFusionBuyVotes, 4) * 0.18 : 0.0) + (k3TVSide == 1 ? 0.65 : 0.0) + (pbPairBuy ? 0.85 : 0.0) + (r11ConnB ? 0.20 : 0.0) + (r8XBuy ? 0.20 : 0.0)
+qaSellSourceScore = (syFinalSelectedSide == -1 ? 1.20 : 0.0) + (k3FusionSide == -1 ? 0.55 + math.min(finalFusionSellVotes, 4) * 0.18 : 0.0) + (k3TVSide == -1 ? 0.65 : 0.0) + (pbPairSell ? 0.85 : 0.0) + (r11ConnS ? 0.20 : 0.0) + (r8XSell ? 0.20 : 0.0)
 
 qaBuyTrendScore = (htfScore >= 2.0 ? 1.10 : htfScore > 0 ? 0.45 : htfScore <= -2.0 ? -1.15 : -0.35) + (tf5Dir == 1 ? 0.40 : tf5Dir == -1 ? -0.40 : 0.0) + (tf15Dir == 1 ? 0.55 : tf15Dir == -1 ? -0.55 : 0.0) + (sy389BiasUp ? 0.55 : sy389BiasDown ? -0.55 : 0.0) + (pDI > mDI ? 0.35 : -0.20) + (sy325EmaSlope >= 0.10 ? 0.35 : sy325EmaSlope < -0.10 ? -0.35 : 0.0)
 qaSellTrendScore = (htfScore <= -2.0 ? 1.10 : htfScore < 0 ? 0.45 : htfScore >= 2.0 ? -1.15 : -0.35) + (tf5Dir == -1 ? 0.40 : tf5Dir == 1 ? -0.40 : 0.0) + (tf15Dir == -1 ? 0.55 : tf15Dir == 1 ? -0.55 : 0.0) + (sy389BiasDown ? 0.55 : sy389BiasUp ? -0.55 : 0.0) + (mDI > pDI ? 0.35 : -0.20) + (sy325EmaSlope <= -0.10 ? 0.35 : sy325EmaSlope > 0.10 ? -0.35 : 0.0)
@@ -2833,23 +2704,6 @@ if rsrcRawBuy or rsrcRawSell
     rsrcBuyReact := 0
     rsrcSellReact := 0
 
-// توصيل مدارس SYR30 (أقسام 18/19/20) — كان ناتجها معلقاً بلا استخدام
-if syr30SoloMode
-    buySignal := false
-    sellSignal := false
-buySignal := buySignal or (not syr30DirectEntry and syr30ReplacementBuy)
-sellSignal := sellSignal or (not syr30DirectEntry and syr30ReplacementSell)
-syr30DirectBuy = syr30DirectEntry and syr30ReplacementBuy
-syr30DirectSell = syr30DirectEntry and syr30ReplacementSell
-if syr30DirectBuy or syr30DirectSell
-    m1SelectedSourceCode := 10
-// علامات مرئية: كل إشارة مدرسة تظهر على الشارت حتى لو ما دخلت صفقة
-plotshape(syr30BalanceBuy, title="BAL18 BUY", style=shape.circle, location=location.belowbar, color=color.new(color.lime, 20), size=size.tiny, text="18")
-plotshape(syr30BalanceSell, title="BAL18 SELL", style=shape.circle, location=location.abovebar, color=color.new(color.red, 20), size=size.tiny, text="18")
-plotshape(syr30AsiaBuy, title="ASIA19 BUY", style=shape.circle, location=location.belowbar, color=color.new(color.aqua, 20), size=size.tiny, text="19")
-plotshape(syr30AsiaSell, title="ASIA19 SELL", style=shape.circle, location=location.abovebar, color=color.new(color.orange, 20), size=size.tiny, text="19")
-plotshape(syr30DeadAuctionBuy, title="AUCT20 BUY", style=shape.circle, location=location.belowbar, color=color.new(color.yellow, 20), size=size.tiny, text="20")
-plotshape(syr30DeadAuctionSell, title="AUCT20 SELL", style=shape.circle, location=location.abovebar, color=color.new(color.fuchsia, 20), size=size.tiny, text="20")
 
 bool preRmiBuySignal = buySignal
 bool preRmiSellSignal = sellSignal
@@ -2980,8 +2834,8 @@ kzDirectBuy = kzFireBuy and kzMid > close
 if kzDirectBuy or kzDirectSell
     m1SelectedSourceCode := 9
 
-canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy or orbDirectBuy or kzDirectBuy or syr30DirectBuy)
-canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and ourSellOK and ourSoloOK) or rsrcDirectSell or orbDirectSell or kzDirectSell or syr30DirectSell)
+canEnterLong = barstate.isconfirmed and not active and allowLong and ((canCooldown and canLongAfterLoss and buySignal and ourBuyOK and ourSoloOK) or rsrcDirectBuy or orbDirectBuy or kzDirectBuy)
+canEnterShort = barstate.isconfirmed and not active and allowShort and ((canCooldown and canShortAfterLoss and sellSignal and ourSellOK and ourSoloOK) or rsrcDirectSell or orbDirectSell or kzDirectSell)
 
 if canEnterLong or canEnterShort
     active := true
@@ -2989,7 +2843,7 @@ if canEnterLong or canEnterShort
     entryPrice := close
     tradeKind := side == 1 ? longTypeNow : shortTypeNow
     tradeEntrySourceCode := m1SelectedSourceCode
-    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI SRC" : tradeEntrySourceCode == 8 ? "ORB لندن" : tradeEntrySourceCode == 9 ? "كنسة لندن" : tradeEntrySourceCode == 10 ? "SYR30 مدرسة" : "BASE 999"
+    tradeEntrySource := tradeEntrySourceCode == 1 ? "M1 OWN" : tradeEntrySourceCode == 2 ? "M1 SAME" : tradeEntrySourceCode == 3 ? "M1 TAKE" : tradeEntrySourceCode == 4 ? "POC+BRK" : tradeEntrySourceCode == 5 ? "TREND VOTE" : tradeEntrySourceCode == 6 ? "SCHOOL FUSION" : tradeEntrySourceCode == 7 ? "RMI SRC" : tradeEntrySourceCode == 8 ? "ORB لندن" : tradeEntrySourceCode == 9 ? "كنسة لندن" : "BASE 999"
 
     [basePlannedTarget, basePlannedStop] = f_sy999_source_plan(side, entryPrice, tradeEntrySourceCode, tradeKind)
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
@@ -3026,8 +2880,6 @@ if canEnterLong or canEnterShort
         tradeStopPts := math.abs(entryPrice - kzSlPx) / pointUnit
         tradeRiskState := "KZ HARD"
         tradeTargetSource := "كنسة لندن"
-    if tradeEntrySourceCode == 10
-        tradeTargetSource := syr30BalanceBuy or syr30BalanceSell ? "توازن 18" : syr30AsiaBuy or syr30AsiaSell ? "آسيا 19" : "مزاد 20"
     lastExitPlan := tradeEntrySource + " | " + tradeRiskState + " SCORE " + str.tostring(tradeDirectionScore, "#.##") + " TP " + str.tostring(tradeTargetPts, "#") + " SL " + str.tostring(tradeStopPts, "#")
     tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
     slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
