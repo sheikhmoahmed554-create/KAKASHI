@@ -4,10 +4,10 @@
 // KNN support/resistance signal engine, confirmed MTF levels and R30 visuals added for the user.
 // V12 reproduces the supplied 5 Aug 2026 screenshot preset.
 // Every entry source now owns a completely independent confirmed-timeframe exit engine.
-// TradingView preserves inputs on old chart instances; remove/re-add KNN R30V12 to load these defaults.
+// TradingView preserves inputs on old chart instances; remove/re-add AI 963 to load these defaults.
 
 //@version=5
-indicator("AI Trend Navigator - KNN S/R Signals R30 V12 USER PRESET + BOT", shorttitle="KNN R30V12", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
+indicator("AI 963", shorttitle="AI 963", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
 
 // ══════════════════════════════════════════════════════════════════
 // R30 VISUAL SYSTEM
@@ -1174,7 +1174,7 @@ for priorityOffset = 0 to SOURCE_COUNT - 1
             botTpPx_ = na(tpPrice_) ? (signalSide_ == 1 ? entryPrice_ + botTpPts_ * pointUnit : entryPrice_ - botTpPts_ * pointUnit) : tpPrice_
             botSlPx_ = na(slPrice_) ? (signalSide_ == 1 ? entryPrice_ - botSlPts_ * pointUnit : entryPrice_ + botSlPts_ * pointUnit) : slPrice_
             botUid_ = botSymbol + "-" + str.tostring(time) + "-" + botSideTxt_ + "-" + sourceName_
-            botJson_ = '{"key":"' + botWebhookKey + '","action":"' + botSideTxt_ + '","side":"' + botSideTxt_ + '","symbol":"' + botSymbol + '","lot":' + str.tostring(botLotSize) + ',"tp_points":' + str.tostring(botTpPts_, "#.##") + ',"sl_points":' + str.tostring(botSlPts_, "#.##") + ',"target_points":' + str.tostring(botTpPts_, "#.##") + ',"stop_points":' + str.tostring(botSlPts_, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice_, format.mintick) + ',"tp_price":' + str.tostring(botTpPx_, format.mintick) + ',"sl_price":' + str.tostring(botSlPx_, format.mintick) + ',"source":"' + sourceName_ + '","signal":"' + signalType_ + '","exit_model":"' + (exitEngineEnabled_ ? "INDEPENDENT_EXIT_ENGINE" : "FIXED_TP_SL") + '","trade_uid":"' + botUid_ + '","indicator":"KNN R30V12","time":"' + str.tostring(time) + '"}'
+            botJson_ = '{"key":"' + botWebhookKey + '","action":"' + botSideTxt_ + '","side":"' + botSideTxt_ + '","symbol":"' + botSymbol + '","lot":' + str.tostring(botLotSize) + ',"tp_points":' + str.tostring(botTpPts_, "#.##") + ',"sl_points":' + str.tostring(botSlPts_, "#.##") + ',"target_points":' + str.tostring(botTpPts_, "#.##") + ',"stop_points":' + str.tostring(botSlPts_, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice_, format.mintick) + ',"tp_price":' + str.tostring(botTpPx_, format.mintick) + ',"sl_price":' + str.tostring(botSlPx_, format.mintick) + ',"source":"' + sourceName_ + '","signal":"' + signalType_ + '","exit_model":"' + (exitEngineEnabled_ ? "INDEPENDENT_EXIT_ENGINE" : "FIXED_TP_SL") + '","trade_uid":"' + botUid_ + '","indicator":"AI 963","time":"' + str.tostring(time) + '"}'
             botSimple_ = botWebhookKey + " " + botSideTxt_ + " " + botSymbol + " SRC " + sourceName_ + " LOT " + str.tostring(botLotSize) + " TP " + str.tostring(botTpPts_, "#.##") + " SL " + str.tostring(botSlPts_, "#.##")
             alert(botAlertFormat == "JSON" ? botJson_ : botSimple_, alert.freq_once_per_bar_close)
 
@@ -1247,7 +1247,7 @@ for sourceIndex = 0 to SOURCE_COUNT - 1
             //    holds, so only the engine exit needs to be closed by message. ──
             if botUseAlertFunction and botSendClose
                 botCloseSide_ = side_ == 1 ? "BUY" : "SELL"
-                botCloseJson_ = '{"key":"' + botWebhookKey + '","action":"CLOSE","side":"' + botCloseSide_ + '","symbol":"' + botSymbol + '","lot":' + str.tostring(botLotSize) + ',"close_price":' + str.tostring(exitPrice_, format.mintick) + ',"close_points":' + str.tostring(exitPoints_, "#.##") + ',"reason":"INDEPENDENT_EXIT_ENGINE","source":"' + sourceName_ + '","indicator":"KNN R30V12","time":"' + str.tostring(time) + '"}'
+                botCloseJson_ = '{"key":"' + botWebhookKey + '","action":"CLOSE","side":"' + botCloseSide_ + '","symbol":"' + botSymbol + '","lot":' + str.tostring(botLotSize) + ',"close_price":' + str.tostring(exitPrice_, format.mintick) + ',"close_points":' + str.tostring(exitPoints_, "#.##") + ',"reason":"INDEPENDENT_EXIT_ENGINE","source":"' + sourceName_ + '","indicator":"AI 963","time":"' + str.tostring(time) + '"}'
                 botCloseSimple_ = botWebhookKey + " CLOSE " + botSymbol + " " + botCloseSide_ + " SRC " + sourceName_ + " PTS " + str.tostring(exitPoints_, "#.##")
                 alert(botAlertFormat == "JSON" ? botCloseJson_ : botCloseSimple_, alert.freq_once_per_bar_close)
         else if exitByTarget_
@@ -1305,11 +1305,11 @@ for sourceIndex = 0 to SOURCE_COUNT - 1
 // ══════════════════════════════════════════════════════════════════
 // R30 CHART VISUALS
 // ══════════════════════════════════════════════════════════════════
-plotshape(showSignals and statsActive and entryBuyPlot, title="AI KNN BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
-plotshape(showSignals and statsActive and entrySellPlot, title="AI KNN SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
-plotshape(showSignals and exitTPPlot, title="AI KNN TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny)
-plotshape(showSignals and exitSLPlot, title="AI KNN SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny)
-plotshape(showSignals and exitEnginePlot, title="AI KNN Independent Exit Engine Reversal", style=shape.diamond, location=location.abovebar, color=EXIT_C, text="EXIT", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and statsActive and entryBuyPlot, title="AI 963 BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and statsActive and entrySellPlot, title="AI 963 SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and exitTPPlot, title="AI 963 TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and exitSLPlot, title="AI 963 SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and exitEnginePlot, title="AI 963 Independent Exit Engine Reversal", style=shape.diamond, location=location.abovebar, color=EXIT_C, text="EXIT", textcolor=TXT_C, size=size.tiny)
 
 // ══════════════════════════════════════════════════════════════════
 // R30-STYLE STATISTICS TABLE
@@ -1353,7 +1353,7 @@ openTextColor = openTradeCount == 0 ? WAIT_C : mixedOpenSides ? EN_C : firstOpen
 var table statsTable = table.new(position.top_right, 2, 19, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 
 if showTable and barstate.islast
-    table.cell(statsTable, 0, 0, "AI KNN V12", text_color=TXT_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(statsTable, 0, 0, "AI 963", text_color=TXT_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(statsTable, 1, 0, enableMTF ? "MTF S/R" : "S/R SIGNALS", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
 
     table.cell(statsTable, 0, 1, "Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
@@ -1415,31 +1415,31 @@ else if not showTable and barstate.islast
 // ══════════════════════════════════════════════════════════════════
 // ALERTS — all are confirmed at candle close.
 // ══════════════════════════════════════════════════════════════════
-alertcondition(entryBuyPlot, "AI KNN BUY", "AI KNN BUY | CHART/MTF KNN LINE S/R")
-alertcondition(entrySellPlot, "AI KNN SELL", "AI KNN SELL | CHART/MTF KNN LINE S/R")
-alertcondition(buyRejectionEntryAlert, "AI KNN BUY - Strong Wick Rejection", "AI KNN BUY | CHART/MTF STRONG WICK REJECTION")
-alertcondition(sellRejectionEntryAlert, "AI KNN SELL - Strong Wick Rejection", "AI KNN SELL | CHART/MTF STRONG WICK REJECTION")
-alertcondition(buyBreakoutEntryAlert, "AI KNN BUY - Confirmed Breakout", "AI KNN BUY | CHART/MTF CONFIRMED BREAKOUT")
-alertcondition(sellBreakoutEntryAlert, "AI KNN SELL - Confirmed Breakout", "AI KNN SELL | CHART/MTF CONFIRMED BREAKOUT")
-alertcondition(exitEnginePlot, "AI KNN Independent Exit", "AI KNN EXIT | INDEPENDENT EXIT ENGINE REVERSAL")
+alertcondition(entryBuyPlot, "AI 963 BUY", "AI 963 BUY | CHART/MTF KNN LINE S/R")
+alertcondition(entrySellPlot, "AI 963 SELL", "AI 963 SELL | CHART/MTF KNN LINE S/R")
+alertcondition(buyRejectionEntryAlert, "AI 963 BUY - Strong Wick Rejection", "AI 963 BUY | CHART/MTF STRONG WICK REJECTION")
+alertcondition(sellRejectionEntryAlert, "AI 963 SELL - Strong Wick Rejection", "AI 963 SELL | CHART/MTF STRONG WICK REJECTION")
+alertcondition(buyBreakoutEntryAlert, "AI 963 BUY - Confirmed Breakout", "AI 963 BUY | CHART/MTF CONFIRMED BREAKOUT")
+alertcondition(sellBreakoutEntryAlert, "AI 963 SELL - Confirmed Breakout", "AI 963 SELL | CHART/MTF CONFIRMED BREAKOUT")
+alertcondition(exitEnginePlot, "AI 963 Independent Exit", "AI 963 EXIT | INDEPENDENT EXIT ENGINE REVERSAL")
 
 // Source-specific alerts fire only after that source passes its open-trade rule.
-alertcondition(array.get(enteredBuyBySource, 0), "AI KNN Chart TF BUY", "AI KNN CHART TF BUY")
-alertcondition(array.get(enteredSellBySource, 0), "AI KNN Chart TF SELL", "AI KNN CHART TF SELL")
-alertcondition(array.get(enteredBuyBySource, 1), "AI KNN 2m BUY", "AI KNN 2m BUY")
-alertcondition(array.get(enteredSellBySource, 1), "AI KNN 2m SELL", "AI KNN 2m SELL")
-alertcondition(array.get(enteredBuyBySource, 2), "AI KNN 3m BUY", "AI KNN 3m BUY")
-alertcondition(array.get(enteredSellBySource, 2), "AI KNN 3m SELL", "AI KNN 3m SELL")
-alertcondition(array.get(enteredBuyBySource, 3), "AI KNN 5m BUY", "AI KNN 5m BUY")
-alertcondition(array.get(enteredSellBySource, 3), "AI KNN 5m SELL", "AI KNN 5m SELL")
-alertcondition(array.get(enteredBuyBySource, 4), "AI KNN 10m BUY", "AI KNN 10m BUY")
-alertcondition(array.get(enteredSellBySource, 4), "AI KNN 10m SELL", "AI KNN 10m SELL")
-alertcondition(array.get(enteredBuyBySource, 5), "AI KNN 15m BUY", "AI KNN 15m BUY")
-alertcondition(array.get(enteredSellBySource, 5), "AI KNN 15m SELL", "AI KNN 15m SELL")
-alertcondition(array.get(enteredBuyBySource, 6), "AI KNN 30m BUY", "AI KNN 30m BUY")
-alertcondition(array.get(enteredSellBySource, 6), "AI KNN 30m SELL", "AI KNN 30m SELL")
-alertcondition(array.get(enteredBuyBySource, 7), "AI KNN 1H BUY", "AI KNN 1H BUY")
-alertcondition(array.get(enteredSellBySource, 7), "AI KNN 1H SELL", "AI KNN 1H SELL")
+alertcondition(array.get(enteredBuyBySource, 0), "AI 963 Chart TF BUY", "AI 963 CHART TF BUY")
+alertcondition(array.get(enteredSellBySource, 0), "AI 963 Chart TF SELL", "AI 963 CHART TF SELL")
+alertcondition(array.get(enteredBuyBySource, 1), "AI 963 2m BUY", "AI 963 2m BUY")
+alertcondition(array.get(enteredSellBySource, 1), "AI 963 2m SELL", "AI 963 2m SELL")
+alertcondition(array.get(enteredBuyBySource, 2), "AI 963 3m BUY", "AI 963 3m BUY")
+alertcondition(array.get(enteredSellBySource, 2), "AI 963 3m SELL", "AI 963 3m SELL")
+alertcondition(array.get(enteredBuyBySource, 3), "AI 963 5m BUY", "AI 963 5m BUY")
+alertcondition(array.get(enteredSellBySource, 3), "AI 963 5m SELL", "AI 963 5m SELL")
+alertcondition(array.get(enteredBuyBySource, 4), "AI 963 10m BUY", "AI 963 10m BUY")
+alertcondition(array.get(enteredSellBySource, 4), "AI 963 10m SELL", "AI 963 10m SELL")
+alertcondition(array.get(enteredBuyBySource, 5), "AI 963 15m BUY", "AI 963 15m BUY")
+alertcondition(array.get(enteredSellBySource, 5), "AI 963 15m SELL", "AI 963 15m SELL")
+alertcondition(array.get(enteredBuyBySource, 6), "AI 963 30m BUY", "AI 963 30m BUY")
+alertcondition(array.get(enteredSellBySource, 6), "AI 963 30m SELL", "AI 963 30m SELL")
+alertcondition(array.get(enteredBuyBySource, 7), "AI 963 1H BUY", "AI 963 1H BUY")
+alertcondition(array.get(enteredSellBySource, 7), "AI 963 1H SELL", "AI 963 1H SELL")
 
 // The nine legacy AI Trend Navigator notification conditions are intentionally
 // omitted to keep this multi-timeframe build below TradingView's 64-plot limit.
