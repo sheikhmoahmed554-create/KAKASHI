@@ -2647,6 +2647,51 @@ sellSignal := sellSignal or chCvdS
 buySignal := buySignal or chTriB or chSniB
 sellSignal := sellSignal or chTriS or chSniS
 
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BUY WITH NO THESIS
+//
+// Not an addition. One condition, read off a number this engine already
+// computes, blocking a trade it already knows how to describe.
+//
+// Every trade was re-scored against what a random entry of the SAME side with
+// the SAME target and stop earned in the SAME year, so a year that fell 3,558
+// points could not flatter the sells or punish the buys. Scored that way the
+// BUY side is not the weak side at all: it beats a coin flip by 1.18 points a
+// trade on 2026, and on 2021 it beats the SELL side outright, 2.82 to 2.26.
+//
+// Eleven conditions were tested on both sides across 2026, 2021 and 2023.
+// Exactly one came out below a coin flip in all three years:
+//
+//   BUY taken while the higher timeframes are UNDECIDED
+//     2026  499 trades  -0.82 per trade
+//     2021  115 trades  -8.87 per trade
+//     2023   81 trades  -7.06 per trade
+//
+// And the contrast that says what this engine actually is: a BUY taken while
+// the higher timeframes are AGAINST it is the single BEST condition in all
+// three years (+1.68 / +5.45 / +1.66). This is a dip buyer. It does not need
+// the trend to agree with it — it needs the trend to say something. When the
+// three timeframe votes cancel out, the buy has nothing to lean on.
+//
+// Blocking exactly that, and nothing else:
+//                        2026     2021     2023    worst losing run
+//   untouched          +6,565   +6,166   -3,531        9
+//   threshold 1.6      +8,548   +6,334   -1,511        8
+//   threshold 0.9      +7,236   +7,158   -1,828        8
+// Better in all three years, and the losing streak never got longer. Max
+// drawdown on 2026 falls from 2,261 to 1,994. Trades per day 49.7 -> 48.3.
+//
+// Wider thresholds earn more on paper (2.6 turns 2023 positive) but stretch the
+// losing run to 10 and cost 2021 over a thousand points, so they were rejected.
+//
+// Ships OFF. With the switch off this file is byte-for-byte the original.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+G_HTFB = "26 \u25a0 Buy with no thesis"
+htfbUse = input.bool(false, "Block BUY while the higher timeframes are undecided", group=G_HTFB, tooltip="Blocks a BUY when the M5/M15/H1 votes cancel out. Measured on 2026 / 2021 / 2023: +1,983 / +168 / +2,020 at the default threshold. Off by default.")
+htfbTh  = input.float(1.6, "   ...how undecided counts as undecided", minval=0.1, maxval=4.5, step=0.1, group=G_HTFB, tooltip="Blocks the BUY while |htfScore| is below this. The score is M5 worth 1.0, M15 worth 1.5, H1 worth 2.0, signed by direction. 1.6 means at most one weak timeframe agrees. 0.9 blocks only an exact tie and keeps more trades: +671 / +992 / +1,703. Above 2.1 the losing streak stretches to 10, so it was not taken.")
+
+buySignal := buySignal and not (htfbUse and math.abs(htfScore) < htfbTh)
+
 canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
 canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
 
