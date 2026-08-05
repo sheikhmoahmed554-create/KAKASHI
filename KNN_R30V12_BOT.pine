@@ -1,0 +1,1450 @@
+// This work is licensed under a Attribution-NonCommercial-ShareAlike 4.0 International
+// (CC BY-NC-SA 4.0) https://creativecommons.org/licenses/by-nc-sa/4.0/
+// Original AI Trend Navigator © Zeiierman
+// KNN support/resistance signal engine, confirmed MTF levels and R30 visuals added for the user.
+// V12 reproduces the supplied 5 Aug 2026 screenshot preset.
+// Every entry source now owns a completely independent confirmed-timeframe exit engine.
+// TradingView preserves inputs on old chart instances; remove/re-add KNN R30V12 to load these defaults.
+
+//@version=5
+indicator("AI Trend Navigator - KNN S/R Signals R30 V12 USER PRESET + BOT", shorttitle="KNN R30V12", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
+
+// ══════════════════════════════════════════════════════════════════
+// R30 VISUAL SYSTEM
+// ══════════════════════════════════════════════════════════════════
+color BUY_C  = color.rgb(0, 170, 90)
+color SELL_C = color.rgb(230, 45, 55)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color EXIT_C = color.rgb(170, 90, 255)
+color EN_C   = color.rgb(255, 210, 0)
+color TXT_C  = color.white
+color WAIT_C = color.rgb(150, 150, 150)
+
+color TBL_BG      = color.rgb(16, 18, 26)
+color TBL_BG_HEAD = color.rgb(22, 24, 34)
+color TBL_BG_ROW  = color.rgb(18, 20, 30)
+color TBL_BG_ROW2 = color.rgb(20, 22, 32)
+color TBL_TXT     = color.rgb(220, 225, 235)
+
+// ══════════════════════════════════════════════════════════════════
+// GROUPS
+// ══════════════════════════════════════════════════════════════════
+G_KNN    = "01 ■ AI Trend Navigator"
+G_SIGNAL = "02 ■ Chart / 1m S/R Signal Settings"
+G_MTF    = "03.0 ■ Multi-Timeframe Master"
+G_MTF2   = "03.1 ■ KNN 2m — Full Settings"
+G_MTF3   = "03.2 ■ KNN 3m — Full Settings"
+G_MTF5   = "03.3 ■ KNN 5m — Full Settings"
+G_MTF10  = "03.4 ■ KNN 10m — Full Settings"
+G_MTF15  = "03.5 ■ KNN 15m — Full Settings"
+G_MTF30  = "03.6 ■ KNN 30m — Full Settings"
+G_MTF60  = "03.7 ■ KNN 1H — Full Settings"
+G_RISK   = "04 ■ Chart / 1m TP / SL + Independent Exit"
+G_EXEC   = "05 ■ Chart / 1m Execution"
+G_VIS    = "06 ■ Statistics / Visuals"
+G_BOT    = "07 ■ Alerts / Webhook / Bot"
+
+// ══════════════════════════════════════════════════════════════════
+// TOOLTIPS
+// ══════════════════════════════════════════════════════════════════
+t1 = "PriceValue selects the method of price computation.\n\nSets the smoothing period for the PriceValue.\n\nAdjusting these settings changes the KNN input values and therefore the calculated trend."
+t2 = "TargetValue specifies the target to evaluate.\n\nSets the smoothing period for the TargetValue."
+t3 = "Number of closest values considered by the KNN Moving Average. Higher values smooth the line; lower values react faster."
+t4 = "Editable Average KNN support/resistance line length for this exact timeframe. Enter any whole number from 2 to 10000. Tested defaults include 50, 100, 200, 300 and 750. Larger values create slower structural levels."
+t5 = "Colors the chart background from the original KNN prediction."
+t6 = "Uses chart ATR(14) instead of fixed points for touch tolerance, minimum wick and breakout buffer. Each timeframe owns independent ATR multipliers."
+t7 = "Independent Exit Engine is separate from the entry engine. Select its own timeframe, price/target calculations, KNN length and reversal confirmation. It never opens a trade and never changes the entry line. A BUY closes only when this exit line confirms a bearish reversal; a SELL closes only on a bullish reversal. The fixed stop remains active."
+t8 = "Cooldown Mode:\n\nPer-TF Screenshot Preset restores the original cooldown bars visible in the supplied screenshots, so the historical comparison matches.\n\nGlobal uses one real-time cooldown shared by all frames.\n\nOff disables all cooldowns."
+
+// ══════════════════════════════════════════════════════════════════
+// 01 ■ ORIGINAL AI TREND NAVIGATOR INPUTS
+// User-approved XAUUSD screenshot preset. Every value remains editable.
+// ══════════════════════════════════════════════════════════════════
+PriceValue  = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_KNN, inline="PV", tooltip=t1)
+maLen       = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_KNN, inline="PV")
+TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_KNN, inline="TV", tooltip=t2)
+maLen_      = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_KNN, inline="TV")
+
+numberOfClosestValues = input.int(3, "Number of Closest Values", minval=2, maxval=200, group=G_KNN, tooltip=t3)
+chartLineLength       = input.int(51, "Average KNN Line Length — Chart / 1m", minval=2, maxval=10000, step=1, group=G_KNN, tooltip=t4)
+smoothingPeriod       = chartLineLength
+windowSize            = math.max(numberOfClosestValues, 30)
+
+showKnnClassifier = input.bool(false, "Show KNN Classifier Line", group=G_KNN)
+showAverageKnn    = input.bool(true, "Show Average KNN Classifier Line", group=G_KNN)
+
+Upknn_col  = input.color(color.lime, "Up", group=G_KNN, inline="KC")
+Dnknn_col  = input.color(color.red, "Down", group=G_KNN, inline="KC")
+Neuknn_col = input.color(color.orange, "Neutral", group=G_KNN, inline="KC")
+Maknn_col  = input.color(color.teal, "Average KNN", group=G_KNN)
+
+showTrendBackground = input.bool(false, "Trend Prediction Color", group=G_KNN, tooltip=t5)
+Up_col = input.color(color.lime, "Positive", group=G_KNN, inline="BG")
+Dn_col = input.color(color.red, "Negative", group=G_KNN, inline="BG")
+
+// ══════════════════════════════════════════════════════════════════
+// 02 ■ SIGNAL INPUTS
+// The Average KNN line is treated as dynamic support/resistance.
+// ══════════════════════════════════════════════════════════════════
+enableSignals       = input.bool(true, "Enable ALL KNN S/R Signals", group=G_SIGNAL)
+enableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_SIGNAL)
+enableBreakout      = input.bool(true, "Enable Confirmed Close Breakout", group=G_SIGNAL)
+enableBuy           = input.bool(true, "Enable BUY", group=G_SIGNAL, inline="SIDE")
+enableSell          = input.bool(true, "Enable SELL", group=G_SIGNAL, inline="SIDE")
+
+wickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_SIGNAL)
+touchTolerancePoints = input.float(3.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_SIGNAL)
+minimumWickPoints    = input.float(20.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_SIGNAL)
+breakoutBufferPoints = input.float(4.5, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_SIGNAL)
+useAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_SIGNAL, tooltip=t6)
+touchToleranceAtr = input.float(0.0, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_SIGNAL)
+minimumWickAtr = input.float(0.05, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_SIGNAL)
+breakoutBufferAtr = input.float(0.08, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_SIGNAL)
+
+// ══════════════════════════════════════════════════════════════════
+// 03 ■ MULTI-TIMEFRAME KNN
+// Every timeframe has its own complete KNN calculation, line selection,
+// appearance, fixed TP/SL and open-trade behavior. Signals use only the last fully
+// closed value of the selected source line, keeping MTF levels non-repainting.
+// ══════════════════════════════════════════════════════════════════
+enableMTF = input.bool(true, "Enable Multi-Timeframe Signals", group=G_MTF)
+useChartSignals = input.bool(true, "Enable 1m / Chart TF Signals", group=G_MTF, inline="M1E")
+chartRespectOtherTrades = input.bool(false, "Respect Other Trades", group=G_MTF, inline="M1E")
+
+// 2m
+useMtf2 = input.bool(true, "Enable 2m Signals", group=G_MTF2, inline="M2E")
+mtf2RespectOtherTrades = input.bool(false, "Respect Other Trades", group=G_MTF2, inline="M2E")
+mtf2EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF2)
+mtf2EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF2)
+mtf2EnableBuy = input.bool(true, "Enable BUY", group=G_MTF2, inline="M2SIDE")
+mtf2EnableSell = input.bool(true, "Enable SELL", group=G_MTF2, inline="M2SIDE")
+mtf2WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF2)
+mtf2TouchTolerancePoints = input.float(0.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF2)
+mtf2MinimumWickPoints = input.float(2.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF2)
+mtf2BreakoutBufferPoints = input.float(7.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF2)
+mtf2UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF2, tooltip=t6)
+mtf2TouchToleranceAtr = input.float(0.0, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF2)
+mtf2MinimumWickAtr = input.float(0.0, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF2)
+mtf2BreakoutBufferAtr = input.float(0.0, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF2)
+mtf2PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF2, inline="M2PV", tooltip=t1)
+mtf2PriceLen = input.int(7, "Length", minval=2, maxval=10000, step=1, group=G_MTF2, inline="M2PV")
+mtf2TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF2, inline="M2TV", tooltip=t2)
+mtf2TargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF2, inline="M2TV")
+mtf2ClosestValues = input.int(3, "Closest Values — 2m", minval=2, maxval=200, step=1, group=G_MTF2, tooltip=t3)
+mtf2Smoothing = input.int(40, "Average KNN Line Length — 2m", minval=2, maxval=10000, step=1, group=G_MTF2, tooltip=t4)
+mtf2SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF2, inline="M2L")
+showMtf2Line = input.bool(true, "Show", group=G_MTF2, inline="M2L")
+mtf2PlotStyleInput = input.string("Line", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF2, inline="M2S")
+mtf2LineWidth = input.int(1, "Width", minval=1, maxval=4, group=G_MTF2, inline="M2S")
+mtf2Color = input.color(color.rgb(0, 220, 160), "Color", group=G_MTF2, inline="M2S")
+mtf2TargetPoints = input.float(70.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF2, inline="M2R")
+mtf2StopPoints = input.float(100.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF2, inline="M2R")
+mtf2ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF2, tooltip=t7)
+mtf2ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF2)
+mtf2ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF2, inline="M2EPV")
+mtf2ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF2, inline="M2EPV")
+mtf2ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF2, inline="M2ETV")
+mtf2ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF2, inline="M2ETV")
+mtf2ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF2, inline="M2EK")
+mtf2ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF2, inline="M2EK")
+mtf2ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF2)
+mtf2ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF2)
+showMtf2ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF2, inline="M2ES")
+mtf2ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF2, inline="M2ES")
+mtf2ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF2, inline="M2EC")
+mtf2ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF2, inline="M2EC")
+mtf2CooldownBars = input.int(0, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF2)
+mtf2BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF2)
+mtf2SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF2)
+
+// 3m
+useMtf3 = input.bool(true, "Enable 3m Signals", group=G_MTF3, inline="M3E")
+mtf3RespectOtherTrades = input.bool(false, "Respect Other Trades", group=G_MTF3, inline="M3E")
+mtf3EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF3)
+mtf3EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF3)
+mtf3EnableBuy = input.bool(true, "Enable BUY", group=G_MTF3, inline="M3SIDE")
+mtf3EnableSell = input.bool(true, "Enable SELL", group=G_MTF3, inline="M3SIDE")
+mtf3WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF3)
+mtf3TouchTolerancePoints = input.float(0.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF3)
+mtf3MinimumWickPoints = input.float(4.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF3)
+mtf3BreakoutBufferPoints = input.float(2.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF3)
+mtf3UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF3, tooltip=t6)
+mtf3TouchToleranceAtr = input.float(0.06, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF3)
+mtf3MinimumWickAtr = input.float(0.05, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF3)
+mtf3BreakoutBufferAtr = input.float(0.50, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF3)
+mtf3PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF3, inline="M3PV", tooltip=t1)
+mtf3PriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF3, inline="M3PV")
+mtf3TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF3, inline="M3TV", tooltip=t2)
+mtf3TargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF3, inline="M3TV")
+mtf3ClosestValues = input.int(3, "Closest Values — 3m", minval=2, maxval=200, step=1, group=G_MTF3, tooltip=t3)
+mtf3Smoothing = input.int(28, "Average KNN Line Length — 3m", minval=2, maxval=10000, step=1, group=G_MTF3, tooltip=t4)
+mtf3SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF3, inline="M3L")
+showMtf3Line = input.bool(true, "Show", group=G_MTF3, inline="M3L")
+mtf3PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF3, inline="M3S")
+mtf3LineWidth = input.int(1, "Width", minval=1, maxval=4, group=G_MTF3, inline="M3S")
+mtf3Color = input.color(color.rgb(0, 190, 255), "Color", group=G_MTF3, inline="M3S")
+mtf3TargetPoints = input.float(105.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF3, inline="M3R")
+mtf3StopPoints = input.float(90.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF3, inline="M3R")
+mtf3ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF3, tooltip=t7)
+mtf3ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF3)
+mtf3ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF3, inline="M3EPV")
+mtf3ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF3, inline="M3EPV")
+mtf3ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF3, inline="M3ETV")
+mtf3ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF3, inline="M3ETV")
+mtf3ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF3, inline="M3EK")
+mtf3ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF3, inline="M3EK")
+mtf3ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF3)
+mtf3ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF3)
+showMtf3ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF3, inline="M3ES")
+mtf3ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF3, inline="M3ES")
+mtf3ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF3, inline="M3EC")
+mtf3ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF3, inline="M3EC")
+mtf3CooldownBars = input.int(21, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF3)
+mtf3BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF3)
+mtf3SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF3)
+
+// 5m
+useMtf5 = input.bool(true, "Enable 5m Signals", group=G_MTF5, inline="M5E")
+mtf5RespectOtherTrades = input.bool(true, "Respect Other Trades", group=G_MTF5, inline="M5E")
+mtf5EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF5)
+mtf5EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF5)
+mtf5EnableBuy = input.bool(true, "Enable BUY", group=G_MTF5, inline="M5SIDE")
+mtf5EnableSell = input.bool(true, "Enable SELL", group=G_MTF5, inline="M5SIDE")
+mtf5WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF5)
+mtf5TouchTolerancePoints = input.float(0.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF5)
+mtf5MinimumWickPoints = input.float(0.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF5)
+mtf5BreakoutBufferPoints = input.float(0.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF5)
+mtf5UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF5, tooltip=t6)
+mtf5TouchToleranceAtr = input.float(0.08, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF5)
+mtf5MinimumWickAtr = input.float(0.0, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF5)
+mtf5BreakoutBufferAtr = input.float(0.05, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF5)
+mtf5PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF5, inline="M5PV", tooltip=t1)
+mtf5PriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF5, inline="M5PV")
+mtf5TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF5, inline="M5TV", tooltip=t2)
+mtf5TargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF5, inline="M5TV")
+mtf5ClosestValues = input.int(3, "Closest Values — 5m", minval=2, maxval=200, step=1, group=G_MTF5, tooltip=t3)
+mtf5Smoothing = input.int(28, "Average KNN Line Length — 5m", minval=2, maxval=10000, step=1, group=G_MTF5, tooltip=t4)
+mtf5SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF5, inline="M5L")
+showMtf5Line = input.bool(true, "Show", group=G_MTF5, inline="M5L")
+mtf5PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF5, inline="M5S")
+mtf5LineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF5, inline="M5S")
+mtf5Color = input.color(color.rgb(40, 120, 255), "Color", group=G_MTF5, inline="M5S")
+mtf5TargetPoints = input.float(90.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF5, inline="M5R")
+mtf5StopPoints = input.float(90.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF5, inline="M5R")
+mtf5ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF5, tooltip=t7)
+mtf5ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF5)
+mtf5ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF5, inline="M5EPV")
+mtf5ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF5, inline="M5EPV")
+mtf5ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF5, inline="M5ETV")
+mtf5ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF5, inline="M5ETV")
+mtf5ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF5, inline="M5EK")
+mtf5ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF5, inline="M5EK")
+mtf5ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF5)
+mtf5ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF5)
+showMtf5ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF5, inline="M5ES")
+mtf5ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF5, inline="M5ES")
+mtf5ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF5, inline="M5EC")
+mtf5ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF5, inline="M5EC")
+mtf5CooldownBars = input.int(0, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF5)
+mtf5BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF5)
+mtf5SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF5)
+
+// 10m
+useMtf10 = input.bool(true, "Enable 10m Signals", group=G_MTF10, inline="M10E")
+mtf10RespectOtherTrades = input.bool(true, "Respect Other Trades", group=G_MTF10, inline="M10E")
+mtf10EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF10)
+mtf10EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF10)
+mtf10EnableBuy = input.bool(true, "Enable BUY", group=G_MTF10, inline="M10SIDE")
+mtf10EnableSell = input.bool(true, "Enable SELL", group=G_MTF10, inline="M10SIDE")
+mtf10WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF10)
+mtf10TouchTolerancePoints = input.float(0.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF10)
+mtf10MinimumWickPoints = input.float(0.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF10)
+mtf10BreakoutBufferPoints = input.float(0.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF10)
+mtf10UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF10, tooltip=t6)
+mtf10TouchToleranceAtr = input.float(0.12, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF10)
+mtf10MinimumWickAtr = input.float(0.10, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF10)
+mtf10BreakoutBufferAtr = input.float(0.50, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF10)
+mtf10PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF10, inline="M10PV", tooltip=t1)
+mtf10PriceLen = input.int(4, "Length", minval=2, maxval=10000, step=1, group=G_MTF10, inline="M10PV")
+mtf10TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF10, inline="M10TV", tooltip=t2)
+mtf10TargetLen = input.int(4, "Length", minval=2, maxval=10000, step=1, group=G_MTF10, inline="M10TV")
+mtf10ClosestValues = input.int(3, "Closest Values — 10m", minval=2, maxval=200, step=1, group=G_MTF10, tooltip=t3)
+mtf10Smoothing = input.int(22, "Average KNN Line Length — 10m", minval=2, maxval=10000, step=1, group=G_MTF10, tooltip=t4)
+mtf10SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF10, inline="M10L")
+showMtf10Line = input.bool(true, "Show", group=G_MTF10, inline="M10L")
+mtf10PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF10, inline="M10S")
+mtf10LineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF10, inline="M10S")
+mtf10Color = input.color(color.rgb(255, 210, 0), "Color", group=G_MTF10, inline="M10S")
+mtf10TargetPoints = input.float(90.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF10, inline="M10R")
+mtf10StopPoints = input.float(90.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF10, inline="M10R")
+mtf10ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF10, tooltip=t7)
+mtf10ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF10)
+mtf10ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF10, inline="M10EPV")
+mtf10ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF10, inline="M10EPV")
+mtf10ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF10, inline="M10ETV")
+mtf10ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF10, inline="M10ETV")
+mtf10ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF10, inline="M10EK")
+mtf10ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF10, inline="M10EK")
+mtf10ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF10)
+mtf10ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF10)
+showMtf10ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF10, inline="M10ES")
+mtf10ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF10, inline="M10ES")
+mtf10ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF10, inline="M10EC")
+mtf10ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF10, inline="M10EC")
+mtf10CooldownBars = input.int(0, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF10)
+mtf10BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF10)
+mtf10SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF10)
+
+// 15m
+useMtf15 = input.bool(true, "Enable 15m Signals", group=G_MTF15, inline="M15E")
+mtf15RespectOtherTrades = input.bool(true, "Respect Other Trades", group=G_MTF15, inline="M15E")
+mtf15EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF15)
+mtf15EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF15)
+mtf15EnableBuy = input.bool(true, "Enable BUY", group=G_MTF15, inline="M15SIDE")
+mtf15EnableSell = input.bool(true, "Enable SELL", group=G_MTF15, inline="M15SIDE")
+mtf15WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF15)
+mtf15TouchTolerancePoints = input.float(0.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF15)
+mtf15MinimumWickPoints = input.float(0.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF15)
+mtf15BreakoutBufferPoints = input.float(0.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF15)
+mtf15UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF15, tooltip=t6)
+mtf15TouchToleranceAtr = input.float(0.20, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF15)
+mtf15MinimumWickAtr = input.float(0.50, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF15)
+mtf15BreakoutBufferAtr = input.float(0.05, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF15)
+mtf15PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF15, inline="M15PV", tooltip=t1)
+mtf15PriceLen = input.int(4, "Length", minval=2, maxval=10000, step=1, group=G_MTF15, inline="M15PV")
+mtf15TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF15, inline="M15TV", tooltip=t2)
+mtf15TargetLen = input.int(4, "Length", minval=2, maxval=10000, step=1, group=G_MTF15, inline="M15TV")
+mtf15ClosestValues = input.int(3, "Closest Values — 15m", minval=2, maxval=200, step=1, group=G_MTF15, tooltip=t3)
+mtf15Smoothing = input.int(19, "Average KNN Line Length — 15m", minval=2, maxval=10000, step=1, group=G_MTF15, tooltip=t4)
+mtf15SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF15, inline="M15L")
+showMtf15Line = input.bool(true, "Show", group=G_MTF15, inline="M15L")
+mtf15PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF15, inline="M15S")
+mtf15LineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF15, inline="M15S")
+mtf15Color = input.color(color.rgb(255, 150, 0), "Color", group=G_MTF15, inline="M15S")
+mtf15TargetPoints = input.float(90.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF15, inline="M15R")
+mtf15StopPoints = input.float(90.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF15, inline="M15R")
+mtf15ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF15, tooltip=t7)
+mtf15ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF15)
+mtf15ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF15, inline="M15EPV")
+mtf15ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF15, inline="M15EPV")
+mtf15ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF15, inline="M15ETV")
+mtf15ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF15, inline="M15ETV")
+mtf15ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF15, inline="M15EK")
+mtf15ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF15, inline="M15EK")
+mtf15ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF15)
+mtf15ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF15)
+showMtf15ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF15, inline="M15ES")
+mtf15ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF15, inline="M15ES")
+mtf15ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF15, inline="M15EC")
+mtf15ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF15, inline="M15EC")
+mtf15CooldownBars = input.int(0, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF15)
+mtf15BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF15)
+mtf15SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF15)
+
+// 30m
+useMtf30 = input.bool(true, "Enable 30m Signals", group=G_MTF30, inline="M30E")
+mtf30RespectOtherTrades = input.bool(true, "Respect Other Trades", group=G_MTF30, inline="M30E")
+mtf30EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF30)
+mtf30EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF30)
+mtf30EnableBuy = input.bool(true, "Enable BUY", group=G_MTF30, inline="M30SIDE")
+mtf30EnableSell = input.bool(true, "Enable SELL", group=G_MTF30, inline="M30SIDE")
+mtf30WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF30)
+mtf30TouchTolerancePoints = input.float(0.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF30)
+mtf30MinimumWickPoints = input.float(0.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF30)
+mtf30BreakoutBufferPoints = input.float(0.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF30)
+mtf30UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF30, tooltip=t6)
+mtf30TouchToleranceAtr = input.float(0.20, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF30)
+mtf30MinimumWickAtr = input.float(0.50, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF30)
+mtf30BreakoutBufferAtr = input.float(0.50, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF30)
+mtf30PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF30, inline="M30PV", tooltip=t1)
+mtf30PriceLen = input.int(3, "Length", minval=2, maxval=10000, step=1, group=G_MTF30, inline="M30PV")
+mtf30TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF30, inline="M30TV", tooltip=t2)
+mtf30TargetLen = input.int(3, "Length", minval=2, maxval=10000, step=1, group=G_MTF30, inline="M30TV")
+mtf30ClosestValues = input.int(3, "Closest Values — 30m", minval=2, maxval=200, step=1, group=G_MTF30, tooltip=t3)
+mtf30Smoothing = input.int(15, "Average KNN Line Length — 30m", minval=2, maxval=10000, step=1, group=G_MTF30, tooltip=t4)
+mtf30SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF30, inline="M30L")
+showMtf30Line = input.bool(true, "Show", group=G_MTF30, inline="M30L")
+mtf30PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF30, inline="M30S")
+mtf30LineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF30, inline="M30S")
+mtf30Color = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF30, inline="M30S")
+mtf30TargetPoints = input.float(90.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF30, inline="M30R")
+mtf30StopPoints = input.float(90.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF30, inline="M30R")
+mtf30ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF30, tooltip=t7)
+mtf30ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF30)
+mtf30ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF30, inline="M30EPV")
+mtf30ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF30, inline="M30EPV")
+mtf30ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF30, inline="M30ETV")
+mtf30ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF30, inline="M30ETV")
+mtf30ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF30, inline="M30EK")
+mtf30ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF30, inline="M30EK")
+mtf30ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF30)
+mtf30ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF30)
+showMtf30ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF30, inline="M30ES")
+mtf30ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF30, inline="M30ES")
+mtf30ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF30, inline="M30EC")
+mtf30ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF30, inline="M30EC")
+mtf30CooldownBars = input.int(400, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF30)
+mtf30BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF30)
+mtf30SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF30)
+
+// 1H
+useMtf60 = input.bool(true, "Enable 1H Signals", group=G_MTF60, inline="M60E")
+mtf60RespectOtherTrades = input.bool(true, "Respect Other Trades", group=G_MTF60, inline="M60E")
+mtf60EnableWickRejection = input.bool(true, "Enable Strong Wick Rejection", group=G_MTF60)
+mtf60EnableBreakout = input.bool(true, "Enable Confirmed Close Breakout", group=G_MTF60)
+mtf60EnableBuy = input.bool(true, "Enable BUY", group=G_MTF60, inline="M60SIDE")
+mtf60EnableSell = input.bool(true, "Enable SELL", group=G_MTF60, inline="M60SIDE")
+mtf60WickBodySameSide = input.bool(true, "Rejection Body Must Stay on Original Side", group=G_MTF60)
+mtf60TouchTolerancePoints = input.float(1.0, "Line Touch Tolerance (Points)", minval=0.0, step=0.5, group=G_MTF60)
+mtf60MinimumWickPoints = input.float(20.0, "Minimum Rejection Wick (Points)", minval=0.0, step=0.5, group=G_MTF60)
+mtf60BreakoutBufferPoints = input.float(0.0, "Breakout Close Buffer (Points)", minval=0.0, step=0.5, group=G_MTF60)
+mtf60UseAtrSignalDistances = input.bool(false, "Use ATR-Adaptive Signal Distances", group=G_MTF60, tooltip=t6)
+mtf60TouchToleranceAtr = input.float(0.009, "Touch Tolerance ATR", minval=0.0, maxval=5.0, step=0.001, group=G_MTF60)
+mtf60MinimumWickAtr = input.float(0.04, "Minimum Rejection Wick ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF60)
+mtf60BreakoutBufferAtr = input.float(0.0, "Breakout Close Buffer ATR", minval=0.0, maxval=5.0, step=0.01, group=G_MTF60)
+mtf60PriceValue = input.string("hma", "Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF60, inline="M60PV", tooltip=t1)
+mtf60PriceLen = input.int(3, "Length", minval=2, maxval=10000, step=1, group=G_MTF60, inline="M60PV")
+mtf60TargetValue = input.string("Price Action", "Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF60, inline="M60TV", tooltip=t2)
+mtf60TargetLen = input.int(3, "Length", minval=2, maxval=10000, step=1, group=G_MTF60, inline="M60TV")
+mtf60ClosestValues = input.int(3, "Closest Values — 1H", minval=2, maxval=200, step=1, group=G_MTF60, tooltip=t3)
+mtf60Smoothing = input.int(12, "Average KNN Line Length — 1H", minval=2, maxval=10000, step=1, group=G_MTF60, tooltip=t4)
+mtf60SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF60, inline="M60L")
+showMtf60Line = input.bool(true, "Show", group=G_MTF60, inline="M60L")
+mtf60PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF60, inline="M60S")
+mtf60LineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF60, inline="M60S")
+mtf60Color = input.color(color.rgb(255, 70, 190), "Color", group=G_MTF60, inline="M60S")
+mtf60TargetPoints = input.float(150.0, "Fixed TP", minval=1.0, step=1.0, group=G_MTF60, inline="M60R")
+mtf60StopPoints = input.float(130.0, "Fixed SL", minval=1.0, step=1.0, group=G_MTF60, inline="M60R")
+mtf60ExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_MTF60, tooltip=t7)
+mtf60ExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_MTF60)
+mtf60ExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_MTF60, inline="M60EPV")
+mtf60ExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF60, inline="M60EPV")
+mtf60ExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_MTF60, inline="M60ETV")
+mtf60ExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF60, inline="M60ETV")
+mtf60ExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_MTF60, inline="M60EK")
+mtf60ExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_MTF60, inline="M60EK")
+mtf60ExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF60)
+mtf60ExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_MTF60)
+showMtf60ExitLine = input.bool(false, "EXIT — Show Line", group=G_MTF60, inline="M60ES")
+mtf60ExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_MTF60, inline="M60ES")
+mtf60ExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_MTF60, inline="M60EC")
+mtf60ExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_MTF60, inline="M60EC")
+mtf60CooldownBars = input.int(80, "Cooldown After Closed Trade", minval=0, maxval=1000, group=G_MTF60)
+mtf60BuyCooldownBars = input.int(0, "BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_MTF60)
+mtf60SellCooldownBars = input.int(0, "SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_MTF60)
+
+// ══════════════════════════════════════════════════════════════════
+// 04 ■ CHART / 1m FIXED TP/SL + INDEPENDENT EXIT ENGINE
+// ══════════════════════════════════════════════════════════════════
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK)
+targetPoints = input.float(90.0, "Fixed TP", minval=1.0, step=1.0, group=G_RISK, inline="CR")
+stopPoints = input.float(90.0, "Fixed SL", minval=1.0, step=1.0, group=G_RISK, inline="CR")
+sameCandleRule = input.string("Skip", "If Fixed TP and SL Hit Same Candle", options=["Stop First", "Target First", "Skip"], group=G_RISK)
+chartExitEnabled = input.bool(false, "EXIT — Enable Independent Exit Engine", group=G_RISK, tooltip=t7)
+chartExitTimeframe = input.timeframe("1", "EXIT — Timeframe", options=["1", "2", "3", "5", "10", "15", "30", "60"], group=G_RISK)
+chartExitPriceValue = input.string("hma", "EXIT — Price Value", options=["hl2", "VWAP", "sma", "wma", "ema", "hma"], group=G_RISK, inline="CEPV")
+chartExitPriceLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_RISK, inline="CEPV")
+chartExitTargetValue = input.string("Price Action", "EXIT — Target Value", options=["Price Action", "VWAP", "Volatility", "sma", "wma", "ema", "hma"], group=G_RISK, inline="CETV")
+chartExitTargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_RISK, inline="CETV")
+chartExitClosestValues = input.int(3, "EXIT — Closest Values", minval=2, maxval=200, step=1, group=G_RISK, inline="CEK")
+chartExitSmoothing = input.int(20, "Line Length", minval=2, maxval=10000, step=1, group=G_RISK, inline="CEK")
+chartExitSignalLine = input.string("Average KNN", "EXIT — Signal Line", options=["Average KNN", "KNN Classifier"], group=G_RISK)
+chartExitConfirmBars = input.int(1, "EXIT — Reversal Confirmation Bars", minval=1, maxval=20, group=G_RISK)
+showChartExitLine = input.bool(false, "EXIT — Show Line", group=G_RISK, inline="CES")
+chartExitPlotStyleInput = input.string("Stepline", "Style", options=["Line", "Stepline", "Circles"], group=G_RISK, inline="CES")
+chartExitLineWidth = input.int(2, "Width", minval=1, maxval=4, group=G_RISK, inline="CEC")
+chartExitColor = input.color(color.rgb(170, 90, 255), "Color", group=G_RISK, inline="CEC")
+
+// ══════════════════════════════════════════════════════════════════
+// 05 ■ EXECUTION
+// Per-TF screenshot bars reproduce the supplied result. Global mode is optional.
+// ══════════════════════════════════════════════════════════════════
+cooldownMode = input.string("Per-TF Screenshot Preset", "Cooldown Mode", options=["Per-TF Screenshot Preset", "Global", "Off"], group=G_EXEC, tooltip=t8)
+cooldownBars = input.int(7, "Chart / 1m Cooldown After Closed Trade", minval=0, maxval=1000, group=G_EXEC)
+buyCooldownBars = input.int(0, "Chart / 1m BUY Cooldown After BUY Loss", minval=0, maxval=1000, group=G_EXEC)
+sellCooldownBars = input.int(0, "Chart / 1m SELL Cooldown After SELL Loss", minval=0, maxval=1000, group=G_EXEC)
+globalCooldownAfterWinMinutes = input.int(0, "Minutes After WIN", minval=0, maxval=10080, group=G_EXEC)
+globalCooldownAfterLossMinutes = input.int(0, "Minutes After LOSS", minval=0, maxval=10080, group=G_EXEC)
+globalCooldownAfterBuyMinutes = input.int(0, "Minutes After Closed BUY", minval=0, maxval=10080, group=G_EXEC)
+globalCooldownAfterSellMinutes = input.int(0, "Minutes After Closed SELL", minval=0, maxval=10080, group=G_EXEC)
+perTfCooldownEnabled = cooldownMode == "Per-TF Screenshot Preset"
+enableGlobalCooldown = cooldownMode == "Global"
+
+// ══════════════════════════════════════════════════════════════════
+// 06 ■ STATISTICS / VISUALS
+// ══════════════════════════════════════════════════════════════════
+showSignals    = input.bool(true, "Show BUY / SELL / TP / EXIT / SL", group=G_VIS)
+showTradeLines = input.bool(true, "Show Entry / TP / SL Lines", group=G_VIS)
+showLineTags   = input.bool(true, "Show Entry / TP / SL Tags", group=G_VIS)
+showTable      = input.bool(true, "Show Stats Table", group=G_VIS)
+lineBars       = input.int(70, "Active Line Bars", minval=5, maxval=500, group=G_VIS)
+statsMode      = input.string("All Loaded History", "Stats Count", options=["All Loaded History", "From Custom Time"], group=G_VIS)
+statsStartTime = input.time(1785564000000, "Start Stats From (UTC)", group=G_VIS)
+manualResetKey = input.int(0, "Manual Reset Number", minval=0, group=G_VIS)
+
+// ═════════════════════════════════════════════════════════════════
+// 07 ■ ALERTS / WEBHOOK / BOT
+// The title said "+ BOT" but the alert() payload, the secret key, the symbol and
+// the lot size were missing from this build. They are restored here using the
+// SAME field names and the SAME JSON shape as the main indicator, so an existing
+// bot reads these messages without any change on its side.
+//
+// One message per opened trade, on the confirmed close of the entry bar. The
+// message carries the source that opened it (CHART / 2m / 3m / ... / 1H) because
+// this indicator can hold several trades at once, one per timeframe.
+//
+// TP and SL are the ones the trade was actually opened with. When a source runs
+// the Independent Exit Engine it has no fixed TP, so the fallback target below is
+// sent instead and a CLOSE message follows when the engine reverses.
+// ═════════════════════════════════════════════════════════════════
+botUseAlertFunction = input.bool(true, "Send BOT Message alert()", group=G_BOT)
+botWebhookKey = input.string("SECRET_135", "BOT Secret Key", group=G_BOT)
+botSymbol = input.string("XAUUSD", "BOT Symbol - Message Only", group=G_BOT)
+botLotSize = input.float(0.02, "BOT Lot Size - Message Only", minval=0.01, step=0.01, group=G_BOT)
+botAlertFormat = input.string("JSON", "alert() Message Format", options=["JSON", "Simple"], group=G_BOT)
+botSendBuy = input.bool(true, "Send BUY", group=G_BOT, inline="BOTSIDE")
+botSendSell = input.bool(true, "Send SELL", group=G_BOT, inline="BOTSIDE")
+botSendClose = input.bool(true, "Send CLOSE when the Independent Exit Engine reverses", group=G_BOT, tooltip="TP and SL are hard prices the broker already holds, so no CLOSE is needed for those. Only the engine exit has to be closed by message.")
+botFallbackTargetPoints = input.float(90.0, "BOT Fallback Target Points — only when a source has no fixed TP", minval=1.0, step=1.0, group=G_BOT)
+botFallbackStopPoints = input.float(90.0, "BOT Fallback Stop Points — only when a source has no fixed SL", minval=1.0, step=1.0, group=G_BOT)
+
+// ══════════════════════════════════════════════════════════════════
+// ORIGINAL KNN CALCULATION
+// ══════════════════════════════════════════════════════════════════
+value_in = switch PriceValue
+    "hl2"  => ta.sma(hl2, maLen)
+    "VWAP" => ta.vwap(close[maLen])
+    "sma"  => ta.sma(close, maLen)
+    "wma"  => ta.wma(close, maLen)
+    "ema"  => ta.ema(close, maLen)
+    "hma"  => ta.hma(close, maLen)
+
+meanOfKClosest(value_, target_) =>
+    closestDistances = array.new_float(numberOfClosestValues, 1e10)
+    closestValues = array.new_float(numberOfClosestValues, 0.0)
+    for i = 1 to windowSize
+        value = value_[i]
+        distance = math.abs(target_ - value)
+        maxDistIndex = 0
+        maxDistValue = array.get(closestDistances, 0)
+        for j = 1 to numberOfClosestValues - 1
+            if array.get(closestDistances, j) > maxDistValue
+                maxDistIndex := j
+                maxDistValue := array.get(closestDistances, j)
+        if distance < maxDistValue
+            array.set(closestDistances, maxDistIndex, distance)
+            array.set(closestValues, maxDistIndex, value)
+    array.sum(closestValues) / numberOfClosestValues
+
+target_in = switch TargetValue
+    "Price Action" => ta.rma(close, maLen_)
+    "VWAP"         => ta.vwap(close[maLen_])
+    "Volatility"   => ta.atr(14)
+    "sma"          => ta.sma(close, maLen_)
+    "wma"          => ta.wma(close, maLen_)
+    "ema"          => ta.ema(close, maLen_)
+    "hma"          => ta.hma(close, maLen_)
+
+knnMA = meanOfKClosest(value_in, target_in)
+
+price = math.avg(knnMA, close)
+c = ta.rma(knnMA[1], smoothingPeriod)
+o = ta.rma(knnMA, smoothingPeriod)
+
+knn(price_) =>
+    Pos_count = 0
+    Neg_count = 0
+    min_distance = 10e10
+    nearest_index = 0
+    for j = 1 to 10
+        distance = math.sqrt(math.pow(price_[j] - price_, 2))
+        if distance < min_distance
+            min_distance := distance
+            nearest_index := j
+            Neg = c[nearest_index] > o[nearest_index]
+            Pos = c[nearest_index] < o[nearest_index]
+            if Pos
+                Pos_count += 1
+            if Neg
+                Neg_count += 1
+    Pos_count > Neg_count ? 1 : -1
+
+knn_prediction_raw = knn(price)
+knn_prediction = ta.wma(knn_prediction_raw, 3)
+
+knnMA_ = ta.wma(knnMA, 5)
+knnMA_col = knnMA_ > knnMA_[1] ? Upknn_col : knnMA_ < knnMA_[1] ? Dnknn_col : Neuknn_col
+
+// This is the exact Average KNN line identified in the supplied screenshot.
+MAknn_ = ta.rma(knnMA, smoothingPeriod)
+
+plot(showKnnClassifier ? knnMA_ : na, "Knn Classifier Line", knnMA_col)
+plot(showAverageKnn ? MAknn_ : na, "Average Knn Classifier Line", Maknn_col, 2)
+
+// Complete independent KNN calculation used inside every request.security()
+// context. Each call receives only that timeframe's own input set.
+f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_) =>
+    valueSeries_ = switch priceValueType_
+        "hl2"  => ta.sma(hl2, priceLen_)
+        "VWAP" => ta.vwap(close[priceLen_])
+        "sma"  => ta.sma(close, priceLen_)
+        "wma"  => ta.wma(close, priceLen_)
+        "ema"  => ta.ema(close, priceLen_)
+        "hma"  => ta.hma(close, priceLen_)
+
+    targetSeries_ = switch targetValueType_
+        "Price Action" => ta.rma(close, targetLen_)
+        "VWAP"         => ta.vwap(close[targetLen_])
+        "Volatility"   => ta.atr(14)
+        "sma"          => ta.sma(close, targetLen_)
+        "wma"          => ta.wma(close, targetLen_)
+        "ema"          => ta.ema(close, targetLen_)
+        "hma"          => ta.hma(close, targetLen_)
+
+    windowSize_ = math.max(closestCount_, 30)
+    closestDistances_ = array.new_float(closestCount_, 1e10)
+    closestValues_ = array.new_float(closestCount_, 0.0)
+    for i_ = 1 to windowSize_
+        historicalValue_ = valueSeries_[i_]
+        distance_ = math.abs(targetSeries_ - historicalValue_)
+        maxDistanceIndex_ = 0
+        maxDistanceValue_ = array.get(closestDistances_, 0)
+        for j_ = 1 to closestCount_ - 1
+            if array.get(closestDistances_, j_) > maxDistanceValue_
+                maxDistanceIndex_ := j_
+                maxDistanceValue_ := array.get(closestDistances_, j_)
+        if distance_ < maxDistanceValue_
+            array.set(closestDistances_, maxDistanceIndex_, distance_)
+            array.set(closestValues_, maxDistanceIndex_, historicalValue_)
+
+    knnValue_ = array.sum(closestValues_) / closestCount_
+    classifierLine_ = ta.wma(knnValue_, 5)
+    averageLine_ = ta.rma(knnValue_, smoothing_)
+    signalLine_ == "KNN Classifier" ? classifierLine_ : averageLine_
+
+// A dedicated exit-only KNN engine. It is calculated in its selected timeframe
+// and uses only fully closed source candles. The returned event timestamps stay
+// unchanged until the next confirmed reversal, allowing the chart timeframe to
+// create exactly one exit pulse per source-timeframe reversal.
+f_independentExitEngine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_, confirmBars_) =>
+    exitLine_ = f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_)
+    bullishConfirmed_ = true
+    bearishConfirmed_ = true
+    for confirmationIndex_ = 0 to confirmBars_ - 1
+        bullishConfirmed_ := bullishConfirmed_ and exitLine_[confirmationIndex_] > exitLine_[confirmationIndex_ + 1]
+        bearishConfirmed_ := bearishConfirmed_ and exitLine_[confirmationIndex_] < exitLine_[confirmationIndex_ + 1]
+    bullishSwitch_ = bullishConfirmed_ and not bullishConfirmed_[1]
+    bearishSwitch_ = bearishConfirmed_ and not bearishConfirmed_[1]
+    bullishEventTime_ = ta.valuewhen(bullishSwitch_[1], time[1], 0)
+    bearishEventTime_ = ta.valuewhen(bearishSwitch_[1], time[1], 0)
+    bullishEventClose_ = ta.valuewhen(bullishSwitch_[1], close[1], 0)
+    bearishEventClose_ = ta.valuewhen(bearishSwitch_[1], close[1], 0)
+    [exitLine_[1], bullishEventTime_, bearishEventTime_, bullishEventClose_, bearishEventClose_]
+
+f_newConfirmedEvent(eventTime_) =>
+    not na(eventTime_) and (na(eventTime_[1]) or eventTime_ != eventTime_[1])
+
+f_timeframeLabel(timeframe_) =>
+    timeframe_ == "60" ? "1H" : timeframe_ + "m"
+
+// [1] + lookahead_on exposes only the last fully closed source-timeframe line.
+mtf2Line = request.security(syminfo.tickerid, "2", f_mtfKnnLine(mtf2PriceValue, mtf2PriceLen, mtf2TargetValue, mtf2TargetLen, mtf2ClosestValues, mtf2Smoothing, mtf2SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf3Line = request.security(syminfo.tickerid, "3", f_mtfKnnLine(mtf3PriceValue, mtf3PriceLen, mtf3TargetValue, mtf3TargetLen, mtf3ClosestValues, mtf3Smoothing, mtf3SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf5Line = request.security(syminfo.tickerid, "5", f_mtfKnnLine(mtf5PriceValue, mtf5PriceLen, mtf5TargetValue, mtf5TargetLen, mtf5ClosestValues, mtf5Smoothing, mtf5SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf10Line = request.security(syminfo.tickerid, "10", f_mtfKnnLine(mtf10PriceValue, mtf10PriceLen, mtf10TargetValue, mtf10TargetLen, mtf10ClosestValues, mtf10Smoothing, mtf10SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf15Line = request.security(syminfo.tickerid, "15", f_mtfKnnLine(mtf15PriceValue, mtf15PriceLen, mtf15TargetValue, mtf15TargetLen, mtf15ClosestValues, mtf15Smoothing, mtf15SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf30Line = request.security(syminfo.tickerid, "30", f_mtfKnnLine(mtf30PriceValue, mtf30PriceLen, mtf30TargetValue, mtf30TargetLen, mtf30ClosestValues, mtf30Smoothing, mtf30SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf60Line = request.security(syminfo.tickerid, "60", f_mtfKnnLine(mtf60PriceValue, mtf60PriceLen, mtf60TargetValue, mtf60TargetLen, mtf60ClosestValues, mtf60Smoothing, mtf60SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+mtf2PlotStyle = mtf2PlotStyleInput == "Line" ? plot.style_line : mtf2PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf3PlotStyle = mtf3PlotStyleInput == "Line" ? plot.style_line : mtf3PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf5PlotStyle = mtf5PlotStyleInput == "Line" ? plot.style_line : mtf5PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf10PlotStyle = mtf10PlotStyleInput == "Line" ? plot.style_line : mtf10PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf15PlotStyle = mtf15PlotStyleInput == "Line" ? plot.style_line : mtf15PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf30PlotStyle = mtf30PlotStyleInput == "Line" ? plot.style_line : mtf30PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf60PlotStyle = mtf60PlotStyleInput == "Line" ? plot.style_line : mtf60PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+
+plot(enableMTF and useMtf2 and showMtf2Line ? mtf2Line : na, title="Confirmed Selected KNN 2m", color=mtf2Color, linewidth=mtf2LineWidth, style=mtf2PlotStyle)
+plot(enableMTF and useMtf3 and showMtf3Line ? mtf3Line : na, title="Confirmed Selected KNN 3m", color=mtf3Color, linewidth=mtf3LineWidth, style=mtf3PlotStyle)
+plot(enableMTF and useMtf5 and showMtf5Line ? mtf5Line : na, title="Confirmed Selected KNN 5m", color=mtf5Color, linewidth=mtf5LineWidth, style=mtf5PlotStyle)
+plot(enableMTF and useMtf10 and showMtf10Line ? mtf10Line : na, title="Confirmed Selected KNN 10m", color=mtf10Color, linewidth=mtf10LineWidth, style=mtf10PlotStyle)
+plot(enableMTF and useMtf15 and showMtf15Line ? mtf15Line : na, title="Confirmed Selected KNN 15m", color=mtf15Color, linewidth=mtf15LineWidth, style=mtf15PlotStyle)
+plot(enableMTF and useMtf30 and showMtf30Line ? mtf30Line : na, title="Confirmed Selected KNN 30m", color=mtf30Color, linewidth=mtf30LineWidth, style=mtf30PlotStyle)
+plot(enableMTF and useMtf60 and showMtf60Line ? mtf60Line : na, title="Confirmed Selected KNN 1H", color=mtf60Color, linewidth=mtf60LineWidth, style=mtf60PlotStyle)
+
+// Eight fully independent exit engines — one linked to each entry source.
+[chartExitLine, chartExitBullTime, chartExitBearTime, chartExitBullClose, chartExitBearClose] = request.security(syminfo.tickerid, chartExitTimeframe, f_independentExitEngine(chartExitPriceValue, chartExitPriceLen, chartExitTargetValue, chartExitTargetLen, chartExitClosestValues, chartExitSmoothing, chartExitSignalLine, chartExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf2ExitLine, mtf2ExitBullTime, mtf2ExitBearTime, mtf2ExitBullClose, mtf2ExitBearClose] = request.security(syminfo.tickerid, mtf2ExitTimeframe, f_independentExitEngine(mtf2ExitPriceValue, mtf2ExitPriceLen, mtf2ExitTargetValue, mtf2ExitTargetLen, mtf2ExitClosestValues, mtf2ExitSmoothing, mtf2ExitSignalLine, mtf2ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf3ExitLine, mtf3ExitBullTime, mtf3ExitBearTime, mtf3ExitBullClose, mtf3ExitBearClose] = request.security(syminfo.tickerid, mtf3ExitTimeframe, f_independentExitEngine(mtf3ExitPriceValue, mtf3ExitPriceLen, mtf3ExitTargetValue, mtf3ExitTargetLen, mtf3ExitClosestValues, mtf3ExitSmoothing, mtf3ExitSignalLine, mtf3ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf5ExitLine, mtf5ExitBullTime, mtf5ExitBearTime, mtf5ExitBullClose, mtf5ExitBearClose] = request.security(syminfo.tickerid, mtf5ExitTimeframe, f_independentExitEngine(mtf5ExitPriceValue, mtf5ExitPriceLen, mtf5ExitTargetValue, mtf5ExitTargetLen, mtf5ExitClosestValues, mtf5ExitSmoothing, mtf5ExitSignalLine, mtf5ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf10ExitLine, mtf10ExitBullTime, mtf10ExitBearTime, mtf10ExitBullClose, mtf10ExitBearClose] = request.security(syminfo.tickerid, mtf10ExitTimeframe, f_independentExitEngine(mtf10ExitPriceValue, mtf10ExitPriceLen, mtf10ExitTargetValue, mtf10ExitTargetLen, mtf10ExitClosestValues, mtf10ExitSmoothing, mtf10ExitSignalLine, mtf10ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf15ExitLine, mtf15ExitBullTime, mtf15ExitBearTime, mtf15ExitBullClose, mtf15ExitBearClose] = request.security(syminfo.tickerid, mtf15ExitTimeframe, f_independentExitEngine(mtf15ExitPriceValue, mtf15ExitPriceLen, mtf15ExitTargetValue, mtf15ExitTargetLen, mtf15ExitClosestValues, mtf15ExitSmoothing, mtf15ExitSignalLine, mtf15ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf30ExitLine, mtf30ExitBullTime, mtf30ExitBearTime, mtf30ExitBullClose, mtf30ExitBearClose] = request.security(syminfo.tickerid, mtf30ExitTimeframe, f_independentExitEngine(mtf30ExitPriceValue, mtf30ExitPriceLen, mtf30ExitTargetValue, mtf30ExitTargetLen, mtf30ExitClosestValues, mtf30ExitSmoothing, mtf30ExitSignalLine, mtf30ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf60ExitLine, mtf60ExitBullTime, mtf60ExitBearTime, mtf60ExitBullClose, mtf60ExitBearClose] = request.security(syminfo.tickerid, mtf60ExitTimeframe, f_independentExitEngine(mtf60ExitPriceValue, mtf60ExitPriceLen, mtf60ExitTargetValue, mtf60ExitTargetLen, mtf60ExitClosestValues, mtf60ExitSmoothing, mtf60ExitSignalLine, mtf60ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+chartExitBullSignal = chartExitEnabled and f_newConfirmedEvent(chartExitBullTime)
+chartExitBearSignal = chartExitEnabled and f_newConfirmedEvent(chartExitBearTime)
+mtf2ExitBullSignal = mtf2ExitEnabled and f_newConfirmedEvent(mtf2ExitBullTime)
+mtf2ExitBearSignal = mtf2ExitEnabled and f_newConfirmedEvent(mtf2ExitBearTime)
+mtf3ExitBullSignal = mtf3ExitEnabled and f_newConfirmedEvent(mtf3ExitBullTime)
+mtf3ExitBearSignal = mtf3ExitEnabled and f_newConfirmedEvent(mtf3ExitBearTime)
+mtf5ExitBullSignal = mtf5ExitEnabled and f_newConfirmedEvent(mtf5ExitBullTime)
+mtf5ExitBearSignal = mtf5ExitEnabled and f_newConfirmedEvent(mtf5ExitBearTime)
+mtf10ExitBullSignal = mtf10ExitEnabled and f_newConfirmedEvent(mtf10ExitBullTime)
+mtf10ExitBearSignal = mtf10ExitEnabled and f_newConfirmedEvent(mtf10ExitBearTime)
+mtf15ExitBullSignal = mtf15ExitEnabled and f_newConfirmedEvent(mtf15ExitBullTime)
+mtf15ExitBearSignal = mtf15ExitEnabled and f_newConfirmedEvent(mtf15ExitBearTime)
+mtf30ExitBullSignal = mtf30ExitEnabled and f_newConfirmedEvent(mtf30ExitBullTime)
+mtf30ExitBearSignal = mtf30ExitEnabled and f_newConfirmedEvent(mtf30ExitBearTime)
+mtf60ExitBullSignal = mtf60ExitEnabled and f_newConfirmedEvent(mtf60ExitBullTime)
+mtf60ExitBearSignal = mtf60ExitEnabled and f_newConfirmedEvent(mtf60ExitBearTime)
+
+chartExitPlotStyle = chartExitPlotStyleInput == "Line" ? plot.style_line : chartExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf2ExitPlotStyle = mtf2ExitPlotStyleInput == "Line" ? plot.style_line : mtf2ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf3ExitPlotStyle = mtf3ExitPlotStyleInput == "Line" ? plot.style_line : mtf3ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf5ExitPlotStyle = mtf5ExitPlotStyleInput == "Line" ? plot.style_line : mtf5ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf10ExitPlotStyle = mtf10ExitPlotStyleInput == "Line" ? plot.style_line : mtf10ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf15ExitPlotStyle = mtf15ExitPlotStyleInput == "Line" ? plot.style_line : mtf15ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf30ExitPlotStyle = mtf30ExitPlotStyleInput == "Line" ? plot.style_line : mtf30ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+mtf60ExitPlotStyle = mtf60ExitPlotStyleInput == "Line" ? plot.style_line : mtf60ExitPlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
+
+plot(chartExitEnabled and showChartExitLine ? chartExitLine : na, title="Independent Exit KNN — Chart Source", color=chartExitColor, linewidth=chartExitLineWidth, style=chartExitPlotStyle)
+plot(mtf2ExitEnabled and showMtf2ExitLine ? mtf2ExitLine : na, title="Independent Exit KNN — 2m Source", color=mtf2ExitColor, linewidth=mtf2ExitLineWidth, style=mtf2ExitPlotStyle)
+plot(mtf3ExitEnabled and showMtf3ExitLine ? mtf3ExitLine : na, title="Independent Exit KNN — 3m Source", color=mtf3ExitColor, linewidth=mtf3ExitLineWidth, style=mtf3ExitPlotStyle)
+plot(mtf5ExitEnabled and showMtf5ExitLine ? mtf5ExitLine : na, title="Independent Exit KNN — 5m Source", color=mtf5ExitColor, linewidth=mtf5ExitLineWidth, style=mtf5ExitPlotStyle)
+plot(mtf10ExitEnabled and showMtf10ExitLine ? mtf10ExitLine : na, title="Independent Exit KNN — 10m Source", color=mtf10ExitColor, linewidth=mtf10ExitLineWidth, style=mtf10ExitPlotStyle)
+plot(mtf15ExitEnabled and showMtf15ExitLine ? mtf15ExitLine : na, title="Independent Exit KNN — 15m Source", color=mtf15ExitColor, linewidth=mtf15ExitLineWidth, style=mtf15ExitPlotStyle)
+plot(mtf30ExitEnabled and showMtf30ExitLine ? mtf30ExitLine : na, title="Independent Exit KNN — 30m Source", color=mtf30ExitColor, linewidth=mtf30ExitLineWidth, style=mtf30ExitPlotStyle)
+plot(mtf60ExitEnabled and showMtf60ExitLine ? mtf60ExitLine : na, title="Independent Exit KNN — 1H Source", color=mtf60ExitColor, linewidth=mtf60ExitLineWidth, style=mtf60ExitPlotStyle)
+
+green = knn_prediction < 0.5
+red = knn_prediction > -0.5
+bgcolor(green and showTrendBackground ? color.new(Dn_col, 80) : red and showTrendBackground ? color.new(Up_col, 80) : na)
+
+// ══════════════════════════════════════════════════════════════════
+// KNN LINE SUPPORT / RESISTANCE SIGNAL ENGINE
+// Signals are confirmed only when the candle closes.
+// ══════════════════════════════════════════════════════════════════
+pointUnit = pointUnitInput
+signalAtr = ta.atr(14)
+
+f_lineSignalSet(line_, wickBodySameSide_, touchTolerancePoints_, minimumWickPoints_, breakoutBufferPoints_, atr_, useAtrDistances_, touchToleranceAtr_, minimumWickAtr_, breakoutBufferAtr_) =>
+    touchTolerance_ = useAtrDistances_ ? atr_ * touchToleranceAtr_ : touchTolerancePoints_ * pointUnit
+    minimumWick_ = useAtrDistances_ ? atr_ * minimumWickAtr_ : minimumWickPoints_ * pointUnit
+    breakoutBuffer_ = useAtrDistances_ ? atr_ * breakoutBufferAtr_ : breakoutBufferPoints_ * pointUnit
+    ready_ = barstate.isconfirmed and not na(line_) and not na(line_[1])
+    wasAbove_ = close[1] > line_[1]
+    wasBelow_ = close[1] < line_[1]
+    bodyLow_ = math.min(open, close)
+    bodyHigh_ = math.max(open, close)
+    lowerWick_ = math.max(bodyLow_ - low, 0.0)
+    upperWick_ = math.max(high - bodyHigh_, 0.0)
+    touchFromAbove_ = low <= line_ + touchTolerance_
+    touchFromBelow_ = high >= line_ - touchTolerance_
+    bodyStayedAbove_ = bodyLow_ >= line_
+    bodyStayedBelow_ = bodyHigh_ <= line_
+    buyRejection_ = ready_ and wasAbove_ and touchFromAbove_ and close > line_ and lowerWick_ > 0 and lowerWick_ >= minimumWick_ and (not wickBodySameSide_ or bodyStayedAbove_)
+    sellRejection_ = ready_ and wasBelow_ and touchFromBelow_ and close < line_ and upperWick_ > 0 and upperWick_ >= minimumWick_ and (not wickBodySameSide_ or bodyStayedBelow_)
+    buyBreakout_ = ready_ and close[1] <= line_[1] and low <= line_ + touchTolerance_ and close > line_ + breakoutBuffer_
+    sellBreakout_ = ready_ and close[1] >= line_[1] and high >= line_ - touchTolerance_ and close < line_ - breakoutBuffer_
+    [buyRejection_, sellRejection_, buyBreakout_, sellBreakout_]
+
+[buyRejectionSetup, sellRejectionSetup, buyBreakoutSetup, sellBreakoutSetup] = f_lineSignalSet(MAknn_, wickBodySameSide, touchTolerancePoints, minimumWickPoints, breakoutBufferPoints, signalAtr, useAtrSignalDistances, touchToleranceAtr, minimumWickAtr, breakoutBufferAtr)
+[mtf2BuyRejectionSetup, mtf2SellRejectionSetup, mtf2BuyBreakoutSetup, mtf2SellBreakoutSetup] = f_lineSignalSet(mtf2Line, mtf2WickBodySameSide, mtf2TouchTolerancePoints, mtf2MinimumWickPoints, mtf2BreakoutBufferPoints, signalAtr, mtf2UseAtrSignalDistances, mtf2TouchToleranceAtr, mtf2MinimumWickAtr, mtf2BreakoutBufferAtr)
+[mtf3BuyRejectionSetup, mtf3SellRejectionSetup, mtf3BuyBreakoutSetup, mtf3SellBreakoutSetup] = f_lineSignalSet(mtf3Line, mtf3WickBodySameSide, mtf3TouchTolerancePoints, mtf3MinimumWickPoints, mtf3BreakoutBufferPoints, signalAtr, mtf3UseAtrSignalDistances, mtf3TouchToleranceAtr, mtf3MinimumWickAtr, mtf3BreakoutBufferAtr)
+[mtf5BuyRejectionSetup, mtf5SellRejectionSetup, mtf5BuyBreakoutSetup, mtf5SellBreakoutSetup] = f_lineSignalSet(mtf5Line, mtf5WickBodySameSide, mtf5TouchTolerancePoints, mtf5MinimumWickPoints, mtf5BreakoutBufferPoints, signalAtr, mtf5UseAtrSignalDistances, mtf5TouchToleranceAtr, mtf5MinimumWickAtr, mtf5BreakoutBufferAtr)
+[mtf10BuyRejectionSetup, mtf10SellRejectionSetup, mtf10BuyBreakoutSetup, mtf10SellBreakoutSetup] = f_lineSignalSet(mtf10Line, mtf10WickBodySameSide, mtf10TouchTolerancePoints, mtf10MinimumWickPoints, mtf10BreakoutBufferPoints, signalAtr, mtf10UseAtrSignalDistances, mtf10TouchToleranceAtr, mtf10MinimumWickAtr, mtf10BreakoutBufferAtr)
+[mtf15BuyRejectionSetup, mtf15SellRejectionSetup, mtf15BuyBreakoutSetup, mtf15SellBreakoutSetup] = f_lineSignalSet(mtf15Line, mtf15WickBodySameSide, mtf15TouchTolerancePoints, mtf15MinimumWickPoints, mtf15BreakoutBufferPoints, signalAtr, mtf15UseAtrSignalDistances, mtf15TouchToleranceAtr, mtf15MinimumWickAtr, mtf15BreakoutBufferAtr)
+[mtf30BuyRejectionSetup, mtf30SellRejectionSetup, mtf30BuyBreakoutSetup, mtf30SellBreakoutSetup] = f_lineSignalSet(mtf30Line, mtf30WickBodySameSide, mtf30TouchTolerancePoints, mtf30MinimumWickPoints, mtf30BreakoutBufferPoints, signalAtr, mtf30UseAtrSignalDistances, mtf30TouchToleranceAtr, mtf30MinimumWickAtr, mtf30BreakoutBufferAtr)
+[mtf60BuyRejectionSetup, mtf60SellRejectionSetup, mtf60BuyBreakoutSetup, mtf60SellBreakoutSetup] = f_lineSignalSet(mtf60Line, mtf60WickBodySameSide, mtf60TouchTolerancePoints, mtf60MinimumWickPoints, mtf60BreakoutBufferPoints, signalAtr, mtf60UseAtrSignalDistances, mtf60TouchToleranceAtr, mtf60MinimumWickAtr, mtf60BreakoutBufferAtr)
+
+// The chart/1m source is now independently switchable, even when MTF is off.
+chartSignalsAllowed = useChartSignals
+
+buyRejectionSignal = enableSignals and chartSignalsAllowed and enableBuy and enableWickRejection and buyRejectionSetup
+sellRejectionSignal = enableSignals and chartSignalsAllowed and enableSell and enableWickRejection and sellRejectionSetup
+buyBreakoutSignal = enableSignals and chartSignalsAllowed and enableBuy and enableBreakout and buyBreakoutSetup
+sellBreakoutSignal = enableSignals and chartSignalsAllowed and enableSell and enableBreakout and sellBreakoutSetup
+
+mtf2BuyRejectionSignal = enableSignals and enableMTF and useMtf2 and mtf2EnableBuy and mtf2EnableWickRejection and mtf2BuyRejectionSetup
+mtf2SellRejectionSignal = enableSignals and enableMTF and useMtf2 and mtf2EnableSell and mtf2EnableWickRejection and mtf2SellRejectionSetup
+mtf2BuyBreakoutSignal = enableSignals and enableMTF and useMtf2 and mtf2EnableBuy and mtf2EnableBreakout and mtf2BuyBreakoutSetup
+mtf2SellBreakoutSignal = enableSignals and enableMTF and useMtf2 and mtf2EnableSell and mtf2EnableBreakout and mtf2SellBreakoutSetup
+
+mtf3BuyRejectionSignal = enableSignals and enableMTF and useMtf3 and mtf3EnableBuy and mtf3EnableWickRejection and mtf3BuyRejectionSetup
+mtf3SellRejectionSignal = enableSignals and enableMTF and useMtf3 and mtf3EnableSell and mtf3EnableWickRejection and mtf3SellRejectionSetup
+mtf3BuyBreakoutSignal = enableSignals and enableMTF and useMtf3 and mtf3EnableBuy and mtf3EnableBreakout and mtf3BuyBreakoutSetup
+mtf3SellBreakoutSignal = enableSignals and enableMTF and useMtf3 and mtf3EnableSell and mtf3EnableBreakout and mtf3SellBreakoutSetup
+
+mtf5BuyRejectionSignal = enableSignals and enableMTF and useMtf5 and mtf5EnableBuy and mtf5EnableWickRejection and mtf5BuyRejectionSetup
+mtf5SellRejectionSignal = enableSignals and enableMTF and useMtf5 and mtf5EnableSell and mtf5EnableWickRejection and mtf5SellRejectionSetup
+mtf5BuyBreakoutSignal = enableSignals and enableMTF and useMtf5 and mtf5EnableBuy and mtf5EnableBreakout and mtf5BuyBreakoutSetup
+mtf5SellBreakoutSignal = enableSignals and enableMTF and useMtf5 and mtf5EnableSell and mtf5EnableBreakout and mtf5SellBreakoutSetup
+
+mtf10BuyRejectionSignal = enableSignals and enableMTF and useMtf10 and mtf10EnableBuy and mtf10EnableWickRejection and mtf10BuyRejectionSetup
+mtf10SellRejectionSignal = enableSignals and enableMTF and useMtf10 and mtf10EnableSell and mtf10EnableWickRejection and mtf10SellRejectionSetup
+mtf10BuyBreakoutSignal = enableSignals and enableMTF and useMtf10 and mtf10EnableBuy and mtf10EnableBreakout and mtf10BuyBreakoutSetup
+mtf10SellBreakoutSignal = enableSignals and enableMTF and useMtf10 and mtf10EnableSell and mtf10EnableBreakout and mtf10SellBreakoutSetup
+
+mtf15BuyRejectionSignal = enableSignals and enableMTF and useMtf15 and mtf15EnableBuy and mtf15EnableWickRejection and mtf15BuyRejectionSetup
+mtf15SellRejectionSignal = enableSignals and enableMTF and useMtf15 and mtf15EnableSell and mtf15EnableWickRejection and mtf15SellRejectionSetup
+mtf15BuyBreakoutSignal = enableSignals and enableMTF and useMtf15 and mtf15EnableBuy and mtf15EnableBreakout and mtf15BuyBreakoutSetup
+mtf15SellBreakoutSignal = enableSignals and enableMTF and useMtf15 and mtf15EnableSell and mtf15EnableBreakout and mtf15SellBreakoutSetup
+
+mtf30BuyRejectionSignal = enableSignals and enableMTF and useMtf30 and mtf30EnableBuy and mtf30EnableWickRejection and mtf30BuyRejectionSetup
+mtf30SellRejectionSignal = enableSignals and enableMTF and useMtf30 and mtf30EnableSell and mtf30EnableWickRejection and mtf30SellRejectionSetup
+mtf30BuyBreakoutSignal = enableSignals and enableMTF and useMtf30 and mtf30EnableBuy and mtf30EnableBreakout and mtf30BuyBreakoutSetup
+mtf30SellBreakoutSignal = enableSignals and enableMTF and useMtf30 and mtf30EnableSell and mtf30EnableBreakout and mtf30SellBreakoutSetup
+
+mtf60BuyRejectionSignal = enableSignals and enableMTF and useMtf60 and mtf60EnableBuy and mtf60EnableWickRejection and mtf60BuyRejectionSetup
+mtf60SellRejectionSignal = enableSignals and enableMTF and useMtf60 and mtf60EnableSell and mtf60EnableWickRejection and mtf60SellRejectionSetup
+mtf60BuyBreakoutSignal = enableSignals and enableMTF and useMtf60 and mtf60EnableBuy and mtf60EnableBreakout and mtf60BuyBreakoutSetup
+mtf60SellBreakoutSignal = enableSignals and enableMTF and useMtf60 and mtf60EnableSell and mtf60EnableBreakout and mtf60SellBreakoutSetup
+
+mtf2BuySignal = mtf2BuyRejectionSignal or mtf2BuyBreakoutSignal
+mtf2SellSignal = mtf2SellRejectionSignal or mtf2SellBreakoutSignal
+mtf3BuySignal = mtf3BuyRejectionSignal or mtf3BuyBreakoutSignal
+mtf3SellSignal = mtf3SellRejectionSignal or mtf3SellBreakoutSignal
+mtf5BuySignal = mtf5BuyRejectionSignal or mtf5BuyBreakoutSignal
+mtf5SellSignal = mtf5SellRejectionSignal or mtf5SellBreakoutSignal
+mtf10BuySignal = mtf10BuyRejectionSignal or mtf10BuyBreakoutSignal
+mtf10SellSignal = mtf10SellRejectionSignal or mtf10SellBreakoutSignal
+mtf15BuySignal = mtf15BuyRejectionSignal or mtf15BuyBreakoutSignal
+mtf15SellSignal = mtf15SellRejectionSignal or mtf15SellBreakoutSignal
+mtf30BuySignal = mtf30BuyRejectionSignal or mtf30BuyBreakoutSignal
+mtf30SellSignal = mtf30SellRejectionSignal or mtf30SellBreakoutSignal
+mtf60BuySignal = mtf60BuyRejectionSignal or mtf60BuyBreakoutSignal
+mtf60SellSignal = mtf60SellRejectionSignal or mtf60SellBreakoutSignal
+
+chartBuySignal = buyRejectionSignal or buyBreakoutSignal
+chartSellSignal = sellRejectionSignal or sellBreakoutSignal
+
+// Every source owns a separate trade slot. A source whose "Respect Other Trades"
+// option is enabled may enter only when all slots are flat. When disabled, that
+// source can run independently beside positions opened by other timeframes.
+SOURCE_COUNT = 8
+var sourceNames = array.from("CHART " + timeframe.period, "2m", "3m", "5m", "10m", "15m", "30m", "1H")
+var sourceBuySignals = array.new_bool(SOURCE_COUNT, false)
+var sourceSellSignals = array.new_bool(SOURCE_COUNT, false)
+var sourceExitBullSignals = array.new_bool(SOURCE_COUNT, false)
+var sourceExitBearSignals = array.new_bool(SOURCE_COUNT, false)
+var sourceExitBullPrices = array.new_float(SOURCE_COUNT, na)
+var sourceExitBearPrices = array.new_float(SOURCE_COUNT, na)
+var sourceBuyRejections = array.new_bool(SOURCE_COUNT, false)
+var sourceSellRejections = array.new_bool(SOURCE_COUNT, false)
+var sourceTargetPoints = array.from(targetPoints, mtf2TargetPoints, mtf3TargetPoints, mtf5TargetPoints, mtf10TargetPoints, mtf15TargetPoints, mtf30TargetPoints, mtf60TargetPoints)
+var sourceStopPoints = array.from(stopPoints, mtf2StopPoints, mtf3StopPoints, mtf5StopPoints, mtf10StopPoints, mtf15StopPoints, mtf30StopPoints, mtf60StopPoints)
+var sourceRespectOtherTrades = array.from(chartRespectOtherTrades, mtf2RespectOtherTrades, mtf3RespectOtherTrades, mtf5RespectOtherTrades, mtf10RespectOtherTrades, mtf15RespectOtherTrades, mtf30RespectOtherTrades, mtf60RespectOtherTrades)
+var sourceExitEnabled = array.from(chartExitEnabled, mtf2ExitEnabled, mtf3ExitEnabled, mtf5ExitEnabled, mtf10ExitEnabled, mtf15ExitEnabled, mtf30ExitEnabled, mtf60ExitEnabled)
+var sourceExitTimeframes = array.from(chartExitTimeframe, mtf2ExitTimeframe, mtf3ExitTimeframe, mtf5ExitTimeframe, mtf10ExitTimeframe, mtf15ExitTimeframe, mtf30ExitTimeframe, mtf60ExitTimeframe)
+var sourceCooldownBars = array.from(cooldownBars, mtf2CooldownBars, mtf3CooldownBars, mtf5CooldownBars, mtf10CooldownBars, mtf15CooldownBars, mtf30CooldownBars, mtf60CooldownBars)
+var sourceBuyCooldownBars = array.from(buyCooldownBars, mtf2BuyCooldownBars, mtf3BuyCooldownBars, mtf5BuyCooldownBars, mtf10BuyCooldownBars, mtf15BuyCooldownBars, mtf30BuyCooldownBars, mtf60BuyCooldownBars)
+var sourceSellCooldownBars = array.from(sellCooldownBars, mtf2SellCooldownBars, mtf3SellCooldownBars, mtf5SellCooldownBars, mtf10SellCooldownBars, mtf15SellCooldownBars, mtf30SellCooldownBars, mtf60SellCooldownBars)
+
+array.set(sourceBuySignals, 0, chartBuySignal)
+array.set(sourceBuySignals, 1, mtf2BuySignal)
+array.set(sourceBuySignals, 2, mtf3BuySignal)
+array.set(sourceBuySignals, 3, mtf5BuySignal)
+array.set(sourceBuySignals, 4, mtf10BuySignal)
+array.set(sourceBuySignals, 5, mtf15BuySignal)
+array.set(sourceBuySignals, 6, mtf30BuySignal)
+array.set(sourceBuySignals, 7, mtf60BuySignal)
+array.set(sourceSellSignals, 0, chartSellSignal)
+array.set(sourceSellSignals, 1, mtf2SellSignal)
+array.set(sourceSellSignals, 2, mtf3SellSignal)
+array.set(sourceSellSignals, 3, mtf5SellSignal)
+array.set(sourceSellSignals, 4, mtf10SellSignal)
+array.set(sourceSellSignals, 5, mtf15SellSignal)
+array.set(sourceSellSignals, 6, mtf30SellSignal)
+array.set(sourceSellSignals, 7, mtf60SellSignal)
+
+// The exit arrays belong to the entry source at the same index; they never
+// borrow another entry engine and therefore cannot change its entry signals.
+array.set(sourceExitBullSignals, 0, chartExitBullSignal)
+array.set(sourceExitBullSignals, 1, mtf2ExitBullSignal)
+array.set(sourceExitBullSignals, 2, mtf3ExitBullSignal)
+array.set(sourceExitBullSignals, 3, mtf5ExitBullSignal)
+array.set(sourceExitBullSignals, 4, mtf10ExitBullSignal)
+array.set(sourceExitBullSignals, 5, mtf15ExitBullSignal)
+array.set(sourceExitBullSignals, 6, mtf30ExitBullSignal)
+array.set(sourceExitBullSignals, 7, mtf60ExitBullSignal)
+array.set(sourceExitBearSignals, 0, chartExitBearSignal)
+array.set(sourceExitBearSignals, 1, mtf2ExitBearSignal)
+array.set(sourceExitBearSignals, 2, mtf3ExitBearSignal)
+array.set(sourceExitBearSignals, 3, mtf5ExitBearSignal)
+array.set(sourceExitBearSignals, 4, mtf10ExitBearSignal)
+array.set(sourceExitBearSignals, 5, mtf15ExitBearSignal)
+array.set(sourceExitBearSignals, 6, mtf30ExitBearSignal)
+array.set(sourceExitBearSignals, 7, mtf60ExitBearSignal)
+array.set(sourceExitBullPrices, 0, chartExitBullClose)
+array.set(sourceExitBullPrices, 1, mtf2ExitBullClose)
+array.set(sourceExitBullPrices, 2, mtf3ExitBullClose)
+array.set(sourceExitBullPrices, 3, mtf5ExitBullClose)
+array.set(sourceExitBullPrices, 4, mtf10ExitBullClose)
+array.set(sourceExitBullPrices, 5, mtf15ExitBullClose)
+array.set(sourceExitBullPrices, 6, mtf30ExitBullClose)
+array.set(sourceExitBullPrices, 7, mtf60ExitBullClose)
+array.set(sourceExitBearPrices, 0, chartExitBearClose)
+array.set(sourceExitBearPrices, 1, mtf2ExitBearClose)
+array.set(sourceExitBearPrices, 2, mtf3ExitBearClose)
+array.set(sourceExitBearPrices, 3, mtf5ExitBearClose)
+array.set(sourceExitBearPrices, 4, mtf10ExitBearClose)
+array.set(sourceExitBearPrices, 5, mtf15ExitBearClose)
+array.set(sourceExitBearPrices, 6, mtf30ExitBearClose)
+array.set(sourceExitBearPrices, 7, mtf60ExitBearClose)
+
+array.set(sourceBuyRejections, 0, buyRejectionSignal)
+array.set(sourceBuyRejections, 1, mtf2BuyRejectionSignal)
+array.set(sourceBuyRejections, 2, mtf3BuyRejectionSignal)
+array.set(sourceBuyRejections, 3, mtf5BuyRejectionSignal)
+array.set(sourceBuyRejections, 4, mtf10BuyRejectionSignal)
+array.set(sourceBuyRejections, 5, mtf15BuyRejectionSignal)
+array.set(sourceBuyRejections, 6, mtf30BuyRejectionSignal)
+array.set(sourceBuyRejections, 7, mtf60BuyRejectionSignal)
+array.set(sourceSellRejections, 0, sellRejectionSignal)
+array.set(sourceSellRejections, 1, mtf2SellRejectionSignal)
+array.set(sourceSellRejections, 2, mtf3SellRejectionSignal)
+array.set(sourceSellRejections, 3, mtf5SellRejectionSignal)
+array.set(sourceSellRejections, 4, mtf10SellRejectionSignal)
+array.set(sourceSellRejections, 5, mtf15SellRejectionSignal)
+array.set(sourceSellRejections, 6, mtf30SellRejectionSignal)
+array.set(sourceSellRejections, 7, mtf60SellRejectionSignal)
+
+// ══════════════════════════════════════════════════════════════════
+// TRADE STATE / STATISTICS
+// ══════════════════════════════════════════════════════════════════
+statsActive = statsMode == "All Loaded History" or time >= statsStartTime
+
+var string lastSignalText = "-"
+
+var lastTradeBars = array.new_int(SOURCE_COUNT, na)
+var lastBuyLossBars = array.new_int(SOURCE_COUNT, na)
+var lastSellLossBars = array.new_int(SOURCE_COUNT, na)
+var activeTrades = array.new_bool(SOURCE_COUNT, false)
+var tradeSides = array.new_int(SOURCE_COUNT, 0)
+var entryPrices = array.new_float(SOURCE_COUNT, na)
+var tpPrices = array.new_float(SOURCE_COUNT, na)
+var slPrices = array.new_float(SOURCE_COUNT, na)
+var activeTargetPoints = array.new_float(SOURCE_COUNT, na)
+var activeStopPoints = array.new_float(SOURCE_COUNT, na)
+var entryBars = array.new_int(SOURCE_COUNT, na)
+var activeSignalTypes = array.new_string(SOURCE_COUNT, "-")
+
+// Exit decisions are calculated before new entries so a closing trade can
+// start the global cooldown on its actual closing bar. State is cleared only
+// after entry decisions, preserving V12's no-reversal-on-the-exit-bar rule.
+var pendingExit = array.new_bool(SOURCE_COUNT, false)
+var pendingExitReason = array.new_int(SOURCE_COUNT, 0) // -1=fixed SL, 1=fixed TP, 2=independent reversal, 3=same-candle skip
+var pendingExitPoints = array.new_float(SOURCE_COUNT, 0.0)
+var pendingExitPrice = array.new_float(SOURCE_COUNT, na)
+
+var int globalCooldownUntil = na
+var string globalCooldownReason = "-"
+
+var int wins = 0
+var int losses = 0
+var int trades = 0
+var int buyWins = 0
+var int buyLosses = 0
+var int sellWins = 0
+var int sellLosses = 0
+var int rejectionEntries = 0
+var int breakoutEntries = 0
+var int curWin = 0
+var int maxWin = 0
+var int curLoss = 0
+var int maxLoss = 0
+var float netPts = 0.0
+var float sumWinPts = 0.0
+var float sumLossPts = 0.0
+var float lastClosedPts = 0.0
+
+var entryLines = array.new_line(SOURCE_COUNT, na)
+var tpLines = array.new_line(SOURCE_COUNT, na)
+var slLines = array.new_line(SOURCE_COUNT, na)
+var entryTags = array.new_label(SOURCE_COUNT, na)
+var tpTags = array.new_label(SOURCE_COUNT, na)
+var slTags = array.new_label(SOURCE_COUNT, na)
+
+var bool entryBuyPlot = false
+var bool entrySellPlot = false
+var bool exitTPPlot = false
+var bool exitSLPlot = false
+var bool exitEnginePlot = false
+var bool buyRejectionEntryAlert = false
+var bool sellRejectionEntryAlert = false
+var bool buyBreakoutEntryAlert = false
+var bool sellBreakoutEntryAlert = false
+var enteredBuyBySource = array.new_bool(SOURCE_COUNT, false)
+var enteredSellBySource = array.new_bool(SOURCE_COUNT, false)
+var int lastResetKey = manualResetKey
+
+entryBuyPlot := false
+entrySellPlot := false
+exitTPPlot := false
+exitSLPlot := false
+exitEnginePlot := false
+buyRejectionEntryAlert := false
+sellRejectionEntryAlert := false
+buyBreakoutEntryAlert := false
+sellBreakoutEntryAlert := false
+
+for sourceIndex = 0 to SOURCE_COUNT - 1
+    array.set(enteredBuyBySource, sourceIndex, false)
+    array.set(enteredSellBySource, sourceIndex, false)
+    array.set(pendingExit, sourceIndex, false)
+    array.set(pendingExitReason, sourceIndex, 0)
+    array.set(pendingExitPoints, sourceIndex, 0.0)
+    array.set(pendingExitPrice, sourceIndex, na)
+
+f_delete_trade_visuals(sourceIndex_) =>
+    entryLine_ = array.get(entryLines, sourceIndex_)
+    tpLine_ = array.get(tpLines, sourceIndex_)
+    slLine_ = array.get(slLines, sourceIndex_)
+    entryTag_ = array.get(entryTags, sourceIndex_)
+    tpTag_ = array.get(tpTags, sourceIndex_)
+    slTag_ = array.get(slTags, sourceIndex_)
+    if not na(entryLine_)
+        line.delete(entryLine_)
+    if not na(tpLine_)
+        line.delete(tpLine_)
+    if not na(slLine_)
+        line.delete(slLine_)
+    if not na(entryTag_)
+        label.delete(entryTag_)
+    if not na(tpTag_)
+        label.delete(tpTag_)
+    if not na(slTag_)
+        label.delete(slTag_)
+    array.set(entryLines, sourceIndex_, na)
+    array.set(tpLines, sourceIndex_, na)
+    array.set(slLines, sourceIndex_, na)
+    array.set(entryTags, sourceIndex_, na)
+    array.set(tpTags, sourceIndex_, na)
+    array.set(slTags, sourceIndex_, na)
+
+if manualResetKey != lastResetKey
+    for sourceIndex = 0 to SOURCE_COUNT - 1
+        f_delete_trade_visuals(sourceIndex)
+        array.set(activeTrades, sourceIndex, false)
+        array.set(tradeSides, sourceIndex, 0)
+        array.set(entryPrices, sourceIndex, na)
+        array.set(tpPrices, sourceIndex, na)
+        array.set(slPrices, sourceIndex, na)
+        array.set(activeTargetPoints, sourceIndex, na)
+        array.set(activeStopPoints, sourceIndex, na)
+        array.set(entryBars, sourceIndex, na)
+        array.set(activeSignalTypes, sourceIndex, "-")
+        array.set(lastTradeBars, sourceIndex, na)
+        array.set(lastBuyLossBars, sourceIndex, na)
+        array.set(lastSellLossBars, sourceIndex, na)
+    lastSignalText := "-"
+    globalCooldownUntil := na
+    globalCooldownReason := "-"
+    wins := 0
+    losses := 0
+    trades := 0
+    buyWins := 0
+    buyLosses := 0
+    sellWins := 0
+    sellLosses := 0
+    rejectionEntries := 0
+    breakoutEntries := 0
+    curWin := 0
+    maxWin := 0
+    curLoss := 0
+    maxLoss := 0
+    netPts := 0.0
+    sumWinPts := 0.0
+    sumLossPts := 0.0
+    lastClosedPts := 0.0
+    lastResetKey := manualResetKey
+
+// Pre-calculate exits before new entries. The fixed stop has priority if it and
+// a confirmed exit-engine reversal occur on the same chart bar. Each reversal
+// price comes from the closed candle of that source's selected exit timeframe.
+cooldownClock_ = nz(time_close, time)
+for sourceIndex = 0 to SOURCE_COUNT - 1
+    active_ = array.get(activeTrades, sourceIndex)
+    entryBar_ = array.get(entryBars, sourceIndex)
+
+    if active_ and bar_index > entryBar_
+        side_ = array.get(tradeSides, sourceIndex)
+        entryPrice_ = array.get(entryPrices, sourceIndex)
+        tpPrice_ = array.get(tpPrices, sourceIndex)
+        slPrice_ = array.get(slPrices, sourceIndex)
+        targetPoints_ = array.get(activeTargetPoints, sourceIndex)
+        stopPoints_ = array.get(activeStopPoints, sourceIndex)
+        exitEngineEnabled_ = array.get(sourceExitEnabled, sourceIndex)
+        hitTP_ = not exitEngineEnabled_ and not na(tpPrice_) and (side_ == 1 ? high >= tpPrice_ : low <= tpPrice_)
+        hitSL_ = side_ == 1 ? low <= slPrice_ : high >= slPrice_
+        bothHit_ = hitTP_ and hitSL_
+        skipTrade_ = bothHit_ and sameCandleRule == "Skip"
+        fixedTargetWin_ = bothHit_ ? (not skipTrade_ and sameCandleRule == "Target First") : hitTP_
+        fixedStopLoss_ = bothHit_ ? (not skipTrade_ and sameCandleRule == "Stop First") : hitSL_
+        exitEngineSignal_ = exitEngineEnabled_ and not hitSL_ and (side_ == 1 ? array.get(sourceExitBearSignals, sourceIndex) : array.get(sourceExitBullSignals, sourceIndex))
+        exitEnginePrice_ = side_ == 1 ? array.get(sourceExitBearPrices, sourceIndex) : array.get(sourceExitBullPrices, sourceIndex)
+        exitReason_ = skipTrade_ ? 3 : fixedTargetWin_ ? 1 : fixedStopLoss_ ? -1 : exitEngineSignal_ ? 2 : 0
+        shouldClose_ = exitReason_ != 0
+
+        if shouldClose_
+            confirmedExitPrice_ = not na(exitEnginePrice_) ? exitEnginePrice_ : close
+            exitPoints_ = exitReason_ == 3 ? 0.0 : exitReason_ == 1 ? targetPoints_ : exitReason_ == -1 ? -stopPoints_ : side_ == 1 ? (confirmedExitPrice_ - entryPrice_) / pointUnit : (entryPrice_ - confirmedExitPrice_) / pointUnit
+            exitPrice_ = exitReason_ == 1 ? tpPrice_ : exitReason_ == -1 ? slPrice_ : exitReason_ == 3 ? close : confirmedExitPrice_
+
+            array.set(pendingExit, sourceIndex, true)
+            array.set(pendingExitReason, sourceIndex, exitReason_)
+            array.set(pendingExitPoints, sourceIndex, exitPoints_)
+            array.set(pendingExitPrice, sourceIndex, exitPrice_)
+
+            if exitReason_ != 3
+                resultCooldownMinutes_ = exitPoints_ > 0 ? globalCooldownAfterWinMinutes : globalCooldownAfterLossMinutes
+                sideCooldownMinutes_ = side_ == 1 ? globalCooldownAfterBuyMinutes : globalCooldownAfterSellMinutes
+                appliedCooldownMinutes_ = math.max(resultCooldownMinutes_, sideCooldownMinutes_)
+
+                if enableGlobalCooldown and appliedCooldownMinutes_ > 0
+                    candidateCooldownUntil_ = cooldownClock_ + appliedCooldownMinutes_ * 60000
+                    if na(globalCooldownUntil) or candidateCooldownUntil_ >= globalCooldownUntil
+                        globalCooldownUntil := candidateCooldownUntil_
+                        resultText_ = exitPoints_ > 0 ? "WIN" : "LOSS"
+                        globalCooldownReason := (side_ == 1 ? "BUY " : "SELL ") + resultText_
+
+globalCooldownActive = enableGlobalCooldown and not na(globalCooldownUntil) and cooldownClock_ < globalCooldownUntil
+
+openTradesBeforeEntries = 0
+for sourceIndex = 0 to SOURCE_COUNT - 1
+    if array.get(activeTrades, sourceIndex)
+        openTradesBeforeEntries += 1
+
+openTradesDuringEntries = openTradesBeforeEntries
+barSignalText = ""
+
+// Process from the highest timeframe to the chart timeframe. When several
+// respecting sources trigger together, the highest timeframe receives the slot.
+for priorityOffset = 0 to SOURCE_COUNT - 1
+    sourceIndex = SOURCE_COUNT - 1 - priorityOffset
+    buySignal_ = array.get(sourceBuySignals, sourceIndex)
+    sellSignal_ = array.get(sourceSellSignals, sourceIndex)
+    signalSide_ = buySignal_ and not sellSignal_ ? 1 : sellSignal_ and not buySignal_ ? -1 : 0
+    sourceIsFlat_ = not array.get(activeTrades, sourceIndex)
+    respectsOthers_ = array.get(sourceRespectOtherTrades, sourceIndex)
+    otherTradesOK_ = not respectsOthers_ or openTradesDuringEntries == 0
+    lastTradeBar_ = array.get(lastTradeBars, sourceIndex)
+    lastBuyLossBar_ = array.get(lastBuyLossBars, sourceIndex)
+    lastSellLossBar_ = array.get(lastSellLossBars, sourceIndex)
+    sourceCooldownOK_ = not perTfCooldownEnabled or na(lastTradeBar_) or bar_index - lastTradeBar_ >= array.get(sourceCooldownBars, sourceIndex)
+    buyCooldownOK_ = not perTfCooldownEnabled or na(lastBuyLossBar_) or bar_index - lastBuyLossBar_ >= array.get(sourceBuyCooldownBars, sourceIndex)
+    sellCooldownOK_ = not perTfCooldownEnabled or na(lastSellLossBar_) or bar_index - lastSellLossBar_ >= array.get(sourceSellCooldownBars, sourceIndex)
+    directionCooldownOK_ = signalSide_ == 1 ? buyCooldownOK_ : signalSide_ == -1 ? sellCooldownOK_ : false
+    canEnterSource_ = barstate.isconfirmed and signalSide_ != 0 and sourceIsFlat_ and otherTradesOK_ and sourceCooldownOK_ and directionCooldownOK_ and not globalCooldownActive
+
+    if canEnterSource_
+        sourceName_ = array.get(sourceNames, sourceIndex)
+        targetPoints_ = array.get(sourceTargetPoints, sourceIndex)
+        stopPoints_ = array.get(sourceStopPoints, sourceIndex)
+        exitEngineEnabled_ = array.get(sourceExitEnabled, sourceIndex)
+        exitTimeframeLabel_ = f_timeframeLabel(array.get(sourceExitTimeframes, sourceIndex))
+        exitModeText_ = exitEngineEnabled_ ? " EXIT→" + exitTimeframeLabel_ : " TP " + str.tostring(targetPoints_, "#")
+        entryPrice_ = close
+        tpPrice_ = exitEngineEnabled_ ? na : signalSide_ == 1 ? entryPrice_ + targetPoints_ * pointUnit : entryPrice_ - targetPoints_ * pointUnit
+        slPrice_ = signalSide_ == 1 ? entryPrice_ - stopPoints_ * pointUnit : entryPrice_ + stopPoints_ * pointUnit
+        entryIsRejection_ = signalSide_ == 1 ? array.get(sourceBuyRejections, sourceIndex) : array.get(sourceSellRejections, sourceIndex)
+        signalType_ = entryIsRejection_ ? "REJECTION" : "BREAKOUT"
+        signalText_ = (signalSide_ == 1 ? "BUY " : "SELL ") + sourceName_ + " " + signalType_ + exitModeText_
+
+        array.set(activeTrades, sourceIndex, true)
+        array.set(tradeSides, sourceIndex, signalSide_)
+        array.set(entryPrices, sourceIndex, entryPrice_)
+        array.set(tpPrices, sourceIndex, tpPrice_)
+        array.set(slPrices, sourceIndex, slPrice_)
+        array.set(activeTargetPoints, sourceIndex, targetPoints_)
+        array.set(activeStopPoints, sourceIndex, stopPoints_)
+        array.set(entryBars, sourceIndex, bar_index)
+        array.set(activeSignalTypes, sourceIndex, signalType_)
+        openTradesDuringEntries += 1
+        barSignalText := barSignalText == "" ? signalText_ : barSignalText + " | " + signalText_
+
+        // ── BOT message for this entry ──
+        botSideOK_ = signalSide_ == 1 ? botSendBuy : botSendSell
+        if botUseAlertFunction and botSideOK_
+            botSideTxt_ = signalSide_ == 1 ? "BUY" : "SELL"
+            botTpPts_ = na(tpPrice_) ? botFallbackTargetPoints : targetPoints_
+            botSlPts_ = na(slPrice_) ? botFallbackStopPoints : stopPoints_
+            botTpPx_ = na(tpPrice_) ? (signalSide_ == 1 ? entryPrice_ + botTpPts_ * pointUnit : entryPrice_ - botTpPts_ * pointUnit) : tpPrice_
+            botSlPx_ = na(slPrice_) ? (signalSide_ == 1 ? entryPrice_ - botSlPts_ * pointUnit : entryPrice_ + botSlPts_ * pointUnit) : slPrice_
+            botUid_ = botSymbol + "-" + str.tostring(time) + "-" + botSideTxt_ + "-" + sourceName_
+            botJson_ = '{"key":"' + botWebhookKey + '","action":"' + botSideTxt_ + '","side":"' + botSideTxt_ + '","symbol":"' + botSymbol + '","lot":' + str.tostring(botLotSize) + ',"tp_points":' + str.tostring(botTpPts_, "#.##") + ',"sl_points":' + str.tostring(botSlPts_, "#.##") + ',"target_points":' + str.tostring(botTpPts_, "#.##") + ',"stop_points":' + str.tostring(botSlPts_, "#.##") + ',"point_unit":' + str.tostring(pointUnit) + ',"entry":' + str.tostring(entryPrice_, format.mintick) + ',"tp_price":' + str.tostring(botTpPx_, format.mintick) + ',"sl_price":' + str.tostring(botSlPx_, format.mintick) + ',"source":"' + sourceName_ + '","signal":"' + signalType_ + '","exit_model":"' + (exitEngineEnabled_ ? "INDEPENDENT_EXIT_ENGINE" : "FIXED_TP_SL") + '","trade_uid":"' + botUid_ + '","indicator":"KNN R30V12","time":"' + str.tostring(time) + '"}'
+            botSimple_ = botWebhookKey + " " + botSideTxt_ + " " + botSymbol + " SRC " + sourceName_ + " LOT " + str.tostring(botLotSize) + " TP " + str.tostring(botTpPts_, "#.##") + " SL " + str.tostring(botSlPts_, "#.##")
+            alert(botAlertFormat == "JSON" ? botJson_ : botSimple_, alert.freq_once_per_bar_close)
+
+        if statsActive
+            if entryIsRejection_
+                rejectionEntries += 1
+            else
+                breakoutEntries += 1
+
+        if signalSide_ == 1
+            entryBuyPlot := true
+            array.set(enteredBuyBySource, sourceIndex, true)
+            if entryIsRejection_
+                buyRejectionEntryAlert := true
+            else
+                buyBreakoutEntryAlert := true
+        else
+            entrySellPlot := true
+            array.set(enteredSellBySource, sourceIndex, true)
+            if entryIsRejection_
+                sellRejectionEntryAlert := true
+            else
+                sellBreakoutEntryAlert := true
+
+        if showTradeLines
+            entryLine_ = line.new(bar_index, entryPrice_, bar_index + lineBars, entryPrice_, xloc=xloc.bar_index, extend=extend.none, color=EN_C, width=1)
+            tpLine_ = not na(tpPrice_) ? line.new(bar_index, tpPrice_, bar_index + lineBars, tpPrice_, xloc=xloc.bar_index, extend=extend.none, color=TP_C, width=1) : na
+            slLine_ = line.new(bar_index, slPrice_, bar_index + lineBars, slPrice_, xloc=xloc.bar_index, extend=extend.none, color=SL_C, width=1)
+            array.set(entryLines, sourceIndex, entryLine_)
+            array.set(tpLines, sourceIndex, tpLine_)
+            array.set(slLines, sourceIndex, slLine_)
+
+            if showLineTags
+                entryTag_ = label.new(bar_index + lineBars, entryPrice_, "ENTRY " + sourceName_ + exitModeText_, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=EN_C, textcolor=color.black, size=size.tiny)
+                tpTag_ = not na(tpPrice_) ? label.new(bar_index + lineBars, tpPrice_, "TP " + sourceName_ + " " + str.tostring(targetPoints_, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=TP_C, textcolor=TXT_C, size=size.tiny) : na
+                slTag_ = label.new(bar_index + lineBars, slPrice_, "SL " + sourceName_ + " " + str.tostring(stopPoints_, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, color=SL_C, textcolor=TXT_C, size=size.tiny)
+                array.set(entryTags, sourceIndex, entryTag_)
+                array.set(tpTags, sourceIndex, tpTag_)
+                array.set(slTags, sourceIndex, slTag_)
+
+if barSignalText != ""
+    lastSignalText := barSignalText
+
+// Apply the exit decisions cached before entries. An entry opened on this bar
+// was not part of the cache and therefore cannot close on its entry candle.
+for sourceIndex = 0 to SOURCE_COUNT - 1
+    if array.get(pendingExit, sourceIndex)
+        side_ = array.get(tradeSides, sourceIndex)
+        targetPoints_ = array.get(activeTargetPoints, sourceIndex)
+        stopPoints_ = array.get(activeStopPoints, sourceIndex)
+        sourceName_ = array.get(sourceNames, sourceIndex)
+        exitReason_ = array.get(pendingExitReason, sourceIndex)
+        exitPoints_ = array.get(pendingExitPoints, sourceIndex)
+        exitPrice_ = array.get(pendingExitPrice, sourceIndex)
+        exitByTarget_ = exitReason_ == 1
+        exitByEngine_ = exitReason_ == 2
+        skipTrade_ = exitReason_ == 3
+        statsCounted_ = statsActive and not skipTrade_
+
+        array.set(lastTradeBars, sourceIndex, bar_index)
+        if not skipTrade_ and exitPoints_ <= 0
+            if side_ == 1
+                array.set(lastBuyLossBars, sourceIndex, bar_index)
+            else
+                array.set(lastSellLossBars, sourceIndex, bar_index)
+
+        if exitByEngine_
+            exitEnginePlot := true
+            // ── BOT CLOSE message. TP and SL are hard prices the broker already
+            //    holds, so only the engine exit needs to be closed by message. ──
+            if botUseAlertFunction and botSendClose
+                botCloseSide_ = side_ == 1 ? "BUY" : "SELL"
+                botCloseJson_ = '{"key":"' + botWebhookKey + '","action":"CLOSE","side":"' + botCloseSide_ + '","symbol":"' + botSymbol + '","lot":' + str.tostring(botLotSize) + ',"close_price":' + str.tostring(exitPrice_, format.mintick) + ',"close_points":' + str.tostring(exitPoints_, "#.##") + ',"reason":"INDEPENDENT_EXIT_ENGINE","source":"' + sourceName_ + '","indicator":"KNN R30V12","time":"' + str.tostring(time) + '"}'
+                botCloseSimple_ = botWebhookKey + " CLOSE " + botSymbol + " " + botCloseSide_ + " SRC " + sourceName_ + " PTS " + str.tostring(exitPoints_, "#.##")
+                alert(botAlertFormat == "JSON" ? botCloseJson_ : botCloseSimple_, alert.freq_once_per_bar_close)
+        else if exitByTarget_
+            exitTPPlot := true
+        else if not skipTrade_
+            exitSLPlot := true
+
+        if statsCounted_
+            trades += 1
+            netPts += exitPoints_
+            lastClosedPts := exitPoints_
+
+            if exitPoints_ > 0
+                wins += 1
+                sumWinPts += exitPoints_
+                curWin += 1
+                curLoss := 0
+                maxWin := math.max(maxWin, curWin)
+                if side_ == 1
+                    buyWins += 1
+                else
+                    sellWins += 1
+            else
+                losses += 1
+                sumLossPts += math.abs(exitPoints_)
+                curLoss += 1
+                curWin := 0
+                maxLoss := math.max(maxLoss, curLoss)
+                if side_ == 1
+                    buyLosses += 1
+                else
+                    sellLosses += 1
+
+        if showSignals and statsCounted_
+            if exitByEngine_
+                exitFrameLabel_ = f_timeframeLabel(array.get(sourceExitTimeframes, sourceIndex))
+                exitText_ = "EXIT " + sourceName_ + " BY " + exitFrameLabel_ + " " + (exitPoints_ > 0 ? "+" : "") + str.tostring(exitPoints_, "#.##")
+                label.new(bar_index, exitPrice_, exitText_, xloc=xloc.bar_index, yloc=yloc.price, style=exitPoints_ > 0 ? label.style_label_down : label.style_label_up, color=exitPoints_ > 0 ? BUY_C : SELL_C, textcolor=TXT_C, size=size.tiny)
+            else if exitByTarget_
+                label.new(bar_index, exitPrice_, "TP " + sourceName_ + " " + str.tostring(targetPoints_, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=TP_C, textcolor=TXT_C, size=size.tiny)
+            else
+                label.new(bar_index, exitPrice_, "SL " + sourceName_ + " " + str.tostring(stopPoints_, "#"), xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_up, color=SL_C, textcolor=TXT_C, size=size.tiny)
+
+        f_delete_trade_visuals(sourceIndex)
+        array.set(activeTrades, sourceIndex, false)
+        array.set(tradeSides, sourceIndex, 0)
+        array.set(entryPrices, sourceIndex, na)
+        array.set(tpPrices, sourceIndex, na)
+        array.set(slPrices, sourceIndex, na)
+        array.set(activeTargetPoints, sourceIndex, na)
+        array.set(activeStopPoints, sourceIndex, na)
+        array.set(entryBars, sourceIndex, na)
+        array.set(activeSignalTypes, sourceIndex, "-")
+
+// ══════════════════════════════════════════════════════════════════
+// R30 CHART VISUALS
+// ══════════════════════════════════════════════════════════════════
+plotshape(showSignals and statsActive and entryBuyPlot, title="AI KNN BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and statsActive and entrySellPlot, title="AI KNN SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and exitTPPlot, title="AI KNN TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and exitSLPlot, title="AI KNN SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and exitEnginePlot, title="AI KNN Independent Exit Engine Reversal", style=shape.diamond, location=location.abovebar, color=EXIT_C, text="EXIT", textcolor=TXT_C, size=size.tiny)
+
+// ══════════════════════════════════════════════════════════════════
+// R30-STYLE STATISTICS TABLE
+// ══════════════════════════════════════════════════════════════════
+winRate = trades > 0 ? wins * 100.0 / trades : 0.0
+avgWinPoints = wins > 0 ? sumWinPts / wins : 0.0
+avgLossPoints = losses > 0 ? sumLossPts / losses : 0.0
+signalModeText = enableWickRejection and enableBreakout ? "WICK + BREAK" : enableWickRejection ? "WICK ONLY" : enableBreakout ? "BREAK ONLY" : "OFF"
+anyMtfSourceEnabled = enableMTF and (useMtf2 or useMtf3 or useMtf5 or useMtf10 or useMtf15 or useMtf30 or useMtf60)
+anyIndependentSource = (chartSignalsAllowed and not chartRespectOtherTrades) or (enableMTF and useMtf2 and not mtf2RespectOtherTrades) or (enableMTF and useMtf3 and not mtf3RespectOtherTrades) or (enableMTF and useMtf5 and not mtf5RespectOtherTrades) or (enableMTF and useMtf10 and not mtf10RespectOtherTrades) or (enableMTF and useMtf15 and not mtf15RespectOtherTrades) or (enableMTF and useMtf30 and not mtf30RespectOtherTrades) or (enableMTF and useMtf60 and not mtf60RespectOtherTrades)
+anyExitEngineEnabled = (chartSignalsAllowed and chartExitEnabled) or (enableMTF and useMtf2 and mtf2ExitEnabled) or (enableMTF and useMtf3 and mtf3ExitEnabled) or (enableMTF and useMtf5 and mtf5ExitEnabled) or (enableMTF and useMtf10 and mtf10ExitEnabled) or (enableMTF and useMtf15 and mtf15ExitEnabled) or (enableMTF and useMtf30 and mtf30ExitEnabled) or (enableMTF and useMtf60 and mtf60ExitEnabled)
+managerBaseText = not enableSignals ? "OFF" : anyMtfSourceEnabled ? "PER-TF" + (anyIndependentSource ? " | MTF MIX" : " | MTF SHARED") : chartSignalsAllowed ? signalModeText : "NO FRAME"
+managerText = managerBaseText + (anyExitEngineEnabled ? " | FIXED TP + IND EXIT" : " | FIXED TP")
+activeLineLengthsText = str.tostring(smoothingPeriod) + "/" + str.tostring(mtf2Smoothing) + "/" + str.tostring(mtf3Smoothing) + "/" + str.tostring(mtf5Smoothing) + "/" + str.tostring(mtf10Smoothing) + "/" + str.tostring(mtf15Smoothing) + "/" + str.tostring(mtf30Smoothing) + "/" + str.tostring(mtf60Smoothing)
+globalCooldownRemainingMinutes = globalCooldownActive ? math.ceil((globalCooldownUntil - cooldownClock_) / 60000.0) : 0.0
+cooldownText = perTfCooldownEnabled ? "PER-TF PRESET" : cooldownMode == "Off" ? "OFF" : globalCooldownActive ? globalCooldownReason + " " + str.tostring(globalCooldownRemainingMinutes, "#") + "m" : "GLOBAL READY"
+
+openTradeCount = 0
+openTextBuild = ""
+firstOpenSide = 0
+mixedOpenSides = false
+for sourceIndex = 0 to SOURCE_COUNT - 1
+    if array.get(activeTrades, sourceIndex)
+        openSide_ = array.get(tradeSides, sourceIndex)
+        openType_ = array.get(activeSignalTypes, sourceIndex) == "REJECTION" ? "REJ" : "BRK"
+        openExitEnabled_ = array.get(sourceExitEnabled, sourceIndex)
+        openExitFrame_ = f_timeframeLabel(array.get(sourceExitTimeframes, sourceIndex))
+        openTargetPoints_ = array.get(activeTargetPoints, sourceIndex)
+        openExitMode_ = openExitEnabled_ ? " EXIT→" + openExitFrame_ : " TP " + str.tostring(openTargetPoints_, "#")
+        openPart_ = (openSide_ == 1 ? "BUY " : "SELL ") + array.get(sourceNames, sourceIndex) + " " + openType_ + openExitMode_
+        openTextBuild := openTextBuild == "" ? openPart_ : openTextBuild + " | " + openPart_
+        openTradeCount += 1
+        if firstOpenSide == 0
+            firstOpenSide := openSide_
+        else if openSide_ != firstOpenSide
+            mixedOpenSides := true
+
+openText = openTradeCount > 0 ? openTextBuild : "-"
+openTextColor = openTradeCount == 0 ? WAIT_C : mixedOpenSides ? EN_C : firstOpenSide == 1 ? BUY_C : SELL_C
+
+var table statsTable = table.new(position.top_right, 2, 19, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+
+if showTable and barstate.islast
+    table.cell(statsTable, 0, 0, "AI KNN V12", text_color=TXT_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(statsTable, 1, 0, enableMTF ? "MTF S/R" : "S/R SIGNALS", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+
+    table.cell(statsTable, 0, 1, "Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 2, "Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 2, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 3, "WR", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 3, str.tostring(winRate, "#.##") + "%", text_color=winRate >= 60 ? BUY_C : winRate >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 4, "Net", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 5, "Max W", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 5, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 6, "Max L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 6, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 7, "Avg Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 7, str.tostring(avgWinPoints, "#.##"), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 8, "Avg Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 8, str.tostring(avgLossPoints, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 9, "Last", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 9, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#.##"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 10, "From", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 10, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm 'UTC'", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 11, "Manager", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 11, managerText, text_color=enableSignals ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 12, "BUY W/L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 12, str.tostring(buyWins) + "/" + str.tostring(buyLosses), text_color=buyWins >= buyLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 13, "SELL W/L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 13, str.tostring(sellWins) + "/" + str.tostring(sellLosses), text_color=sellWins >= sellLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 14, "Open", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 14, openText, text_color=openTextColor, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 15, "REJ / BRK", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 15, str.tostring(rejectionEntries) + "/" + str.tostring(breakoutEntries), text_color=(rejectionEntries + breakoutEntries) > 0 ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 16, "Last Signal", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 16, lastSignalText, text_color=str.contains(lastSignalText, "BUY") ? BUY_C : str.contains(lastSignalText, "SELL") ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(statsTable, 0, 17, "LEN 1→H", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.tiny)
+    table.cell(statsTable, 1, 17, activeLineLengthsText, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.tiny)
+
+    table.cell(statsTable, 0, 18, "Cooldown", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.tiny)
+    table.cell(statsTable, 1, 18, cooldownText, text_color=globalCooldownActive ? SELL_C : cooldownMode == "Off" ? WAIT_C : BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.tiny)
+else if not showTable and barstate.islast
+    table.clear(statsTable, 0, 0, 1, 18)
+
+// ══════════════════════════════════════════════════════════════════
+// ALERTS — all are confirmed at candle close.
+// ══════════════════════════════════════════════════════════════════
+alertcondition(entryBuyPlot, "AI KNN BUY", "AI KNN BUY | CHART/MTF KNN LINE S/R")
+alertcondition(entrySellPlot, "AI KNN SELL", "AI KNN SELL | CHART/MTF KNN LINE S/R")
+alertcondition(buyRejectionEntryAlert, "AI KNN BUY - Strong Wick Rejection", "AI KNN BUY | CHART/MTF STRONG WICK REJECTION")
+alertcondition(sellRejectionEntryAlert, "AI KNN SELL - Strong Wick Rejection", "AI KNN SELL | CHART/MTF STRONG WICK REJECTION")
+alertcondition(buyBreakoutEntryAlert, "AI KNN BUY - Confirmed Breakout", "AI KNN BUY | CHART/MTF CONFIRMED BREAKOUT")
+alertcondition(sellBreakoutEntryAlert, "AI KNN SELL - Confirmed Breakout", "AI KNN SELL | CHART/MTF CONFIRMED BREAKOUT")
+alertcondition(exitEnginePlot, "AI KNN Independent Exit", "AI KNN EXIT | INDEPENDENT EXIT ENGINE REVERSAL")
+
+// Source-specific alerts fire only after that source passes its open-trade rule.
+alertcondition(array.get(enteredBuyBySource, 0), "AI KNN Chart TF BUY", "AI KNN CHART TF BUY")
+alertcondition(array.get(enteredSellBySource, 0), "AI KNN Chart TF SELL", "AI KNN CHART TF SELL")
+alertcondition(array.get(enteredBuyBySource, 1), "AI KNN 2m BUY", "AI KNN 2m BUY")
+alertcondition(array.get(enteredSellBySource, 1), "AI KNN 2m SELL", "AI KNN 2m SELL")
+alertcondition(array.get(enteredBuyBySource, 2), "AI KNN 3m BUY", "AI KNN 3m BUY")
+alertcondition(array.get(enteredSellBySource, 2), "AI KNN 3m SELL", "AI KNN 3m SELL")
+alertcondition(array.get(enteredBuyBySource, 3), "AI KNN 5m BUY", "AI KNN 5m BUY")
+alertcondition(array.get(enteredSellBySource, 3), "AI KNN 5m SELL", "AI KNN 5m SELL")
+alertcondition(array.get(enteredBuyBySource, 4), "AI KNN 10m BUY", "AI KNN 10m BUY")
+alertcondition(array.get(enteredSellBySource, 4), "AI KNN 10m SELL", "AI KNN 10m SELL")
+alertcondition(array.get(enteredBuyBySource, 5), "AI KNN 15m BUY", "AI KNN 15m BUY")
+alertcondition(array.get(enteredSellBySource, 5), "AI KNN 15m SELL", "AI KNN 15m SELL")
+alertcondition(array.get(enteredBuyBySource, 6), "AI KNN 30m BUY", "AI KNN 30m BUY")
+alertcondition(array.get(enteredSellBySource, 6), "AI KNN 30m SELL", "AI KNN 30m SELL")
+alertcondition(array.get(enteredBuyBySource, 7), "AI KNN 1H BUY", "AI KNN 1H BUY")
+alertcondition(array.get(enteredSellBySource, 7), "AI KNN 1H SELL", "AI KNN 1H SELL")
+
+// The nine legacy AI Trend Navigator notification conditions are intentionally
+// omitted to keep this multi-timeframe build below TradingView's 64-plot limit.
+// BUY / SELL / source-specific entry / independent EXIT alerts remain available.
+
+// To receive these messages create the alert with "Any alert() function call".
+// No alertcondition is registered for the bot: this build is already near
+// TradingView's 64-plot budget and alertcondition counts against it.
