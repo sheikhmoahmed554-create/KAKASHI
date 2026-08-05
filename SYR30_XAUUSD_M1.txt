@@ -5,70 +5,6 @@
 // Updated again to match the 17 screenshots supplied on 2026-07-23.
 // Screenshot settings applied; existing trading logic preserved, including the supplied smart filters.
 // R13: Fast Trend TF is connected to both the base map and the final K3 router.
-// ══════════════════════════════════════════════════════════════════
-// SYR34 — SYR30 with its own gates reconnected.
-// Identity unchanged: same 19 champion schools, same R17 quality arbiter,
-// same base/fusion/trend-vote router, same fixed TP/SL exit plan.
-// Nothing was deleted. Two repairs were added, both switchable.
-//
-//   R31-1  Trend map timeframes: Mid 2 -> 15, Big 5 -> 30.
-//          SYR30 built htfScore from M1/M2/M5, so the "higher timeframe"
-//          map carried no higher-timeframe information at all and could
-//          flip every minute.
-//
-//   R31-2  Late-BUY chase guard, inserted at the one point in the file
-//          that sees BOTH the R17 arbiter path and all 19 champion
-//          schools. The champions are OR'd into buySignal after the
-//          arbiter, after allowLong/allowShort and after the smart
-//          filters, so qaBuyLate never saw 91% of entries. chCldB,
-//          chRibB and chUoB carry no stretch condition of their own;
-//          they produced 1192 stretched BUY entries at 51.4% win rate
-//          for -2994 points. This is the guard they were missing.
-//          The SELL side is deliberately untouched.
-//
-// Measured on 192,081 XAUUSD M1 bars, 2026-01-02 -> 2026-07-17,
-// entry at bar close, TP/SL fixed at entry, TP+SL in one candle = skip:
-//
-//                    SYR30       SYR31
-//     trades          6984        6943
-//     win rate       60.40%      62.70%
-//     net points     +6565      +15665
-//     profit factor   1.043       1.112
-//     max drawdown    2261        1492
-//     losing months      1           0     (June -805 -> +3131)
-//     BUY net          -708       +7010
-//     SELL net        +7273       +8655
-//
-//   R31-4  Three cooldown inputs contained literal self-disabling comparisons:
-//          "cooldownBars == 15", "lossCooldownBars == 35", and a side-cooldown
-//          test that switched off at buy 15 + sell 30. Setting the win cooldown
-//          to exactly 15 removed it completely (13 -> 62 trades/day, 14 -> 61,
-//          15 -> 74, 16 -> 58). All three are inert at the shipped defaults, so
-//          removing them changes no current behaviour, only makes the inputs
-//          mean what they say.
-//
-//   R31-5  Win cooldown stays at 21. It was briefly lowered to 10 to push the
-//          entry rate from ~50/day to ~67/day, and that was a mistake: the
-//          extra frequency costs a large part of the edge, and it costs most
-//          in the recent window, which is where it is judged.
-//
-//            win cooldown       21          10
-//            entries/day       49.6        67.3
-//            last 10 days     +1027        +268
-//            July             +2161       +1625
-//            last 6 weeks     +5292       +2137
-//            held-out half    +6945       +5086
-//            whole period    +15665      +15488
-//
-//          Seven other routes to 50+/day were measured (shorter loss
-//          cooldowns, no loss cooldown, win 16/17/18/19). Every one of them
-//          landed between +2194 and +7942 on the whole period, against
-//          +15665 at 21. The edge lives in a limited number of good setups
-//          per day; forcing more entries buys the weak ones too.
-//
-//          Note that stock SYR30 also runs at 49.9 entries/day, so 21 is not
-//          a reduction in frequency - it is this indicator's natural rate.
-// ══════════════════════════════════════════════════════════════════
 // SYR30: old Stochastic/Donchian Reset, Compression entry family, and Range/Donchian Fade sources are removed.
 // Replacements are Balance Reset Launch, Asia Accepted Break-Retest, and Dead Auction Reclaim.
 indicator("SYR30", shorttitle="SYR30", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000, dynamic_requests=true)
@@ -165,8 +101,8 @@ minVotes = input.float(2.0, "Minimum Research Votes", step=0.01, group=G_MAIN_NE
 
 // 02 ■ Trend / HTF Map
 tfFast = input.timeframe("1", "Fast Trend TF", group=G_TREND_NEW)
-tfMid = input.timeframe("15", "Mid Trend TF", group=G_TREND_NEW)   // R31-1: was "2"
-tfBig = input.timeframe("30", "Big Trend TF", group=G_TREND_NEW)   // R31-1: was "5"
+tfMid = input.timeframe("2", "Mid Trend TF", group=G_TREND_NEW)
+tfBig = input.timeframe("5", "Big Trend TF", group=G_TREND_NEW)
 emaFastLen = input.int(20, "EMA Fast", minval=1, group=G_TREND_NEW)
 emaMidLen = input.int(67, "EMA Mid", minval=1, group=G_TREND_NEW)
 emaSlowLen = input.int(60, "EMA Slow", minval=1, group=G_TREND_NEW)
@@ -650,7 +586,7 @@ realCloseMaxAttempts = input.int(3, "Total CLOSE Attempts", minval=1, maxval=6, 
 realCloseRetryEveryBars = input.int(1, "Retry Every Closed M1 Bars", minval=1, maxval=10, group=G_EXEC_NEW)
 realCloseOnlyIfProfit = input.bool(false, "Send CLOSE Only When Profitable", group=G_EXEC_NEW)
 realCloseShowMarks = input.bool(false, "Show CLOSE Request Marks", group=G_EXEC_NEW)
-cooldownBars = input.int(21, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)   // R31-5: keep 21. Lower it for more entries per day, but measure first - see the header.
+cooldownBars = input.int(21, "② Cooldown بعد الربح — WIN", minval=0, maxval=1000, group=G_MAIN_NEW)
 lossCooldownBars = input.int(12, "② Cooldown بعد الخسارة — LOSS", minval=0, maxval=1000, group=G_MAIN_NEW)
 buyLossCooldownBars = input.int(24, "② Cooldown شراء — BUY", minval=0, maxval=1000, group=G_MAIN_NEW)
 sellLossCooldownBars = input.int(13, "② Cooldown بيع — SELL", minval=0, maxval=1000, group=G_MAIN_NEW)
@@ -2505,10 +2441,10 @@ baseCanShortAfterLoss = useSY337QuickRouter ? (na(lastShortStopBar) or bar_index
 
 lastAnyStopBar = na(lastLongStopBar) ? lastShortStopBar : na(lastShortStopBar) ? lastLongStopBar : math.max(lastLongStopBar, lastShortStopBar)
 
-globalEntryOK = na(lastTradeBar) or bar_index - lastTradeBar >= math.max(0, cooldownBars)   // R31-4: dropped the "== 15" self-disable
-globalLossOK = na(lastAnyStopBar) or bar_index - lastAnyStopBar >= math.max(0, lossCooldownBars)   // R31-4: dropped the "== 35" self-disable
+globalEntryOK = cooldownBars == 15 or na(lastTradeBar) or bar_index - lastTradeBar >= math.max(0, cooldownBars)
+globalLossOK = lossCooldownBars == 35 or na(lastAnyStopBar) or bar_index - lastAnyStopBar >= math.max(0, lossCooldownBars)
 
-applySideCooldown = true   // R31-4: was silently off at buy=15 and sell=30
+applySideCooldown = useSeparateSideRisk or buyLossCooldownBars != 15 or sellLossCooldownBars != 30
 buySideCooldownOK = not applySideCooldown or na(lastLongStopBar) or bar_index - lastLongStopBar >= math.max(0, buyLossCooldownBars)
 sellSideCooldownOK = not applySideCooldown or na(lastShortStopBar) or bar_index - lastShortStopBar >= math.max(0, sellLossCooldownBars)
 
@@ -2711,147 +2647,8 @@ sellSignal := sellSignal or chCvdS
 buySignal := buySignal or chTriB or chSniB
 sellSignal := sellSignal or chTriS or chSniS
 
-// ━━━ R31-2: LATE-BUY CHASE GUARD ━━━
-// This is the only line in the file placed after every champion school has been
-// OR'd into buySignal, so it is the only gate the champions cannot bypass.
-// chStretch (Lab: identical to (close-ema20)/ATR14), rangePos and qaBuyReversal
-// are all existing SYR30 variables — no new calculation is introduced.
-G_SYR31 = "24 ■ SYR31 Repairs"
-r31UseLateBuyGuard = input.bool(true,  "R31-2  Block chasing BUY entries", group=G_SYR31)
-r31BuyMaxStretch   = input.float(0.25, "R31-2  Max (close-EMA20)/ATR for BUY", minval=-1.0, maxval=3.0, step=0.05, group=G_SYR31)
-r31BuyMinRangePos  = input.float(45.0, "R31-2  …only when Range Position is above", minval=0.0, maxval=100.0, step=1.0, group=G_SYR31)
-r31LateBuyChase = r31UseLateBuyGuard and chStretch > r31BuyMaxStretch and rangePos > r31BuyMinRangePos and not qaBuyReversal
-buySignal := buySignal and not r31LateBuyChase
-
-// ━━━ R31-3 (optional, OFF by default): washout-only BUY regime ━━━
-// Lab finding: this indicator's BUY edge lives in confirmed downtrends near the
-// bottom of the range. Turning this on trades ~320 fewer entries for a lower
-// drawdown (1492 -> 1068) but a lower net (15665 -> 14919). Off by default.
-r31UseBuyRegime  = input.bool(false, "R31-3  BUY only in a confirmed washout", group=G_SYR31)
-r31RegimeLen     = input.int(240,   "R31-3  Trend lookback bars", minval=60, maxval=600, group=G_SYR31)
-r31RegimeMinATR  = input.float(1.0, "R31-3  Minimum downtrend size in ATR", minval=0.0, maxval=6.0, step=0.25, group=G_SYR31)
-r31RegimeMaxPos  = input.float(40.0,"R31-3  BUY maximum range position", minval=0.0, maxval=100.0, step=1.0, group=G_SYR31)
-r31Ema21  = ta.ema(close, 21)
-r31Ema50v = ta.ema(close, 50)
-r31TrendATR = atr <= 0 ? 0.0 : (close - close[r31RegimeLen]) / atr
-r31RegHi  = ta.highest(high, r31RegimeLen)
-r31RegLo  = ta.lowest(low, r31RegimeLen)
-r31RegPos = r31RegHi <= r31RegLo ? 50.0 : (close - r31RegLo) / (r31RegHi - r31RegLo) * 100.0
-r31BuyRegimeOK = not r31UseBuyRegime or (r31TrendATR <= -r31RegimeMinATR and r31Ema21 < r31Ema50v and r31Ema50v < ema100 and r31RegPos <= r31RegimeMaxPos)
-buySignal := buySignal and r31BuyRegimeOK
-
-
-//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// RESERVE ENTRIES — three schools that fill the single slot while it is idle
-//
-// This does NOT add a second position. There is one slot, exactly as before. The
-// engine always has first refusal: on any bar where the engine wants a trade,
-// the engine takes it and nothing here can interfere. Only when the engine is
-// silent AND flat may a reserve school step in.
-//
-// The three schools were lifted out of the ten indicators sent in and rebuilt
-// here. Each was measured on its own, signal by signal, and only families with
-// a positive expectancy in 2026 AND 2021 AND 2023 — and in both halves of each
-// year — were kept. Five of thirty-eight passed; these are the four sides used.
-//
-// Measured on 2026, one position throughout:
-//   engine alone ............................. 6,932 trades  62.72%  +15,795
-//   engine + reserve, 60/40 .................. 8,151 trades  45.58%  +19,564
-//   engine + reserve, engine's own exit plan .. 8,409 trades  46.37%  +15,936
-//   engine + reserve, 60/40, 5-bar gap ........ 7,665 trades  50.65%  +17,495
-// Out of sample (same build, 60/40):  2021 +4,254   2023 -1,451
-//   engine alone on those years:      2021 +6,047   2023 -2,734
-// So the reserve pays for itself on 2026 and on 2023 and costs about 1,800 on
-// 2021. Drawdown rises from 1,492 to 2,671 — the honest price of the extra
-// throughput, and the reason this ships behind its own switch.
-//
-// Trades per day on 2026 goes 49.3 -> 58.0.
-//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-G_RSV = "26 \u25a0 Reserve Entries (idle-slot schools)"
-
-rsvUse   = input.bool(false, "Let reserve schools use the slot while the engine is flat", group=G_RSV, tooltip="Master switch. While off, this block has no effect at all and the indicator behaves exactly as it did before, trade for trade.")
-rsvOwnPlan = input.bool(true, "Reserve trades use their own target and stop", group=G_RSV, tooltip="On: the fixed plan below, which is what the schools were fitted with. Off: they borrow the engine's adaptive plan, which was worth +141 on 2026 but +2,148 on 2021.")
-rsvTP    = input.float(60.0, "   ...target, points", minval=10, group=G_RSV)
-rsvSL    = input.float(40.0, "   ...stop, points",   minval=10, group=G_RSV)
-rsvGap   = input.int(0, "Bars to wait after any exit before a reserve entry", minval=0, maxval=60, group=G_RSV, tooltip="0 is what was measured. 5 raises the win rate from 45.6% to 50.7% but takes 2,000 points off 2026.")
-rsvTz    = input.string("Europe/Athens", "Broker clock for the session windows", options=["Europe/Athens", "Etc/UTC", "Europe/London", "America/New_York"], group=G_RSV, tooltip="The schools were fitted on an MT4 EET/EEST feed. Reading the windows in true UTC runs them two to three hours early and costs roughly half of what this block earns.")
-
-rsvUseRng  = input.bool(true, "School: range edge, 30 bars, both directions", group=G_RSV, tooltip="2026 +2.54/signal at 65.1% . 2021 +3.38 at 66.2% . 2023 +1.86 at 64.2%")
-rsvUseDon  = input.bool(true, "School: 30-bar false break, SELL only",        group=G_RSV, tooltip="2026 +2.94 at 65.7% . 2021 +1.38 at 64.0% . 2023 +1.89 at 64.5%")
-rsvUseSess = input.bool(true, "School: session fake break, SELL only",        group=G_RSV, tooltip="2026 +3.40 at 62.8% . 2021 +1.97 at 61.1% . 2023 +2.86 at 61.9%")
-rsvAtrLo   = input.float(0.18, "Reserve ATR band, low",  step=0.01, group=G_RSV)
-rsvAtrHi   = input.float(3.60, "Reserve ATR band, high", step=0.10, group=G_RSV)
-rsvShow    = input.bool(true, "Count reserve trades in the table", group=G_RSV)
-
-// ── the broker clock the schools were fitted on ──
-rsvMin  = hour(time, rsvTz) * 60 + minute(time, rsvTz)
-rsvNewDay = na(rsvMin[1]) or rsvMin < rsvMin[1]
-rsvSessOK = rsvMin >= 300 and rsvMin < 1139          // 05:00 - 18:59 broker time
-
-// ── candle direction and the 5-bar stochastic the range school leans on ──
-rsvBull = close > open
-rsvBear = close < open
-rsvHh5  = ta.highest(high, 5)
-rsvLl5  = ta.lowest(low, 5)
-rsvSt5  = (close - rsvLl5) / math.max(rsvHh5 - rsvLl5, syminfo.mintick) * 100.0
-rsvSt5D = ta.sma(rsvSt5, 3)
-
-// ── 30-bar range: position inside it, and its width against ATR ──
-rsvHi30  = ta.highest(high, 30)
-rsvLo30  = ta.lowest(low, 30)
-rsvW30   = math.max(rsvHi30 - rsvLo30, syminfo.mintick)
-rsvPos30 = (close - rsvLo30) / rsvW30 * 100.0
-rsvRat30 = rsvW30 / math.max(atr, syminfo.mintick)
-
-// ── school 1: price pinned at the edge of a tight 30-bar range, turning back in ──
-rsvRngB = rsvUseRng and rsvSessOK and rsvRat30 < 6.20 and rsvPos30 < 12.0 and rsvBull and rsvSt5 > rsvSt5D
-rsvRngS = rsvUseRng and rsvSessOK and rsvRat30 < 6.20 and rsvPos30 > 88.0 and rsvBear and rsvSt5 < rsvSt5D
-
-// ── school 2: the 30-bar high is taken out and the bar closes back inside ──
-rsvDonS = rsvUseDon and rsvSessOK and high > rsvHi30[1] and close < rsvHi30[1] and rsvBear and rsvPos30 > 65.0
-
-// ── school 3: the two session opening ranges, and the fake break out of them ──
-var float rsvAmHi = na
-var float rsvAmLo = na
-var float rsvPmHi = na
-var float rsvPmLo = na
-if rsvNewDay
-    rsvAmHi := na
-    rsvAmLo := na
-    rsvPmHi := na
-    rsvPmLo := na
-if rsvMin >= 360 and rsvMin < 390                     // 06:00 - 06:30 opening range
-    rsvAmHi := na(rsvAmHi) ? high : math.max(rsvAmHi, high)
-    rsvAmLo := na(rsvAmLo) ? low  : math.min(rsvAmLo, low)
-if rsvMin >= 690 and rsvMin < 720                     // 11:30 - 12:00 opening range
-    rsvPmHi := na(rsvPmHi) ? high : math.max(rsvPmHi, high)
-    rsvPmLo := na(rsvPmLo) ? low  : math.min(rsvPmLo, low)
-
-rsvAmAfter = rsvMin >= 390 and rsvMin < 660           // 06:30 - 11:00
-rsvPmAfter = rsvMin >= 720 and rsvMin < 930           // 12:00 - 15:30
-rsvAtrSafe = math.max(atr, syminfo.mintick)
-rsvSessS = rsvUseSess and ((rsvPmAfter and not na(rsvPmHi) and high > rsvPmHi and close < rsvPmHi and rsvBear) or (rsvAmAfter and not na(rsvAmLo) and close < rsvAmLo and high >= rsvAmLo - rsvAtrSafe * 0.20 and rsvBear))
-
-// ── put them together behind the volatility band ──
-rsvAtrOK  = sfAtrRatio >= rsvAtrLo and sfAtrRatio <= rsvAtrHi
-rsvRawB   = rsvRngB
-rsvRawS   = rsvRngS or rsvDonS or rsvSessS
-rsvGapOK  = rsvGap == 0 or na(lastTradeBar) or bar_index - lastTradeBar >= rsvGap
-rsvReadyB = rsvUse and rsvAtrOK and rsvGapOK and rsvRawB and not rsvRawS
-rsvReadyS = rsvUse and rsvAtrOK and rsvGapOK and rsvRawS and not rsvRawB
-
-// The engine keeps first refusal on every bar. A reserve entry is only possible
-// when the engine itself has nothing to say and the slot is free.
-rsvEngineB   = canCooldown and canLongAfterLoss and buySignal
-rsvEngineS   = canCooldown and canShortAfterLoss and sellSignal
-rsvEngineAny = rsvEngineB or rsvEngineS
-rsvTakeB     = rsvReadyB and not rsvEngineAny
-rsvTakeS     = rsvReadyS and not rsvEngineAny
-
-canEnterLong = barstate.isconfirmed and not active and (rsvEngineB or rsvTakeB)
-canEnterShort = barstate.isconfirmed and not active and (rsvEngineS or rsvTakeS)
-rsvIsReserve = not rsvEngineAny and (rsvTakeB or rsvTakeS)
-var int rsvTradeCount = 0
+canEnterLong = barstate.isconfirmed and not active and canCooldown and canLongAfterLoss and buySignal
+canEnterShort = barstate.isconfirmed and not active and canCooldown and canShortAfterLoss and sellSignal
 
 if canEnterLong or canEnterShort
     active := true
@@ -2865,11 +2662,6 @@ if canEnterLong or canEnterShort
     [plannedTarget, plannedStop, plannedExitMode, plannedDirectionScore] = f_dae_exit_plan(side, entryPrice, basePlannedTarget, basePlannedStop, tradeKind)
     tradeTargetPts := math.max(30.0, plannedTarget)
     tradeStopPts := math.min(plannedStop, tradeTargetPts + 20.0)
-    if rsvIsReserve
-        rsvTradeCount += 1
-        if rsvOwnPlan
-            tradeTargetPts := rsvTP
-            tradeStopPts := rsvSL
     tradeExitMode := plannedExitMode
     tradeDirectionScore := plannedDirectionScore
 
@@ -3215,7 +3007,7 @@ color TBL_BG_HEAD = color.rgb(22, 24, 34)
 color TBL_BG_ROW = color.rgb(18, 20, 30)
 color TBL_BG_ROW2 = color.rgb(20, 22, 32)
 
-var table t = table.new(position.top_right, 2, 18, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+var table t = table.new(position.top_right, 2, 17, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 if showTable and barstate.islast
     table.cell(t, 0, 0, "SYXAUUSD", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 1, 0, "FINAL K3 CACHE | F>TV>B", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
@@ -3269,11 +3061,8 @@ if showTable and barstate.islast
 
     table.cell(t, 0, 16, "M1 W/L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
     table.cell(t, 1, 16, str.tostring(m1LiveM1Wins) + "/" + str.tostring(m1LiveM1Losses), text_color=m1LiveM1Wins >= m1LiveM1Losses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    txtRsv = not rsvUse ? "off" : str.tostring(rsvTradeCount) + " trades  " + (rsvReadyB ? "BUY ready" : rsvReadyS ? "SELL ready" : "waiting")
-    table.cell(t, 0, 17, "RESERVE", text_color=color.white, text_size=size.tiny)
-    table.cell(t, 1, 17, txtRsv, text_color=rsvUse ? color.yellow : color.gray, text_size=size.tiny)
 else if not showTable and barstate.islast
-    table.clear(t, 0, 0, 1, 17)
+    table.clear(t, 0, 0, 1, 16)
 
 alertcondition(canEnterLong, "SYR30 BUY", "SYR30 BUY | FINAL K3 CACHE")
 alertcondition(canEnterShort, "SYR30 SELL", "SYR30 SELL | FINAL K3 CACHE")
