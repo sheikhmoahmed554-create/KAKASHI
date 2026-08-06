@@ -68,6 +68,7 @@ maLen_      = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_KNN
 
 numberOfClosestValues = input.int(3, "Number of Closest Values", minval=2, maxval=200, group=G_KNN, tooltip=t3)
 chartLineLength       = input.int(51, "Average KNN Line Length — Chart / 1m", minval=2, maxval=10000, step=1, group=G_KNN, tooltip=t4)
+chartLineType = input.string("RMA (original)", "Line Type — Chart / 1m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_KNN, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 smoothingPeriod       = chartLineLength
 windowSize            = math.max(numberOfClosestValues, 30)
 
@@ -133,6 +134,7 @@ mtf2TargetValue = input.string("Price Action", "Target Value", options=["Price A
 mtf2TargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF2, inline="M2TV")
 mtf2ClosestValues = input.int(3, "Closest Values — 2m", minval=2, maxval=200, step=1, group=G_MTF2, tooltip=t3)
 mtf2Smoothing = input.int(40, "Average KNN Line Length — 2m", minval=2, maxval=10000, step=1, group=G_MTF2, tooltip=t4)
+mtf2LineType = input.string("RMA (original)", "Line Type — 2m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF2, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf2SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF2, inline="M2L")
 showMtf2Line = input.bool(true, "Show", group=G_MTF2, inline="M2L")
 mtf2PlotStyleInput = input.string("Line", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF2, inline="M2S")
@@ -179,6 +181,7 @@ mtf3TargetValue = input.string("Price Action", "Target Value", options=["Price A
 mtf3TargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF3, inline="M3TV")
 mtf3ClosestValues = input.int(3, "Closest Values — 3m", minval=2, maxval=200, step=1, group=G_MTF3, tooltip=t3)
 mtf3Smoothing = input.int(28, "Average KNN Line Length — 3m", minval=2, maxval=10000, step=1, group=G_MTF3, tooltip=t4)
+mtf3LineType = input.string("RMA (original)", "Line Type — 3m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF3, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf3SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF3, inline="M3L")
 showMtf3Line = input.bool(true, "Show", group=G_MTF3, inline="M3L")
 mtf3PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF3, inline="M3S")
@@ -225,6 +228,7 @@ mtf5TargetValue = input.string("Price Action", "Target Value", options=["Price A
 mtf5TargetLen = input.int(5, "Length", minval=2, maxval=10000, step=1, group=G_MTF5, inline="M5TV")
 mtf5ClosestValues = input.int(3, "Closest Values — 5m", minval=2, maxval=200, step=1, group=G_MTF5, tooltip=t3)
 mtf5Smoothing = input.int(28, "Average KNN Line Length — 5m", minval=2, maxval=10000, step=1, group=G_MTF5, tooltip=t4)
+mtf5LineType = input.string("RMA (original)", "Line Type — 5m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF5, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf5SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF5, inline="M5L")
 showMtf5Line = input.bool(true, "Show", group=G_MTF5, inline="M5L")
 mtf5PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF5, inline="M5S")
@@ -271,6 +275,7 @@ mtf10TargetValue = input.string("Price Action", "Target Value", options=["Price 
 mtf10TargetLen = input.int(4, "Length", minval=2, maxval=10000, step=1, group=G_MTF10, inline="M10TV")
 mtf10ClosestValues = input.int(3, "Closest Values — 10m", minval=2, maxval=200, step=1, group=G_MTF10, tooltip=t3)
 mtf10Smoothing = input.int(22, "Average KNN Line Length — 10m", minval=2, maxval=10000, step=1, group=G_MTF10, tooltip=t4)
+mtf10LineType = input.string("RMA (original)", "Line Type — 10m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF10, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf10SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF10, inline="M10L")
 showMtf10Line = input.bool(true, "Show", group=G_MTF10, inline="M10L")
 mtf10PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF10, inline="M10S")
@@ -317,6 +322,7 @@ mtf15TargetValue = input.string("Price Action", "Target Value", options=["Price 
 mtf15TargetLen = input.int(4, "Length", minval=2, maxval=10000, step=1, group=G_MTF15, inline="M15TV")
 mtf15ClosestValues = input.int(3, "Closest Values — 15m", minval=2, maxval=200, step=1, group=G_MTF15, tooltip=t3)
 mtf15Smoothing = input.int(19, "Average KNN Line Length — 15m", minval=2, maxval=10000, step=1, group=G_MTF15, tooltip=t4)
+mtf15LineType = input.string("RMA (original)", "Line Type — 15m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF15, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf15SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF15, inline="M15L")
 showMtf15Line = input.bool(true, "Show", group=G_MTF15, inline="M15L")
 mtf15PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF15, inline="M15S")
@@ -363,6 +369,7 @@ mtf30TargetValue = input.string("Price Action", "Target Value", options=["Price 
 mtf30TargetLen = input.int(3, "Length", minval=2, maxval=10000, step=1, group=G_MTF30, inline="M30TV")
 mtf30ClosestValues = input.int(3, "Closest Values — 30m", minval=2, maxval=200, step=1, group=G_MTF30, tooltip=t3)
 mtf30Smoothing = input.int(15, "Average KNN Line Length — 30m", minval=2, maxval=10000, step=1, group=G_MTF30, tooltip=t4)
+mtf30LineType = input.string("RMA (original)", "Line Type — 30m", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF30, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf30SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF30, inline="M30L")
 showMtf30Line = input.bool(true, "Show", group=G_MTF30, inline="M30L")
 mtf30PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF30, inline="M30S")
@@ -409,6 +416,7 @@ mtf60TargetValue = input.string("Price Action", "Target Value", options=["Price 
 mtf60TargetLen = input.int(3, "Length", minval=2, maxval=10000, step=1, group=G_MTF60, inline="M60TV")
 mtf60ClosestValues = input.int(3, "Closest Values — 1H", minval=2, maxval=200, step=1, group=G_MTF60, tooltip=t3)
 mtf60Smoothing = input.int(12, "Average KNN Line Length — 1H", minval=2, maxval=10000, step=1, group=G_MTF60, tooltip=t4)
+mtf60LineType = input.string("RMA (original)", "Line Type — 1H", options=["RMA (original)", "HMA", "TEMA", "DEMA", "LSMA", "ALMA", "T3", "EMA", "WMA", "SMA", "MEDIAN", "Ehlers SSF", "KAMA", "VIDYA", "McGinley"], group=G_MTF60, tooltip="Which line is drawn as the support/resistance level. Measured on 2026 / 2021 / 2023: TEMA, HMA and DEMA honoured price best, the original RMA came 11th of 15, and every type scored below a coin flip on average. Penetration depth was the same 0.22 ATR for all of them, so no type gives a sharper zone.")
 mtf60SignalLine = input.string("Average KNN", "Signal Line", options=["Average KNN", "KNN Classifier"], group=G_MTF60, inline="M60L")
 showMtf60Line = input.bool(true, "Show", group=G_MTF60, inline="M60L")
 mtf60PlotStyleInput = input.string("Stepline", "Plot Style", options=["Line", "Stepline", "Circles"], group=G_MTF60, inline="M60S")
@@ -510,6 +518,104 @@ botFallbackTargetPoints = input.float(90.0, "BOT Fallback Target Points — only
 botFallbackStopPoints = input.float(90.0, "BOT Fallback Stop Points — only when a source has no fixed SL", minval=1.0, step=1.0, group=G_BOT)
 
 // ══════════════════════════════════════════════════════════════════
+// LINE TYPE LIBRARY
+// The support/resistance line was hard-wired to RMA. These are the
+// alternatives, measured on 2026 / 2021 / 2023 before being offered.
+//
+// Ranked by how well price honoured the line — how often it turned away after
+// touching it, and how often a close through it really ran, both scored against
+// the same test started from a random bar so a trending market could not
+// flatter the result:
+//
+//   1  TEMA     4  LSMA     7  WMA      10  KAMA     13  VIDYA
+//   2  HMA      5  ALMA     8  EMA      11  RMA      14  T3
+//   3  DEMA     6  SSF      9  MEDIAN   12  KNN-RMA (the original)
+//
+// Honest note: every one of them scored below a coin flip on average. The
+// ranking is real and consistent across the three years, but it separates
+// "less bad" from "bad" — no line type turns this into an edge on its own.
+// The measured penetration depth was 0.219-0.234 ATR for ALL of them, so no
+// line gives a sharper zone than another either.
+//
+// Every branch is computed on every bar and only then selected. The four
+// recursive lines (SSF, KAMA, VIDYA, McGinley) would lose their history if they
+// were only evaluated when chosen, which is why nothing here is computed lazily.
+// ══════════════════════════════════════════════════════════════════
+f_smooth(type_, src_, len_) =>
+    // ── plain, stateless ──
+    rma_  = ta.rma(src_, len_)
+    ema1_ = ta.ema(src_, len_)
+    ema2_ = ta.ema(ema1_, len_)
+    ema3_ = ta.ema(ema2_, len_)
+    dema_ = 2.0 * ema1_ - ema2_
+    tema_ = 3.0 * ema1_ - 3.0 * ema2_ + ema3_
+    // Tillson T3, volume factor 0.7
+    e4_ = ta.ema(ema3_, len_)
+    e5_ = ta.ema(e4_, len_)
+    e6_ = ta.ema(e5_, len_)
+    v_  = 0.7
+    c1_ = -v_ * v_ * v_
+    c2_ = 3.0 * v_ * v_ + 3.0 * v_ * v_ * v_
+    c3_ = -6.0 * v_ * v_ - 3.0 * v_ - 3.0 * v_ * v_ * v_
+    c4_ = 1.0 + 3.0 * v_ + v_ * v_ * v_ + 3.0 * v_ * v_
+    t3_ = c1_ * e6_ + c2_ * e5_ + c3_ * e4_ + c4_ * ema3_
+
+    // ── recursive: computed every bar so their history stays intact ──
+    // Ehlers two-pole super smoother
+    a_  = math.exp(-math.pi * math.sqrt(2.0) / len_)
+    b_  = 2.0 * a_ * math.cos(math.pi * math.sqrt(2.0) / len_)
+    sc2_ = b_
+    sc3_ = -a_ * a_
+    sc1_ = 1.0 - sc2_ - sc3_
+    var float ssf_ = na
+    ssf_ := bar_index < 2 or na(ssf_[1]) or na(ssf_[2]) ? src_ : sc1_ * (src_ + nz(src_[1], src_)) / 2.0 + sc2_ * ssf_[1] + sc3_ * ssf_[2]
+
+    // Kaufman adaptive
+    kVol_ = math.sum(math.abs(ta.change(src_)), len_)
+    kEr_  = kVol_ == 0 ? 0.0 : math.abs(src_ - nz(src_[len_], src_)) / kVol_
+    kSc_  = math.pow(kEr_ * (2.0 / 3.0 - 2.0 / 31.0) + 2.0 / 31.0, 2)
+    var float kama_ = na
+    kama_ := na(kama_[1]) ? src_ : kama_[1] + kSc_ * (src_ - kama_[1])
+
+    // Chande VIDYA
+    vUp_  = math.sum(math.max(ta.change(src_), 0.0), len_)
+    vDn_  = math.sum(math.max(-ta.change(src_), 0.0), len_)
+    vCmo_ = (vUp_ + vDn_) == 0.0 ? 0.0 : math.abs((vUp_ - vDn_) / (vUp_ + vDn_))
+    vAl_  = 2.0 / (len_ + 1)
+    var float vidya_ = na
+    vidya_ := na(vidya_[1]) ? src_ : vidya_[1] + vAl_ * vCmo_ * (src_ - vidya_[1])
+
+    // McGinley dynamic
+    var float mcg_ = na
+    mcgRatio_ = na(mcg_[1]) or mcg_[1] == 0.0 ? 1.0 : src_ / mcg_[1]
+    mcg_ := na(mcg_[1]) ? src_ : mcg_[1] + (src_ - mcg_[1]) / (len_ * math.pow(mcgRatio_ == 0.0 ? 1.0 : mcgRatio_, 4))
+
+    hma_    = ta.hma(src_, len_)
+    wma_    = ta.wma(src_, len_)
+    sma_    = ta.sma(src_, len_)
+    lsma_   = ta.linreg(src_, len_, 0)
+    alma_   = ta.alma(src_, len_, 0.85, 6.0)
+    median_ = ta.percentile_linear_interpolation(src_, len_, 50)
+
+    switch type_
+        "RMA (original)" => rma_
+        "HMA"            => hma_
+        "TEMA"           => tema_
+        "DEMA"           => dema_
+        "LSMA"           => lsma_
+        "ALMA"           => alma_
+        "T3"             => t3_
+        "EMA"            => ema1_
+        "WMA"            => wma_
+        "SMA"            => sma_
+        "MEDIAN"         => median_
+        "Ehlers SSF"     => ssf_
+        "KAMA"           => kama_
+        "VIDYA"          => vidya_
+        "McGinley"       => mcg_
+        => rma_
+
+// ══════════════════════════════════════════════════════════════════
 // ORIGINAL KNN CALCULATION
 // ══════════════════════════════════════════════════════════════════
 value_in = switch PriceValue
@@ -577,14 +683,14 @@ knnMA_ = ta.wma(knnMA, 5)
 knnMA_col = knnMA_ > knnMA_[1] ? Upknn_col : knnMA_ < knnMA_[1] ? Dnknn_col : Neuknn_col
 
 // This is the exact Average KNN line identified in the supplied screenshot.
-MAknn_ = ta.rma(knnMA, smoothingPeriod)
+MAknn_ = f_smooth(chartLineType, knnMA, smoothingPeriod)
 
 plot(showKnnClassifier ? knnMA_ : na, "Knn Classifier Line", knnMA_col)
 plot(showAverageKnn ? MAknn_ : na, "Average Knn Classifier Line", Maknn_col, 2)
 
 // Complete independent KNN calculation used inside every request.security()
 // context. Each call receives only that timeframe's own input set.
-f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_) =>
+f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_, lineType_) =>
     valueSeries_ = switch priceValueType_
         "hl2"  => ta.sma(hl2, priceLen_)
         "VWAP" => ta.vwap(close[priceLen_])
@@ -620,15 +726,15 @@ f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCo
 
     knnValue_ = array.sum(closestValues_) / closestCount_
     classifierLine_ = ta.wma(knnValue_, 5)
-    averageLine_ = ta.rma(knnValue_, smoothing_)
+    averageLine_ = f_smooth(lineType_, knnValue_, smoothing_)
     signalLine_ == "KNN Classifier" ? classifierLine_ : averageLine_
 
 // A dedicated exit-only KNN engine. It is calculated in its selected timeframe
 // and uses only fully closed source candles. The returned event timestamps stay
 // unchanged until the next confirmed reversal, allowing the chart timeframe to
 // create exactly one exit pulse per source-timeframe reversal.
-f_independentExitEngine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_, confirmBars_) =>
-    exitLine_ = f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_)
+f_independentExitEngine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_, confirmBars_, lineType_) =>
+    exitLine_ = f_mtfKnnLine(priceValueType_, priceLen_, targetValueType_, targetLen_, closestCount_, smoothing_, signalLine_, lineType_)
     bullishConfirmed_ = true
     bearishConfirmed_ = true
     for confirmationIndex_ = 0 to confirmBars_ - 1
@@ -649,13 +755,13 @@ f_timeframeLabel(timeframe_) =>
     timeframe_ == "60" ? "1H" : timeframe_ + "m"
 
 // [1] + lookahead_on exposes only the last fully closed source-timeframe line.
-mtf2Line = request.security(syminfo.tickerid, "2", f_mtfKnnLine(mtf2PriceValue, mtf2PriceLen, mtf2TargetValue, mtf2TargetLen, mtf2ClosestValues, mtf2Smoothing, mtf2SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-mtf3Line = request.security(syminfo.tickerid, "3", f_mtfKnnLine(mtf3PriceValue, mtf3PriceLen, mtf3TargetValue, mtf3TargetLen, mtf3ClosestValues, mtf3Smoothing, mtf3SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-mtf5Line = request.security(syminfo.tickerid, "5", f_mtfKnnLine(mtf5PriceValue, mtf5PriceLen, mtf5TargetValue, mtf5TargetLen, mtf5ClosestValues, mtf5Smoothing, mtf5SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-mtf10Line = request.security(syminfo.tickerid, "10", f_mtfKnnLine(mtf10PriceValue, mtf10PriceLen, mtf10TargetValue, mtf10TargetLen, mtf10ClosestValues, mtf10Smoothing, mtf10SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-mtf15Line = request.security(syminfo.tickerid, "15", f_mtfKnnLine(mtf15PriceValue, mtf15PriceLen, mtf15TargetValue, mtf15TargetLen, mtf15ClosestValues, mtf15Smoothing, mtf15SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-mtf30Line = request.security(syminfo.tickerid, "30", f_mtfKnnLine(mtf30PriceValue, mtf30PriceLen, mtf30TargetValue, mtf30TargetLen, mtf30ClosestValues, mtf30Smoothing, mtf30SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-mtf60Line = request.security(syminfo.tickerid, "60", f_mtfKnnLine(mtf60PriceValue, mtf60PriceLen, mtf60TargetValue, mtf60TargetLen, mtf60ClosestValues, mtf60Smoothing, mtf60SignalLine)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf2Line = request.security(syminfo.tickerid, "2", f_mtfKnnLine(mtf2PriceValue, mtf2PriceLen, mtf2TargetValue, mtf2TargetLen, mtf2ClosestValues, mtf2Smoothing, mtf2SignalLine, mtf2LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf3Line = request.security(syminfo.tickerid, "3", f_mtfKnnLine(mtf3PriceValue, mtf3PriceLen, mtf3TargetValue, mtf3TargetLen, mtf3ClosestValues, mtf3Smoothing, mtf3SignalLine, mtf3LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf5Line = request.security(syminfo.tickerid, "5", f_mtfKnnLine(mtf5PriceValue, mtf5PriceLen, mtf5TargetValue, mtf5TargetLen, mtf5ClosestValues, mtf5Smoothing, mtf5SignalLine, mtf5LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf10Line = request.security(syminfo.tickerid, "10", f_mtfKnnLine(mtf10PriceValue, mtf10PriceLen, mtf10TargetValue, mtf10TargetLen, mtf10ClosestValues, mtf10Smoothing, mtf10SignalLine, mtf10LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf15Line = request.security(syminfo.tickerid, "15", f_mtfKnnLine(mtf15PriceValue, mtf15PriceLen, mtf15TargetValue, mtf15TargetLen, mtf15ClosestValues, mtf15Smoothing, mtf15SignalLine, mtf15LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf30Line = request.security(syminfo.tickerid, "30", f_mtfKnnLine(mtf30PriceValue, mtf30PriceLen, mtf30TargetValue, mtf30TargetLen, mtf30ClosestValues, mtf30Smoothing, mtf30SignalLine, mtf30LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+mtf60Line = request.security(syminfo.tickerid, "60", f_mtfKnnLine(mtf60PriceValue, mtf60PriceLen, mtf60TargetValue, mtf60TargetLen, mtf60ClosestValues, mtf60Smoothing, mtf60SignalLine, mtf60LineType)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
 mtf2PlotStyle = mtf2PlotStyleInput == "Line" ? plot.style_line : mtf2PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
 mtf3PlotStyle = mtf3PlotStyleInput == "Line" ? plot.style_line : mtf3PlotStyleInput == "Circles" ? plot.style_circles : plot.style_stepline
@@ -674,14 +780,14 @@ plot(enableMTF and useMtf30 and showMtf30Line ? mtf30Line : na, title="Confirmed
 plot(enableMTF and useMtf60 and showMtf60Line ? mtf60Line : na, title="Confirmed Selected KNN 1H", color=mtf60Color, linewidth=mtf60LineWidth, style=mtf60PlotStyle)
 
 // Eight fully independent exit engines — one linked to each entry source.
-[chartExitLine, chartExitBullTime, chartExitBearTime, chartExitBullClose, chartExitBearClose] = request.security(syminfo.tickerid, chartExitTimeframe, f_independentExitEngine(chartExitPriceValue, chartExitPriceLen, chartExitTargetValue, chartExitTargetLen, chartExitClosestValues, chartExitSmoothing, chartExitSignalLine, chartExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf2ExitLine, mtf2ExitBullTime, mtf2ExitBearTime, mtf2ExitBullClose, mtf2ExitBearClose] = request.security(syminfo.tickerid, mtf2ExitTimeframe, f_independentExitEngine(mtf2ExitPriceValue, mtf2ExitPriceLen, mtf2ExitTargetValue, mtf2ExitTargetLen, mtf2ExitClosestValues, mtf2ExitSmoothing, mtf2ExitSignalLine, mtf2ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf3ExitLine, mtf3ExitBullTime, mtf3ExitBearTime, mtf3ExitBullClose, mtf3ExitBearClose] = request.security(syminfo.tickerid, mtf3ExitTimeframe, f_independentExitEngine(mtf3ExitPriceValue, mtf3ExitPriceLen, mtf3ExitTargetValue, mtf3ExitTargetLen, mtf3ExitClosestValues, mtf3ExitSmoothing, mtf3ExitSignalLine, mtf3ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf5ExitLine, mtf5ExitBullTime, mtf5ExitBearTime, mtf5ExitBullClose, mtf5ExitBearClose] = request.security(syminfo.tickerid, mtf5ExitTimeframe, f_independentExitEngine(mtf5ExitPriceValue, mtf5ExitPriceLen, mtf5ExitTargetValue, mtf5ExitTargetLen, mtf5ExitClosestValues, mtf5ExitSmoothing, mtf5ExitSignalLine, mtf5ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf10ExitLine, mtf10ExitBullTime, mtf10ExitBearTime, mtf10ExitBullClose, mtf10ExitBearClose] = request.security(syminfo.tickerid, mtf10ExitTimeframe, f_independentExitEngine(mtf10ExitPriceValue, mtf10ExitPriceLen, mtf10ExitTargetValue, mtf10ExitTargetLen, mtf10ExitClosestValues, mtf10ExitSmoothing, mtf10ExitSignalLine, mtf10ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf15ExitLine, mtf15ExitBullTime, mtf15ExitBearTime, mtf15ExitBullClose, mtf15ExitBearClose] = request.security(syminfo.tickerid, mtf15ExitTimeframe, f_independentExitEngine(mtf15ExitPriceValue, mtf15ExitPriceLen, mtf15ExitTargetValue, mtf15ExitTargetLen, mtf15ExitClosestValues, mtf15ExitSmoothing, mtf15ExitSignalLine, mtf15ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf30ExitLine, mtf30ExitBullTime, mtf30ExitBearTime, mtf30ExitBullClose, mtf30ExitBearClose] = request.security(syminfo.tickerid, mtf30ExitTimeframe, f_independentExitEngine(mtf30ExitPriceValue, mtf30ExitPriceLen, mtf30ExitTargetValue, mtf30ExitTargetLen, mtf30ExitClosestValues, mtf30ExitSmoothing, mtf30ExitSignalLine, mtf30ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-[mtf60ExitLine, mtf60ExitBullTime, mtf60ExitBearTime, mtf60ExitBullClose, mtf60ExitBearClose] = request.security(syminfo.tickerid, mtf60ExitTimeframe, f_independentExitEngine(mtf60ExitPriceValue, mtf60ExitPriceLen, mtf60ExitTargetValue, mtf60ExitTargetLen, mtf60ExitClosestValues, mtf60ExitSmoothing, mtf60ExitSignalLine, mtf60ExitConfirmBars), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[chartExitLine, chartExitBullTime, chartExitBearTime, chartExitBullClose, chartExitBearClose] = request.security(syminfo.tickerid, chartExitTimeframe, f_independentExitEngine(chartExitPriceValue, chartExitPriceLen, chartExitTargetValue, chartExitTargetLen, chartExitClosestValues, chartExitSmoothing, chartExitSignalLine, chartExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf2ExitLine, mtf2ExitBullTime, mtf2ExitBearTime, mtf2ExitBullClose, mtf2ExitBearClose] = request.security(syminfo.tickerid, mtf2ExitTimeframe, f_independentExitEngine(mtf2ExitPriceValue, mtf2ExitPriceLen, mtf2ExitTargetValue, mtf2ExitTargetLen, mtf2ExitClosestValues, mtf2ExitSmoothing, mtf2ExitSignalLine, mtf2ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf3ExitLine, mtf3ExitBullTime, mtf3ExitBearTime, mtf3ExitBullClose, mtf3ExitBearClose] = request.security(syminfo.tickerid, mtf3ExitTimeframe, f_independentExitEngine(mtf3ExitPriceValue, mtf3ExitPriceLen, mtf3ExitTargetValue, mtf3ExitTargetLen, mtf3ExitClosestValues, mtf3ExitSmoothing, mtf3ExitSignalLine, mtf3ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf5ExitLine, mtf5ExitBullTime, mtf5ExitBearTime, mtf5ExitBullClose, mtf5ExitBearClose] = request.security(syminfo.tickerid, mtf5ExitTimeframe, f_independentExitEngine(mtf5ExitPriceValue, mtf5ExitPriceLen, mtf5ExitTargetValue, mtf5ExitTargetLen, mtf5ExitClosestValues, mtf5ExitSmoothing, mtf5ExitSignalLine, mtf5ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf10ExitLine, mtf10ExitBullTime, mtf10ExitBearTime, mtf10ExitBullClose, mtf10ExitBearClose] = request.security(syminfo.tickerid, mtf10ExitTimeframe, f_independentExitEngine(mtf10ExitPriceValue, mtf10ExitPriceLen, mtf10ExitTargetValue, mtf10ExitTargetLen, mtf10ExitClosestValues, mtf10ExitSmoothing, mtf10ExitSignalLine, mtf10ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf15ExitLine, mtf15ExitBullTime, mtf15ExitBearTime, mtf15ExitBullClose, mtf15ExitBearClose] = request.security(syminfo.tickerid, mtf15ExitTimeframe, f_independentExitEngine(mtf15ExitPriceValue, mtf15ExitPriceLen, mtf15ExitTargetValue, mtf15ExitTargetLen, mtf15ExitClosestValues, mtf15ExitSmoothing, mtf15ExitSignalLine, mtf15ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf30ExitLine, mtf30ExitBullTime, mtf30ExitBearTime, mtf30ExitBullClose, mtf30ExitBearClose] = request.security(syminfo.tickerid, mtf30ExitTimeframe, f_independentExitEngine(mtf30ExitPriceValue, mtf30ExitPriceLen, mtf30ExitTargetValue, mtf30ExitTargetLen, mtf30ExitClosestValues, mtf30ExitSmoothing, mtf30ExitSignalLine, mtf30ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+[mtf60ExitLine, mtf60ExitBullTime, mtf60ExitBearTime, mtf60ExitBullClose, mtf60ExitBearClose] = request.security(syminfo.tickerid, mtf60ExitTimeframe, f_independentExitEngine(mtf60ExitPriceValue, mtf60ExitPriceLen, mtf60ExitTargetValue, mtf60ExitTargetLen, mtf60ExitClosestValues, mtf60ExitSmoothing, mtf60ExitSignalLine, mtf60ExitConfirmBars, "RMA (original)"), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
 chartExitBullSignal = chartExitEnabled and f_newConfirmedEvent(chartExitBullTime)
 chartExitBearSignal = chartExitEnabled and f_newConfirmedEvent(chartExitBearTime)
@@ -1323,6 +1429,9 @@ anyIndependentSource = (chartSignalsAllowed and not chartRespectOtherTrades) or 
 anyExitEngineEnabled = (chartSignalsAllowed and chartExitEnabled) or (enableMTF and useMtf2 and mtf2ExitEnabled) or (enableMTF and useMtf3 and mtf3ExitEnabled) or (enableMTF and useMtf5 and mtf5ExitEnabled) or (enableMTF and useMtf10 and mtf10ExitEnabled) or (enableMTF and useMtf15 and mtf15ExitEnabled) or (enableMTF and useMtf30 and mtf30ExitEnabled) or (enableMTF and useMtf60 and mtf60ExitEnabled)
 managerBaseText = not enableSignals ? "OFF" : anyMtfSourceEnabled ? "PER-TF" + (anyIndependentSource ? " | MTF MIX" : " | MTF SHARED") : chartSignalsAllowed ? signalModeText : "NO FRAME"
 managerText = managerBaseText + (anyExitEngineEnabled ? " | FIXED TP + IND EXIT" : " | FIXED TP")
+activeLineTypesText = chartLineType + "/" + mtf2LineType + "/" + mtf3LineType + "/" + mtf5LineType + "/" + mtf10LineType + "/" + mtf15LineType + "/" + mtf30LineType + "/" + mtf60LineType
+allSameLineType = chartLineType == mtf2LineType and mtf2LineType == mtf3LineType and mtf3LineType == mtf5LineType and mtf5LineType == mtf10LineType and mtf10LineType == mtf15LineType and mtf15LineType == mtf30LineType and mtf30LineType == mtf60LineType
+lineTypeText = allSameLineType ? chartLineType : activeLineTypesText
 activeLineLengthsText = str.tostring(smoothingPeriod) + "/" + str.tostring(mtf2Smoothing) + "/" + str.tostring(mtf3Smoothing) + "/" + str.tostring(mtf5Smoothing) + "/" + str.tostring(mtf10Smoothing) + "/" + str.tostring(mtf15Smoothing) + "/" + str.tostring(mtf30Smoothing) + "/" + str.tostring(mtf60Smoothing)
 globalCooldownRemainingMinutes = globalCooldownActive ? math.ceil((globalCooldownUntil - cooldownClock_) / 60000.0) : 0.0
 cooldownText = perTfCooldownEnabled ? "PER-TF PRESET" : cooldownMode == "Off" ? "OFF" : globalCooldownActive ? globalCooldownReason + " " + str.tostring(globalCooldownRemainingMinutes, "#") + "m" : "GLOBAL READY"
@@ -1350,7 +1459,7 @@ for sourceIndex = 0 to SOURCE_COUNT - 1
 openText = openTradeCount > 0 ? openTextBuild : "-"
 openTextColor = openTradeCount == 0 ? WAIT_C : mixedOpenSides ? EN_C : firstOpenSide == 1 ? BUY_C : SELL_C
 
-var table statsTable = table.new(position.top_right, 2, 19, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+var table statsTable = table.new(position.top_right, 2, 20, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 
 if showTable and barstate.islast
     table.cell(statsTable, 0, 0, "AI 963", text_color=TXT_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
@@ -1409,8 +1518,11 @@ if showTable and barstate.islast
 
     table.cell(statsTable, 0, 18, "Cooldown", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.tiny)
     table.cell(statsTable, 1, 18, cooldownText, text_color=globalCooldownActive ? SELL_C : cooldownMode == "Off" ? WAIT_C : BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.tiny)
+
+    table.cell(statsTable, 0, 19, "Line Type", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.tiny)
+    table.cell(statsTable, 1, 19, lineTypeText, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.tiny)
 else if not showTable and barstate.islast
-    table.clear(statsTable, 0, 0, 1, 18)
+    table.clear(statsTable, 0, 0, 1, 19)
 
 // ══════════════════════════════════════════════════════════════════
 // ALERTS — all are confirmed at candle close.
