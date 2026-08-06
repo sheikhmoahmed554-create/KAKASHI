@@ -1428,11 +1428,13 @@ avgLossPoints = losses > 0 ? sumLossPts / losses : 0.0
 allSameLineType = chartLineType == mtf2LineType and mtf2LineType == mtf3LineType and mtf3LineType == mtf5LineType and mtf5LineType == mtf10LineType and mtf10LineType == mtf15LineType and mtf15LineType == mtf30LineType and mtf30LineType == mtf60LineType
 lineTypeText = str.replace_all(chartLineType, " (original)", "") + (allSameLineType ? "" : " +mix")
 
-var table statsTable = table.new(position.top_right, 2, 11, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+var table statsTable = table.new(position.top_right, 2, 12, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 
 // Compact by design. The three long rows — Open, Last Signal and Manager — set
 // the whole table's width from their longest line of text, which is what made
-// it stretch across the chart. They are gone; everything left is a short number.
+// it stretch across the chart. They are gone; everything left is short.
+// Line and From sit on top: they say which line is drawn and where the count
+// starts from, which is the context every number below depends on.
 if showTable and barstate.islast
     table.cell(statsTable, 0, 0, "AI 963", text_color=TXT_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(statsTable, 1, 0, enableMTF ? "MTF S/R" : "S/R", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
@@ -1440,34 +1442,37 @@ if showTable and barstate.islast
     table.cell(statsTable, 0, 1, "Line", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
     table.cell(statsTable, 1, 1, lineTypeText, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 2, "Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 2, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 2, "From", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 2, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm", "UTC") + " UTC", text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 3, "Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 3, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 3, "Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 3, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 4, "WR", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 4, str.tostring(winRate, "#.##") + "%", text_color=winRate >= 60 ? BUY_C : winRate >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 4, "Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 4, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 5, "Net", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 5, str.tostring(netPts, "#"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 5, "WR", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 5, str.tostring(winRate, "#.##") + "%", text_color=winRate >= 60 ? BUY_C : winRate >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 6, "Max W", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 6, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 6, "Net", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 6, str.tostring(netPts, "#"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 7, "Max L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 7, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 7, "Max W", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 7, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 8, "Avg Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 8, str.tostring(avgWinPoints, "#.#"), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 8, "Max L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 8, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 9, "Avg Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 9, str.tostring(avgLossPoints, "#.#"), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 9, "Avg Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 9, str.tostring(avgWinPoints, "#.#"), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 10, "Last", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 10, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 10, "Avg Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 10, str.tostring(avgLossPoints, "#.#"), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(statsTable, 0, 11, "Last", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 11, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 else if not showTable and barstate.islast
-    table.clear(statsTable, 0, 0, 1, 10)
+    table.clear(statsTable, 0, 0, 1, 11)
 
 // ══════════════════════════════════════════════════════════════════
 // ALERTS — all are confirmed at candle close.
