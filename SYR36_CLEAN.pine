@@ -2486,31 +2486,38 @@ sellSignal := sellSignal and not sfBlock
 
 // ━━━ أبطال المختبر 2026 — TRIPLE + SNIPER + ULSWEEP + متحقق الترند ━━━
 G_CH = "23 ■ Lab Champions (TRIPLE/SNIPER/ULS/Verifier)"
-chTriUse = input.bool(true, "TRIPLE — ON", group=G_CH)
-chTriDepth = input.float(5.0, "TRIPLE depth — CHAMPION=2.0", minval=0.5, maxval=6.0, step=0.1, group=G_CH)
-chTriTh = input.float(18.0, "TRIPLE RSI3 threshold", minval=5.0, maxval=30.0, step=1.0, group=G_CH)
 chSniUse = input.bool(false, "SNIPER — ON", group=G_CH)
 chSniDepth = input.float(7.0, "SNIPER depth", minval=2.0, maxval=8.0, step=0.1, group=G_CH)
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // REMOVED FROM THE INDICATOR
 //
-// Four champion schools are gone from this file — not switched off, taken out,
-// along with the inputs, court verdicts and helper series that only they read.
-// Each was measured on its own on 2026 through the Pine engine, against the
-// version's own +6,565 at 60.44% with a 2,261 drawdown:
+// Seven champion schools are gone from this file — not switched off, taken out,
+// with the inputs, court verdicts and helper series that only they read. Each
+// was ablated on its own on 2026 through the Pine engine, against the source
+// version's +6,565 at 60.44% over 6,984 trades with a 2,261 drawdown:
 //
-//   school                 net without it   it was worth
-//   ULSWEEP v2 (chUls2)          +9,305        -2,740
-//   SPRING Wyckoff (chSpr)       +8,272        -1,707
-//   CVD divergence (chCvd)       +7,136          -571
-//   VWAP Absorption (chVz)       +6,850          -285
+//   school                    net without it     it was worth
+//   ULSWEEP v2   (chUls2)           +9,305           -2,740
+//   SPRING Wyckoff (chSpr)          +8,272           -1,707
+//   CVD divergence (chCvd)          +7,136             -571
+//   VWAP Absorption (chVz)          +6,850             -285
+//   PRO SCALPER  (chPs)             +6,640              -75
+//   TRIPLE       (chTri)            +6,565                0
+//   WAVETREND v2 (chWt)             +6,565                0
 //
-// The nine schools that stay all cost points when removed, so they earn their
-// place: chRib -5,100, chR14 -2,295, chCld -1,519, chUt -1,194, chKelt -913,
+// chTri and chWt did not change one trade in six months. The rest cost money.
+//
+// The eight that stay all pay for their place — removing any of them loses
+// points: chRib -5,100, chR14 -2,295, chCld -1,519, chUt -1,194, chKelt -913,
 // chUo -683, chCmo -352, chCrev -143.
 //
-// chSni, chQuad, chTsi and chDix ship disabled in the source version and never
-// fire; chTri, chWt and chPs are still being measured.
+// Removing the four largest was verified two ways and agreed exactly: switching
+// them off in the source gave 6,682 trades / 60.36% / +8,730 / drawdown 1,652,
+// and this file cut down to the same set gave the identical figures. The cut is
+// clean; nothing else in the chain depended on them.
+//
+// chSni, chQuad, chTsi and chDix ship disabled in the source version, so they
+// fire nothing as written. They are still here pending an ON test.
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 chVerUse = input.bool(false, "Trend Verifier (M15 Donchian 25 + vol) — ON", group=G_CH)
 chAtrV = ta.atr(14)
@@ -2535,8 +2542,6 @@ if chTrUp and close < chEma15
     chTrUp := false
 if chTrDn and close > chEma15
     chTrDn := false
-chTriB = chTriUse and chStretch < -chTriDepth and chRsi3 < chTriTh and chBig and not chTrDn
-chTriS = chTriUse and chStretch > chTriDepth and chRsi3 > 100 - chTriTh and chBig and not chTrUp
 chSniB = chSniUse and chStretch < -chSniDepth and nz(volume, 0.0) > 1.5 * chVSma and chRsi3 < 18.0 and chBig and not chTrDn
 chSniS = chSniUse and chStretch > chSniDepth and nz(volume, 0.0) > 1.5 * chVSma and chRsi3 > 82.0 and chBig and not chTrUp
 chUoUse = input.bool(true, "ULTIMATE OSC — ON", group=G_MOM_NEW)
@@ -2556,11 +2561,7 @@ courtCldB = input.bool(true, "chCld BUY (حكم: -4700)", group=G_COURT)
 courtUoB = input.bool(true, "chUo BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtRibB = input.bool(true, "chRib BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtCmoS = input.bool(true, "chCmo SELL (حكم: -900)", group=G_COURT)
-courtWtS = input.bool(true, "chWt SELL (حكم: -600)", group=G_COURT)
 courtUtS = input.bool(true, "chUt SELL (نجا بالمحاكمة الثانية)", group=G_COURT)
-courtPsS = input.bool(true, "chPs SELL (نجا — عينة صغيرة)", group=G_COURT)
-courtTriS = input.bool(true, "chTri SELL (نجا — عينة صغيرة)", group=G_COURT)
-courtPsB = input.bool(true, "chPs BUY (نجا — عينة صغيرة)", group=G_COURT)
 courtRibS = input.bool(true, "chRib SELL (حكم تدريبي: -1100)", group=G_COURT)
 
 buySignal := buySignal or (courtUoB and chUoB)
@@ -2572,16 +2573,6 @@ chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 a
 buySignal := buySignal or (courtRibB and chRibB)
 sellSignal := sellSignal or (courtRibS and chRibS)
 // ━━━ المدارس المنقذة (بحث + اختراع مثبت) ━━━
-chWtUse = input.bool(true, "WAVETREND v2 (WT + chassis) — ON", group=G_CH)
-chWtTp3 = (high + low + close) / 3
-chWtEsa = ta.ema(chWtTp3, 10)
-chWtDe = ta.ema(math.abs(chWtTp3 - chWtEsa), 10)
-chWtCi = (chWtTp3 - chWtEsa) / (0.015 * chWtDe + 0.00001)
-chWt1 = ta.ema(chWtCi, 21)
-chWtB = chWtUse and chWt1 < -60 and chRsi3 < 18.0 and chBig
-chWtS = chWtUse and chWt1 > 60 and chRsi3 > 82.0 and chBig
-buySignal := buySignal or chWtB
-sellSignal := sellSignal or (courtWtS and chWtS)
 chCrevUse = input.bool(true, "CLIMAX REVERSAL (بديل MACD Vol) — ON", group=G_MOM_NEW)
 chCrevB = chCrevUse and chClim[1] and close[1] < open[1] and close > open and close > close[1]
 chCrevS = chCrevUse and chClim[1] and close[1] > open[1] and close < open and close < close[1]
@@ -2642,19 +2633,12 @@ chDixUse = input.bool(false, "DI spread reversion — OFF (ablation: loses point
 chDixLvl = input.float(20.0, "DI spread level", minval=5, maxval=30, step=1, group=G_MOM_NEW)
 chDixB = chDixUse and mDI > pDI + chDixLvl and close > open
 chDixS = chDixUse and pDI > mDI + chDixLvl and close < open
-chPsUse = input.bool(true, "PRO SCALPER — ON", group=G_PULLBACK_NEW)
-chPsRsi = input.float(25.0, "PS RSI extreme", minval=10, maxval=40, step=1, group=G_PULLBACK_NEW)
-chPsAdx = input.float(30.0, "PS max ADX", minval=10, maxval=40, step=1, group=G_PULLBACK_NEW)
-chBbM = ta.sma(close, 20)
-chBbS = ta.stdev(close, 20)
-chPsB = chPsUse and chRsi14v < chPsRsi and low <= chBbM - 2 * chBbS and (math.min(open, close) - low > math.abs(close - open) or close > high[1]) and adx < chPsAdx
-chPsS = chPsUse and chRsi14v > 100 - chPsRsi and high >= chBbM + 2 * chBbS and (high - math.max(open, close) > math.abs(close - open) or close < low[1]) and adx < chPsAdx
-buySignal := buySignal or chTsiB or chDixB or (courtPsB and chPsB)
-sellSignal := sellSignal or chTsiS or chDixS or (courtPsS and chPsS)
+buySignal := buySignal or chTsiB or chDixB
+sellSignal := sellSignal or chTsiS or chDixS
 
 // ━━━ CVD + REG35 (تكملة الـ38) ━━━
-buySignal := buySignal or chTriB or chSniB
-sellSignal := sellSignal or (courtTriS and chTriS) or chSniS
+buySignal := buySignal or chSniB
+sellSignal := sellSignal or chSniS
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 21 ■ OUR REGIME GATE — فلترنا الخاص
