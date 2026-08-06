@@ -43,9 +43,16 @@
 // LOST 2150 points at a 43.7% worst-period win rate. The sell edge held
 // through the uptrend and both downtrends, so it is not a trend artifact.
 //
-// HONEST LIMITS: one instrument, one broker feed, ~7 months. Spread is taken
-// from the feed's own spread column; slippage is NOT modelled. Re-verify with
-// tools/wf.js before risking money.
+// PORTABILITY: this file compiles on BOTH the KAKASHI engine and TradingView.
+// It therefore avoids `spread`, which KAKASHI exposes from the MT5 feed but
+// TradingView has no equivalent for. The spread guard it fed rejected only 7
+// bars out of 192,081, so dropping it changes nothing measurable. KAKASHI-only
+// users who want it back can add:
+//     spreadOK = nz(spread, 0) * 0.01 / pointUnit <= 8.0
+// and AND it into gateBuy / gateSell.
+//
+// HONEST LIMITS: one instrument, one broker feed, ~7 months. Slippage is NOT
+// modelled. Re-verify with tools/wf.js before risking money.
 // ============================================================================
 indicator("KAKASHI FUSION PRO 50/50", overlay=true, max_labels_count=500, max_boxes_count=500)
 
@@ -102,13 +109,11 @@ maxAtrPts    = input.float(400.0,"Max ATR (points)", group=G_FILT)
 useRoom      = input.bool(true,  "Require Room To Target", group=G_FILT)
 useMomGate   = input.bool(true,  "Require Momentum Agreement", group=G_FILT)
 useBodyDir   = input.bool(true,  "Require Directional Body", group=G_FILT)
-useSpread    = input.bool(true,  "Spread Guard", group=G_FILT)
-maxSpreadPts = input.float(8.0,  "Max Spread (points)", group=G_FILT)
 cooldownBars = input.int(0,      "Bars Between Trades", minval=0, group=G_FILT)
 useHours     = input.bool(true,  "Session Filter", group=G_FILT)
 hourFrom     = input.int(6,      "From Hour UTC", minval=0, maxval=23, group=G_FILT)
 hourTo       = input.int(20,     "To Hour UTC",   minval=0, maxval=23, group=G_FILT)
-minVotes     = input.int(1,      "Min Agreeing Engines", minval=1, maxval=6, group=G_FILT)
+minVotes     = input.int(1,      "Min Agreeing Engines", minval=1, maxval=7, group=G_FILT)
 trendMode    = input.string("None", "Trend Filter", options=["None","Kalman","SuperTrend","ZeroLag","All"], group=G_FILT)
 sideMode     = input.string("SellOnly", "Allowed Direction", options=["Both","BuyOnly","SellOnly"], group=G_FILT)
 
@@ -141,7 +146,7 @@ uRSI   = uDen == 0 ? 50.0 : uNum / uDen * 50 + 50
 uSig   = ta.ema(uRSI, uSigLen)
 
 // ================================================================= ZERO LAG TREND [AlgoAlpha]
-zLag  = math.round((zLen - 1) / 2)
+zLag  = int((zLen - 1) / 2)
 zlema = ta.ema(close + (close - close[zLag]), zLen)
 zVol  = ta.highest(ta.atr(zLen), zLen * 3) * zMult
 var int zTrend = 0
@@ -260,16 +265,14 @@ hr        = hour(time)
 sessOK    = not useHours or (hr >= hourFrom and hr <= hourTo)
 roomBuy   = not useRoom or (prR2 - close) / pointUnit >= targetPoints
 roomSell  = not useRoom or (close - prS2) / pointUnit >= targetPoints
-spreadPts = nz(spread, 0) * 0.01 / pointUnit
-spreadOK  = not useSpread or spreadPts <= maxSpreadPts
 bodyBuyOK  = not useBodyDir or close > open
 bodySellOK = not useBodyDir or close < open
 momBuyOK   = not useMomGate or uRSI > uRSI[1]
 momSellOK  = not useMomGate or uRSI < uRSI[1]
 tfBuyOK  = trendMode == "None" ? true : trendMode == "Kalman" ? kUp : trendMode == "SuperTrend" ? stUp : trendMode == "ZeroLag" ? (zTrend == 1) : (kUp and stUp and zTrend == 1)
 tfSellOK = trendMode == "None" ? true : trendMode == "Kalman" ? (not kUp) : trendMode == "SuperTrend" ? (not stUp) : trendMode == "ZeroLag" ? (zTrend == -1) : ((not kUp) and (not stUp) and zTrend == -1)
-gateBuy    = volOK and sessOK and roomBuy  and spreadOK and bodyBuyOK  and momBuyOK  and tfBuyOK
-gateSell   = volOK and sessOK and roomSell and spreadOK and bodySellOK and momSellOK and tfSellOK
+gateBuy    = volOK and sessOK and roomBuy  and bodyBuyOK  and momBuyOK  and tfBuyOK
+gateSell   = volOK and sessOK and roomSell and bodySellOK and momSellOK and tfSellOK
 
 trendUp   = zTrend == 1  and stUp
 trendDown = zTrend == -1 and not stUp
@@ -517,8 +520,8 @@ plot(kEstS,"Kalman Slow", color=color.new(color.blue, 30))
 
 plotshape(sy348EntryBuyPlot,  "BUY",  style=shape.labelup,   location=location.belowbar, color=color.green, text="BUY")
 plotshape(sy348EntrySellPlot, "SELL", style=shape.labeldown, location=location.abovebar, color=color.red,   text="SELL")
-plotshape(sy348ExitTPPlot, "TP", style=shape.xcross, location=location.absolute, color=color.green)
-plotshape(sy348ExitSLPlot, "SL", style=shape.xcross, location=location.absolute, color=color.red)
+plotshape(sy348ExitTPPlot, "TP", style=shape.xcross, location=location.belowbar, color=color.green)
+plotshape(sy348ExitSLPlot, "SL", style=shape.xcross, location=location.abovebar, color=color.red)
 
 // ================================================================= RESULTS TABLE
 var table t1 = table.new(position.top_right, 3, 15, border_width=1)
