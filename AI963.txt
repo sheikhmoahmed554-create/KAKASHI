@@ -1423,106 +1423,51 @@ plotshape(showSignals and exitEnginePlot, title="AI 963 Independent Exit Engine 
 winRate = trades > 0 ? wins * 100.0 / trades : 0.0
 avgWinPoints = wins > 0 ? sumWinPts / wins : 0.0
 avgLossPoints = losses > 0 ? sumLossPts / losses : 0.0
-signalModeText = enableWickRejection and enableBreakout ? "WICK + BREAK" : enableWickRejection ? "WICK ONLY" : enableBreakout ? "BREAK ONLY" : "OFF"
-anyMtfSourceEnabled = enableMTF and (useMtf2 or useMtf3 or useMtf5 or useMtf10 or useMtf15 or useMtf30 or useMtf60)
-anyIndependentSource = (chartSignalsAllowed and not chartRespectOtherTrades) or (enableMTF and useMtf2 and not mtf2RespectOtherTrades) or (enableMTF and useMtf3 and not mtf3RespectOtherTrades) or (enableMTF and useMtf5 and not mtf5RespectOtherTrades) or (enableMTF and useMtf10 and not mtf10RespectOtherTrades) or (enableMTF and useMtf15 and not mtf15RespectOtherTrades) or (enableMTF and useMtf30 and not mtf30RespectOtherTrades) or (enableMTF and useMtf60 and not mtf60RespectOtherTrades)
-anyExitEngineEnabled = (chartSignalsAllowed and chartExitEnabled) or (enableMTF and useMtf2 and mtf2ExitEnabled) or (enableMTF and useMtf3 and mtf3ExitEnabled) or (enableMTF and useMtf5 and mtf5ExitEnabled) or (enableMTF and useMtf10 and mtf10ExitEnabled) or (enableMTF and useMtf15 and mtf15ExitEnabled) or (enableMTF and useMtf30 and mtf30ExitEnabled) or (enableMTF and useMtf60 and mtf60ExitEnabled)
-managerBaseText = not enableSignals ? "OFF" : anyMtfSourceEnabled ? "PER-TF" + (anyIndependentSource ? " | MTF MIX" : " | MTF SHARED") : chartSignalsAllowed ? signalModeText : "NO FRAME"
-managerText = managerBaseText + (anyExitEngineEnabled ? " | FIXED TP + IND EXIT" : " | FIXED TP")
-activeLineTypesText = chartLineType + "/" + mtf2LineType + "/" + mtf3LineType + "/" + mtf5LineType + "/" + mtf10LineType + "/" + mtf15LineType + "/" + mtf30LineType + "/" + mtf60LineType
+// Spelling out all eight types would re-widen the table by itself, so the row
+// names the chart's line and only says whether the other frames disagree.
 allSameLineType = chartLineType == mtf2LineType and mtf2LineType == mtf3LineType and mtf3LineType == mtf5LineType and mtf5LineType == mtf10LineType and mtf10LineType == mtf15LineType and mtf15LineType == mtf30LineType and mtf30LineType == mtf60LineType
-lineTypeText = allSameLineType ? chartLineType : activeLineTypesText
-activeLineLengthsText = str.tostring(smoothingPeriod) + "/" + str.tostring(mtf2Smoothing) + "/" + str.tostring(mtf3Smoothing) + "/" + str.tostring(mtf5Smoothing) + "/" + str.tostring(mtf10Smoothing) + "/" + str.tostring(mtf15Smoothing) + "/" + str.tostring(mtf30Smoothing) + "/" + str.tostring(mtf60Smoothing)
-globalCooldownRemainingMinutes = globalCooldownActive ? math.ceil((globalCooldownUntil - cooldownClock_) / 60000.0) : 0.0
-cooldownText = perTfCooldownEnabled ? "PER-TF PRESET" : cooldownMode == "Off" ? "OFF" : globalCooldownActive ? globalCooldownReason + " " + str.tostring(globalCooldownRemainingMinutes, "#") + "m" : "GLOBAL READY"
+lineTypeText = str.replace_all(chartLineType, " (original)", "") + (allSameLineType ? "" : " +mix")
 
-openTradeCount = 0
-openTextBuild = ""
-firstOpenSide = 0
-mixedOpenSides = false
-for sourceIndex = 0 to SOURCE_COUNT - 1
-    if array.get(activeTrades, sourceIndex)
-        openSide_ = array.get(tradeSides, sourceIndex)
-        openType_ = array.get(activeSignalTypes, sourceIndex) == "REJECTION" ? "REJ" : "BRK"
-        openExitEnabled_ = array.get(sourceExitEnabled, sourceIndex)
-        openExitFrame_ = f_timeframeLabel(array.get(sourceExitTimeframes, sourceIndex))
-        openTargetPoints_ = array.get(activeTargetPoints, sourceIndex)
-        openExitMode_ = openExitEnabled_ ? " EXIT→" + openExitFrame_ : " TP " + str.tostring(openTargetPoints_, "#")
-        openPart_ = (openSide_ == 1 ? "BUY " : "SELL ") + array.get(sourceNames, sourceIndex) + " " + openType_ + openExitMode_
-        openTextBuild := openTextBuild == "" ? openPart_ : openTextBuild + " | " + openPart_
-        openTradeCount += 1
-        if firstOpenSide == 0
-            firstOpenSide := openSide_
-        else if openSide_ != firstOpenSide
-            mixedOpenSides := true
+var table statsTable = table.new(position.top_right, 2, 11, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 
-openText = openTradeCount > 0 ? openTextBuild : "-"
-openTextColor = openTradeCount == 0 ? WAIT_C : mixedOpenSides ? EN_C : firstOpenSide == 1 ? BUY_C : SELL_C
-
-var table statsTable = table.new(position.top_right, 2, 20, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
-
+// Compact by design. The three long rows — Open, Last Signal and Manager — set
+// the whole table's width from their longest line of text, which is what made
+// it stretch across the chart. They are gone; everything left is a short number.
 if showTable and barstate.islast
     table.cell(statsTable, 0, 0, "AI 963", text_color=TXT_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
-    table.cell(statsTable, 1, 0, enableMTF ? "MTF S/R" : "S/R SIGNALS", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(statsTable, 1, 0, enableMTF ? "MTF S/R" : "S/R", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
 
-    table.cell(statsTable, 0, 1, "Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 1, "Line", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 1, lineTypeText, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 2, "Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 2, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 2, "Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 2, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 3, "WR", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 3, str.tostring(winRate, "#.##") + "%", text_color=winRate >= 60 ? BUY_C : winRate >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 3, "Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 3, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 4, "Net", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 4, "WR", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 4, str.tostring(winRate, "#.##") + "%", text_color=winRate >= 60 ? BUY_C : winRate >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 5, "Max W", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 5, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 5, "Net", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 5, str.tostring(netPts, "#"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 6, "Max L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 6, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 6, "Max W", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 6, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 7, "Avg Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 7, str.tostring(avgWinPoints, "#.##"), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 7, "Max L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 7, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 8, "Avg Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 8, str.tostring(avgLossPoints, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 0, 8, "Avg Win", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 8, str.tostring(avgWinPoints, "#.#"), text_color=BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 
-    table.cell(statsTable, 0, 9, "Last", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 9, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#.##"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 0, 9, "Avg Loss", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(statsTable, 1, 9, str.tostring(avgLossPoints, "#.#"), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
 
-    table.cell(statsTable, 0, 10, "From", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 10, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm 'UTC'", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
-
-    table.cell(statsTable, 0, 11, "Manager", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 11, managerText, text_color=enableSignals ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
-
-    table.cell(statsTable, 0, 12, "BUY W/L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 12, str.tostring(buyWins) + "/" + str.tostring(buyLosses), text_color=buyWins >= buyLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
-
-    table.cell(statsTable, 0, 13, "SELL W/L", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 13, str.tostring(sellWins) + "/" + str.tostring(sellLosses), text_color=sellWins >= sellLosses ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
-
-    table.cell(statsTable, 0, 14, "Open", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 14, openText, text_color=openTextColor, bgcolor=TBL_BG_ROW2, text_size=size.small)
-
-    table.cell(statsTable, 0, 15, "REJ / BRK", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.small)
-    table.cell(statsTable, 1, 15, str.tostring(rejectionEntries) + "/" + str.tostring(breakoutEntries), text_color=(rejectionEntries + breakoutEntries) > 0 ? EN_C : WAIT_C, bgcolor=TBL_BG_ROW, text_size=size.small)
-
-    table.cell(statsTable, 0, 16, "Last Signal", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
-    table.cell(statsTable, 1, 16, lastSignalText, text_color=str.contains(lastSignalText, "BUY") ? BUY_C : str.contains(lastSignalText, "SELL") ? SELL_C : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
-
-    table.cell(statsTable, 0, 17, "LEN 1→H", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.tiny)
-    table.cell(statsTable, 1, 17, activeLineLengthsText, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.tiny)
-
-    table.cell(statsTable, 0, 18, "Cooldown", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.tiny)
-    table.cell(statsTable, 1, 18, cooldownText, text_color=globalCooldownActive ? SELL_C : cooldownMode == "Off" ? WAIT_C : BUY_C, bgcolor=TBL_BG_ROW2, text_size=size.tiny)
-
-    table.cell(statsTable, 0, 19, "Line Type", text_color=TBL_TXT, bgcolor=TBL_BG_ROW, text_size=size.tiny)
-    table.cell(statsTable, 1, 19, lineTypeText, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.tiny)
+    table.cell(statsTable, 0, 10, "Last", text_color=TBL_TXT, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(statsTable, 1, 10, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
 else if not showTable and barstate.islast
-    table.clear(statsTable, 0, 0, 1, 19)
+    table.clear(statsTable, 0, 0, 1, 10)
 
 // ══════════════════════════════════════════════════════════════════
 // ALERTS — all are confirmed at candle close.
