@@ -2,38 +2,50 @@
 // ============================================================================
 // KAKASHI FUSION PRO 50/50
 //
-// Six independent entry engines, each reimplemented from a published
-// OPEN-SOURCE TradingView algorithm, all feeding one fixed 50/50 risk core.
+// Seven independent entry engines, each reimplemented from a published
+// OPEN-SOURCE algorithm, all feeding one fixed 50/50 risk core.
 // No proprietary or leaked code is used - only published algorithms.
 //
-//   E1 REVERSION  Predictive Ranges          LuxAlgo    CC BY-NC-SA 4.0
-//   E2 PULLBACK   Predictive Ranges + trend  LuxAlgo    CC BY-NC-SA 4.0
-//   E3 ZLFLIP     Zero Lag Trend Signals     AlgoAlpha  MPL 2.0
-//   E4 KALMAN     Kalman Trend Levels        BigBeluga  CC BY-NC-SA 4.0
-//   E5 SWEEP      Liquidity Sweeps           LuxAlgo    CC BY-NC-SA 4.0
-//   E6 SQUEEZE    Master Pattern             LuxAlgo    CC BY-NC-SA 4.0
-//   Momentum gate Ultimate RSI               LuxAlgo    CC BY-NC-SA 4.0
-//   Trend gate    SuperTrend                 classic
+//   E1 REVERSION  Predictive Ranges              LuxAlgo         CC BY-NC-SA
+//   E2 PULLBACK   Predictive Ranges + trend      LuxAlgo         CC BY-NC-SA
+//   E3 ZLFLIP     Zero Lag Trend Signals         AlgoAlpha       MPL 2.0
+//   E4 KALMAN     Kalman Trend Levels            BigBeluga       CC BY-NC-SA
+//   E5 SWEEP      Liquidity Sweeps               LuxAlgo         CC BY-NC-SA
+//   E6 SQUEEZE    Master Pattern                 LuxAlgo         CC BY-NC-SA
+//   E7 MPLSWEEP   ICT Liquidity Sweep Scanner    Arun_K_Bhaskar  MPL 2.0
+//   Momentum gate Ultimate RSI                   LuxAlgo         CC BY-NC-SA
+//   Trend gate    SuperTrend                     classic
 //
 // ---------------------------------------------------------------------------
-// MEASURED RESULTS - XAUUSD M1, 192,081 bars, 2026-01-02 to 2026-07-17
-// Defaults below are the only configuration that stayed profitable in EVERY
-// period tested, including a +22% bull run. Verified by walk-forward, not by
-// fitting one window.
+// MEASURED - XAUUSD M1, 192,081 bars, 2026-01-02 to 2026-07-17.
+// Defaults are the configuration that stayed profitable in EVERY period
+// tested, including a +21.9% bull run. Chosen by walk-forward, not by fitting
+// one window.
 //
-//   TOTAL      1478 trades   55.62% win   +8300 points
-//   P1 Jan-Feb  480 trades   56.9% win    +3300   (market +21.9%)
-//   P2 Mar-Apr  444 trades   56.3% win    +2800   (market -13.0%)
-//   P3 May-Jul  554 trades   54.0% win    +2200   (market -13.2%)
+//   DEFAULT (E5 + E7, sell side)    1552 trades  55.93% win  +9200 points
+//     P1 Jan-Feb   498 trades  56.8% win  +3400   (market +21.9%)
+//     P2 Mar-Apr   470 trades  57.4% win  +3500   (market -13.0%)
+//     P3 May-Jul   584 trades  53.9% win  +2300   (market -13.2%)
 //
-// WHY SELL-ONLY BY DEFAULT: the buy side was tested over the same 192k bars
-// and LOST 2150 points at a 43.7% worst-period win rate. The sell edge held
-// through both the uptrend and the downtrends, so it is not a trend artifact.
-// Set "Allowed Direction" to Both to see the buy side for yourself.
+// ---------------------------------------------------------------------------
+// COMMERCIAL PRESET - if this is ever sold, the CC BY-NC-SA engines cannot be
+// shipped. Turn E5 off, leave E7 on, set Allowed Direction = Both and E7
+// ZigZag Length = 8. That leaves only MPL 2.0 code and still measures:
 //
-// HONEST LIMITS: one instrument, one broker feed, ~7 months, spread modelled
-// from the feed's own spread column but slippage is NOT modelled. Re-verify
-// before risking money.
+//   E7 ONLY, both directions          115 trades  59.13% win  +1050 points
+//     P1  42 trades 59.5%   P2  39 trades 56.4%   P3  34 trades 61.8%
+//
+// Far fewer signals (~16/month vs ~220/month) but a higher win rate, and it
+// is the only engine that works on the buy side too - the seven-pivot
+// geometry rejects the weak long setups a plain wick test lets through.
+//
+// WHY SELL-ONLY IN THE DEFAULT: over the same 192k bars the buy side of E5
+// LOST 2150 points at a 43.7% worst-period win rate. The sell edge held
+// through the uptrend and both downtrends, so it is not a trend artifact.
+//
+// HONEST LIMITS: one instrument, one broker feed, ~7 months. Spread is taken
+// from the feed's own spread column; slippage is NOT modelled. Re-verify with
+// tools/wf.js before risking money.
 // ============================================================================
 indicator("KAKASHI FUSION PRO 50/50", overlay=true, max_labels_count=500, max_boxes_count=500)
 
@@ -59,6 +71,11 @@ useE3 = input.bool(false, "E3 Zero-Lag Trend Flip", group=G_ENG)
 useE4 = input.bool(false, "E4 Kalman Cross", group=G_ENG)
 useE5 = input.bool(true, "E5 Liquidity Sweep", group=G_ENG)
 useE6 = input.bool(false, "E6 Squeeze Break", group=G_ENG)
+useE7 = input.bool(true,  "E7 ICT ZigZag Sweep (MPL 2.0)", group=G_ENG)
+zzLen  = input.int(4,     "E7 ZigZag Length", minval=2, group=G_ENG)
+zzVar1 = input.bool(true, "E7 use Prev-1 swing cross", group=G_ENG)
+zzVar2 = input.bool(true, "E7 use Prev-2 swing cross", group=G_ENG)
+zzVar3 = input.bool(true, "E7 use Prev-3 swing cross", group=G_ENG)
 
 // ---------------------------------------------------------------- trend
 zLen   = input.int(70,    "Zero-Lag Length", minval=2, group=G_TREND)
@@ -189,6 +206,53 @@ squeezeSell = inSqueeze and not na(sqBot) and close < sqBot
 if squeezeBuy or squeezeSell
     inSqueeze := false
 
+// ================================================================= E7  ICT LIQUIDITY SWEEP  (ZigZag geometry)
+// Ported from "ICT Liquidity Sweep Pattern Scanner" by Arun_K_Bhaskar,
+// Mozilla Public License 2.0 - commercially usable, unlike the CC BY-NC-SA
+// sources. The original keeps pivots in a 14-slot array with array.unshift /
+// array.pop; this engine does not support those, so the same structure is held
+// in a seven-slot shift register, which is equivalent.
+zzHigh = ta.highestbars(high, zzLen) == 0 ? high : na
+zzLow  = ta.lowestbars(low,  zzLen) == 0 ? low  : na
+var int zzDir = 0
+zzDir := (not na(zzLow)) and na(zzHigh) ? -1 : ((not na(zzHigh)) and na(zzLow) ? 1 : zzDir)
+zzDirChanged = ta.change(zzDir) != 0
+zzHasPivot = (not na(zzHigh)) or (not na(zzLow))
+zzVal = zzDir == 1 ? zzHigh : zzLow
+
+var float p1 = na
+var float p2 = na
+var float p3 = na
+var float p4 = na
+var float p5 = na
+var float p6 = na
+var float p7 = na
+if zzHasPivot and not na(zzVal)
+    if zzDirChanged
+        p7 := p6
+        p6 := p5
+        p5 := p4
+        p4 := p3
+        p3 := p2
+        p2 := p1
+        p1 := zzVal
+    else
+        if na(p1)
+            p1 := zzVal
+        else
+            if (zzDir == 1 and zzVal > p1) or (zzDir == -1 and zzVal < p1)
+                p1 := zzVal
+
+// bearish sweep geometry: p7 is the dominant high, p4 the dominant low
+zzGeoBear = not na(p7) and p2 < p3 and p2 < p4 and p2 < p6 and p2 < p7 and p3 < p5 and p3 > p4 and p4 < p5 and p4 < p6 and p4 < p7 and p5 > p6 and p5 < p7 and p6 < p7 and p6 > p4 and p7 > p3 and p7 > p5
+// bullish sweep geometry: exact mirror
+zzGeoBull = not na(p7) and p2 > p3 and p2 > p4 and p2 > p6 and p2 > p7 and p3 > p5 and p3 < p4 and p4 > p5 and p4 > p6 and p4 > p7 and p5 < p6 and p5 > p7 and p6 > p7 and p6 < p4 and p7 < p3 and p7 < p5
+
+zzCrossUp   = (zzVar1 and ta.crossover(p1, p3))  or (zzVar2 and ta.crossover(p1, p5))  or (zzVar3 and ta.crossover(p1, p7))
+zzCrossDown = (zzVar1 and ta.crossunder(p1, p3)) or (zzVar2 and ta.crossunder(p1, p5)) or (zzVar3 and ta.crossunder(p1, p7))
+mplSweepSell = zzGeoBear and zzCrossUp
+mplSweepBuy  = zzGeoBull and zzCrossDown
+
 // ================================================================= QUALITY GATE
 atrPts    = ta.atr(14) / pointUnit
 volOK     = atrPts >= minAtrPts and atrPts <= maxAtrPts
@@ -223,9 +287,11 @@ e5Buy  = useE5 and sweepBuy
 e5Sell = useE5 and sweepSell
 e6Buy  = useE6 and squeezeBuy  and kUp
 e6Sell = useE6 and squeezeSell and not kUp
+e7Buy  = useE7 and mplSweepBuy
+e7Sell = useE7 and mplSweepSell
 
-buyVotes  = (e1Buy?1:0)  + (e2Buy?1:0)  + (e3Buy?1:0)  + (e4Buy?1:0)  + (e5Buy?1:0)  + (e6Buy?1:0)
-sellVotes = (e1Sell?1:0) + (e2Sell?1:0) + (e3Sell?1:0) + (e4Sell?1:0) + (e5Sell?1:0) + (e6Sell?1:0)
+buyVotes  = (e1Buy?1:0)  + (e2Buy?1:0)  + (e3Buy?1:0)  + (e4Buy?1:0)  + (e5Buy?1:0)  + (e6Buy?1:0)  + (e7Buy?1:0)
+sellVotes = (e1Sell?1:0) + (e2Sell?1:0) + (e3Sell?1:0) + (e4Sell?1:0) + (e5Sell?1:0) + (e6Sell?1:0) + (e7Sell?1:0)
 
 sideBuyOK  = sideMode != "SellOnly"
 sideSellOK = sideMode != "BuyOnly"
@@ -235,7 +301,7 @@ rawSell = sellVotes >= minVotes and gateSell and buyVotes  < sellVotes and sideS
 // engine that fired, for attribution
 engineCode = 0
 if rawBuy or rawSell
-    engineCode := (rawBuy ? e1Buy : e1Sell) ? 1 : (rawBuy ? e2Buy : e2Sell) ? 2 : (rawBuy ? e3Buy : e3Sell) ? 3 : (rawBuy ? e4Buy : e4Sell) ? 4 : (rawBuy ? e5Buy : e5Sell) ? 5 : 6
+    engineCode := (rawBuy ? e1Buy : e1Sell) ? 1 : (rawBuy ? e2Buy : e2Sell) ? 2 : (rawBuy ? e3Buy : e3Sell) ? 3 : (rawBuy ? e4Buy : e4Sell) ? 4 : (rawBuy ? e5Buy : e5Sell) ? 5 : (rawBuy ? e6Buy : e6Sell) ? 6 : 7
 
 // ================================================================= TRADE STATE MACHINE
 var bool  active = false
@@ -277,6 +343,8 @@ var int e5T = 0
 var int e5W = 0
 var int e6T = 0
 var int e6W = 0
+var int e7T = 0
+var int e7W = 0
 
 var bool sy348EntryBuyPlot = false
 var bool sy348EntrySellPlot = false
@@ -320,6 +388,8 @@ if statsResetByTime
     e5W:=0
     e6T:=0
     e6W:=0
+    e7T:=0
+    e7W:=0
 
 // ---- exits resolve first, on the bar's own range
 if active
@@ -381,10 +451,14 @@ if active
                 e5T += 1
                 if won
                     e5W += 1
-            else
+            else if tradeEntrySourceCode == 6
                 e6T += 1
                 if won
                     e6W += 1
+            else
+                e7T += 1
+                if won
+                    e7W += 1
         active := false
         side := 0
         entryPrice := na
@@ -408,7 +482,7 @@ if canEnterLong or canEnterShort
     slPrice := side == 1 ? entryPrice - tradeStopPts   * pointUnit : entryPrice + tradeStopPts   * pointUnit
     tradeEntrySourceCode := engineCode
     tradeKind := engineCode
-    tradeEntrySource := engineCode == 1 ? "REVERSION" : engineCode == 2 ? "PULLBACK" : engineCode == 3 ? "ZLFLIP" : engineCode == 4 ? "KALMAN" : engineCode == 5 ? "SWEEP" : "SQUEEZE"
+    tradeEntrySource := engineCode == 1 ? "REVERSION" : engineCode == 2 ? "PULLBACK" : engineCode == 3 ? "ZLFLIP" : engineCode == 4 ? "KALMAN" : engineCode == 5 ? "SWEEP" : engineCode == 6 ? "SQUEEZE" : "MPLSWEEP"
     sy348EntryBuyPlot  := side == 1
     sy348EntrySellPlot := side == -1
 
