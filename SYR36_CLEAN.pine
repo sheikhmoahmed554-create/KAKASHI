@@ -1440,14 +1440,8 @@ baseBuySignal = allowLong and rawBuy and not rawSell
 baseSellSignal = allowShort and rawSell and not rawBuy
 
 m1AtrSafe = math.max(atr, syminfo.mintick)
-syr30BodyATR = body / m1AtrSafe
-syr30SignedVolume = (close > open ? 1.0 : close < open ? -1.0 : 0.0) * nz(volume, 0.0)
-syr30FlowFast = ta.ema(syr30SignedVolume, 5)
-syr30FlowSlow = ta.ema(syr30SignedVolume, 20)
-syr30FlowStd = ta.stdev(syr30SignedVolume, 30)
-syr30FlowZ = (syr30FlowFast - syr30FlowSlow) / math.max(nz(syr30FlowStd, 0.0), 0.000001)
 
-syr30ReplacementSide = syr30ReplacementBuy ? 1 : syr30ReplacementSell ? -1 : 0
+syr30ReplacementSide = 0
 
 // The removed M1 Compression source no longer competes with the base branch.
 m1BaseSide = baseBuySignal and not baseSellSignal ? 1 : baseSellSignal and not baseBuySignal ? -1 : 0
@@ -2702,6 +2696,12 @@ if useRmiSource and rmiSrcIsNew
     m1SelectedSourceCode := 7
 
 
+
+// the session clock the Asia Sweep window is measured on. It sat in the ORB
+// block that was removed, so it moves here with the section that still uses it.
+utcHourNow = int((time % 86400000) / 3600000)
+utcMinInHour = int((time % 3600000) / 60000)
+utcDayNow = int(time / 86400000)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 28 ■ ASIA SWEEP — كنسة لندن (نجحت بالامتحان وفحص التأخير)
