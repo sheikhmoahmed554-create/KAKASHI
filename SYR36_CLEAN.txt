@@ -2529,6 +2529,39 @@ G_SOLO = "22 ■ Source Solo Test (فحص مصدر لحاله)"
 soloSourceMode = input.string("ALL", "Solo Source", options=["ALL", "FUSION ONLY", "BASE ONLY", "TREND VOTE ONLY", "M1 ONLY", "POC ONLY", "RMI ONLY"], group=G_SOLO)
 ourSoloOK = soloSourceMode == "ALL" or (soloSourceMode == "FUSION ONLY" and m1SelectedSourceCode == 6) or (soloSourceMode == "BASE ONLY" and m1SelectedSourceCode == 0) or (soloSourceMode == "TREND VOTE ONLY" and m1SelectedSourceCode == 5) or (soloSourceMode == "M1 ONLY" and m1SelectedSourceCode >= 1 and m1SelectedSourceCode <= 3) or (soloSourceMode == "POC ONLY" and m1SelectedSourceCode == 4) or (soloSourceMode == "RMI ONLY" and m1SelectedSourceCode == 7)
 
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MARKET SCALE — the unit every fixed distance below is now quoted in
+//
+// The average one-minute bar range, in points, over the last 500 bars. Not ATR:
+// no true range, no Wilder smoothing, just how far a bar actually travels lately.
+//
+//   2026    21.4 points        2021    3.9        2023    3.6
+//
+// A plan written in raw points is a plan written for one of those three markets.
+// Written as a multiple of this, it is the same trade in all of them. Measured
+// on RMI standalone across the three years, one position, stop wins a tie:
+//
+//   plan                        2026      2021      2023    worst
+//   130 / 70 fixed            +7,550    +1,202    -1,299   -1,299
+//   6.07x / 3.27x scaled     +12,764      +925      -325     -325
+//   5.00x / 3.27x scaled     +11,006      +444       +67      +67
+//
+// The middle row is the shipped plan converted; the last is the same plan with
+// the target ratio swept, judged on the worst of the three years rather than on
+// 2026. That is the pair used below.
+//
+// Trade counts tell the story better than the points do. On 2021 the fixed plan
+// resolved 494 trades in a whole year; scaled, the same rule resolved 2,833. The
+// rule was never losing there — it was never being asked a question it could
+// answer.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+G_SCALE = "25 ■ مقياس السوق — Market Scale"
+mktScaleUse = input.bool(true, "اقرأ المسافات بمقاس السوق بدل النقاط الثابتة", group=G_SCALE, tooltip="مطفي = ترجع كل الأهداف والستوبات أرقام ثابتة بالنقاط، مثل ما كانت بالضبط.")
+mktScaleLen = input.int(500, "عدد الشموع لقياس مدى الشمعة", minval=50, maxval=5000, group=G_SCALE)
+mktScaleRef = input.float(21.4, "مدى الشمعة وقت ضبط الأرقام (2026)", minval=1.0, step=0.1, group=G_SCALE, tooltip="متوسط مدى شمعة الدقيقة بالنقاط على 2026. الأرقام الأصلية انضبطت على هالمقاس، فمنه تتحول لنسب.")
+mktScale = ta.sma(high - low, mktScaleLen) / pointUnit
+mktScaleOK = mktScale > 0
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 24 ■ RMI SOURCE — رمي المتعلّم كمصدر دخول
 // The educated RMI TRADER V2 graduate (zone 78, reaction 2/12,
@@ -2586,6 +2619,8 @@ rsrcSweepLookback = input.int(0, "Liquidity Sweep Lookback (0 = Off)", minval=0,
 rsrcUseOwnTargets = input.bool(true, "أهداف رمي الخاصة (130/70)", group=G_RSRC)
 rsrcTargetPts = input.float(130.0, "RMI Target Points", minval=1.0, step=1.0, group=G_RSRC)
 rsrcStopPts = input.float(70.0, "RMI Stop Points", minval=1.0, step=1.0, group=G_RSRC)
+rsrcTgtMult = input.float(5.00, "   ...أو: الهدف = كم مرة مدى الشمعة", minval=0.5, maxval=20.0, step=0.01, group=G_RSRC, tooltip="5.00 اختيرت على أسوأ السنين الثلاث. تحويل 130/70 حرفياً هو 6.07 و 3.27، وبيعطي 2026 أعلى بس 2023 سالبة.")
+rsrcStpMult = input.float(3.27, "   ...والستوب = كم مرة مدى الشمعة", minval=0.5, maxval=20.0, step=0.01, group=G_RSRC)
 
 rsrcUpMom = ta.ema(math.max(close - close[rsrcMomentum], 0.0), rsrcLength)
 rsrcDnMom = ta.ema(math.max(close[rsrcMomentum] - close, 0.0), rsrcLength)
@@ -2714,6 +2749,12 @@ useKzLondon = input.bool(true, "استخدم كنسة لندن", group=G_KZ)
 kzBreakPts = input.float(5.0, "كسر رينج آسيا (نقاط)", minval=0.0, step=1.0, group=G_KZ)
 kzWaitBars = input.int(30, "مهلة الرجوع داخل الرينج (شموع)", minval=3, group=G_KZ)
 kzStopBufPts = input.float(10.0, "هامش الستوب خلف رأس الكنسة (نقاط)", minval=0.0, step=1.0, group=G_KZ)
+
+// Its target is already relative — the Asia range midpoint — but these two are
+// not. 5 and 10 points are 0.234 and 0.467 of a 2026 bar; on a 2021 bar they are
+// 1.3 and 2.6 of one, so the break threshold alone was six times stricter there.
+kzBreakEff = mktScaleUse and mktScaleOK ? mktScale * (kzBreakPts / mktScaleRef) : kzBreakPts
+kzStopBufEff = mktScaleUse and mktScaleOK ? mktScale * (kzStopBufPts / mktScaleRef) : kzStopBufPts
 var int kzDay = -1
 var float kzAsiaHi = na
 var float kzAsiaLo = na
@@ -2741,7 +2782,7 @@ bool kzFireSell = false
 bool kzFireBuy = false
 if kzWindow and barstate.isconfirmed
     if not kzHiDone
-        if high >= kzAsiaHi + kzBreakPts * pointUnit
+        if high >= kzAsiaHi + kzBreakEff * pointUnit
             if kzHiBreachBar < 0
                 kzHiBreachBar := bar_index
             kzHiExt := na(kzHiExt) ? high : math.max(kzHiExt, high)
@@ -2751,7 +2792,7 @@ if kzWindow and barstate.isconfirmed
         if kzHiBreachBar >= 0 and bar_index - kzHiBreachBar > kzWaitBars
             kzHiDone := true
     if not kzLoDone
-        if low <= kzAsiaLo - kzBreakPts * pointUnit
+        if low <= kzAsiaLo - kzBreakEff * pointUnit
             if kzLoBreachBar < 0
                 kzLoBreachBar := bar_index
             kzLoExt := na(kzLoExt) ? low : math.min(kzLoExt, low)
@@ -2827,12 +2868,13 @@ if canEnterLong or canEnterShort
     // أهداف رمي الخاصة تشتغل فقط عندما يكون خيار القسم ① مطفي —
     // إذا شغّلت "③ TEST 1:1 أهداف القسم الأول" فهو يلغي كل أنظمة الخروج بما فيها أهداف رمي
     if tradeEntrySourceCode == 7 and rsrcUseOwnTargets and not useMainFixedRisk
-        tradeTargetPts := rsrcTargetPts
-        tradeStopPts := rsrcStopPts
+        // the plan in the market's own units, or the raw points if the scale is off
+        tradeTargetPts := mktScaleUse and mktScaleOK ? math.max(10.0, mktScale * rsrcTgtMult) : rsrcTargetPts
+        tradeStopPts := mktScaleUse and mktScaleOK ? math.max(10.0, mktScale * rsrcStpMult) : rsrcStopPts
         tradeRiskState := "RMI HARD"
         tradeTargetSource := "RMI 130/70"
     if tradeEntrySourceCode == 9
-        float kzSlPx = side == 1 ? kzLoExt - kzStopBufPts * pointUnit : kzHiExt + kzStopBufPts * pointUnit
+        float kzSlPx = side == 1 ? kzLoExt - kzStopBufEff * pointUnit : kzHiExt + kzStopBufEff * pointUnit
         tradeTargetPts := math.abs(kzMid - entryPrice) / pointUnit
         tradeStopPts := math.abs(entryPrice - kzSlPx) / pointUnit
         tradeRiskState := "KZ HARD"
