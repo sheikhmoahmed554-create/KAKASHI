@@ -2492,38 +2492,19 @@ chTriTh = input.float(18.0, "TRIPLE RSI3 threshold", minval=5.0, maxval=30.0, st
 chSniUse = input.bool(false, "SNIPER — ON", group=G_CH)
 chSniDepth = input.float(7.0, "SNIPER depth", minval=2.0, maxval=8.0, step=0.1, group=G_CH)
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// WHAT WAS CUT, AND WHY — AND WHY THIS FILE IS NOT AN IMPROVEMENT YET
+// REMOVED: ULSWEEP v2 (chUls2)
 //
-// Nineteen champion schools are OR'd in after the arbiter. Seven are switched
-// off here: chUls2, chUo, chRib, chCrev, chCmo, chR14, chUt.
+// Taken out of the file, not switched off. On 2026 through the Pine engine:
 //
-// They were chosen in a JS replay of the engine, where cutting them turned 2023
-// from -3,531 into +2,820 and made all three years positive for the first time.
-// Then the file was run through the real Pine engine, and the replay was wrong:
+//                  trades      WR       net     maxDD
+//   with it         6,984   60.44%   +6,565     2,261
+//   without it      6,922   60.84%   +9,305     1,959
 //
-//                          2026 net     maxDD
-//   your version            +6,565      2,261
-//   this file               +1,482      4,465
-//
-// The cut costs 5,083 points on 2026 and doubles the drawdown. The replay was
-// built on an older build that does not contain section 23, Court Verdicts,
-// which re-adds several of these same schools through
-// "buySignal := buySignal or (courtUoB and chUoB)". So the replay was ablating
-// schools that your build reaches by a second path it never modelled. Its
-// verdict does not apply here.
-//
-// This file is kept as the measured record of that attempt, not as a version to
-// trade. The seven schools are being re-measured one at a time on THIS file
-// through the real engine; until that finishes, your original is the better of
-// the two on every number available.
-//
-// Every one of the seven has its own switch below. Turning all seven back on
-// returns the indicator to exactly what it was, trade for trade.
+// It cost 2,740 points and 302 points of drawdown for 62 trades. Every other
+// school tested so far pays for its place; this one did not. Its four inputs,
+// its court toggle and its two signal lines are gone, and the two OR chains no
+// longer name it.
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-chUlsUse = input.bool(false, "ULSWEEP v2 — OFF (تحت الاختبار)", group=G_CH)
-chUlsStr = input.float(1.5, "ULS stretch filter", minval=0.5, maxval=4.0, step=0.1, group=G_CH)
-chUlsRsi = input.float(30.0, "ULS RSI3 extreme", minval=10, maxval=40, step=1, group=G_CH)
-chUlsLen = input.int(85, "ULS level length", minval=20, maxval=400, group=G_CH)
 chVerUse = input.bool(false, "Trend Verifier (M15 Donchian 25 + vol) — ON", group=G_CH)
 chAtrV = ta.atr(14)
 chEma = ta.ema(close, 20)
@@ -2561,7 +2542,7 @@ chSprB = chSprUse and low < chSprLo[1] and close > chSprLo[1] and chLw > chSprWi
 chSprS = chSprUse and high > chSprHi[1] and close < chSprHi[1] and chUw > chSprWickK * math.abs(close - open) and not chTrUp
 buySignal := buySignal or chSprB
 sellSignal := sellSignal or chSprS
-chUoUse = input.bool(false, "ULTIMATE OSC — OFF (تحت الاختبار)", group=G_MOM_NEW)
+chUoUse = input.bool(true, "ULTIMATE OSC — ON", group=G_MOM_NEW)
 chUoAdx = input.float(25.0, "UO: max ADX", minval=10, maxval=40, step=1, group=G_MOM_NEW)
 chUoTh = input.float(30.0, "UO: extreme level", minval=10, maxval=40, step=1, group=G_MOM_NEW)
 chBp = close - math.min(low, close[1])
@@ -2578,7 +2559,6 @@ courtCldB = input.bool(true, "chCld BUY (حكم: -4700)", group=G_COURT)
 courtUoB = input.bool(true, "chUo BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtRibB = input.bool(true, "chRib BUY (نجا بالمحاكمة الثانية)", group=G_COURT)
 courtCvdB = input.bool(true, "chCvd BUY (حكم: -1800)", group=G_COURT)
-courtUls2S = input.bool(true, "chUls2 SELL (حكم: -1500)", group=G_COURT)
 courtVzS = input.bool(true, "chVz SELL (حكم: -1150)", group=G_COURT)
 courtCmoS = input.bool(true, "chCmo SELL (حكم: -900)", group=G_COURT)
 courtWtS = input.bool(true, "chWt SELL (حكم: -600)", group=G_COURT)
@@ -2590,7 +2570,7 @@ courtRibS = input.bool(true, "chRib SELL (حكم تدريبي: -1100)", group=G_
 
 buySignal := buySignal or (courtUoB and chUoB)
 sellSignal := sellSignal or chUoS
-chRibUse = input.bool(false, "EMA RIBBON pullback — OFF (تحت الاختبار)", group=G_PULLBACK_NEW)
+chRibUse = input.bool(true, "EMA RIBBON pullback (بديل VWAP Pull) — ON", group=G_PULLBACK_NEW)
 chE100 = ta.ema(close, 100)
 chRibB = chRibUse and chEma > ta.ema(close, 50) and ta.ema(close, 50) > chE100 and low <= ta.ema(close, 50) and close > ta.ema(close, 50) and close > open
 chRibS = chRibUse and chEma < ta.ema(close, 50) and ta.ema(close, 50) < chE100 and high >= ta.ema(close, 50) and close < ta.ema(close, 50) and close < open
@@ -2607,8 +2587,6 @@ chWtB = chWtUse and chWt1 < -60 and chRsi3 < 18.0 and chBig
 chWtS = chWtUse and chWt1 > 60 and chRsi3 > 82.0 and chBig
 buySignal := buySignal or chWtB
 sellSignal := sellSignal or (courtWtS and chWtS)
-chUls2B = chUlsUse and low < ta.lowest(low, chUlsLen)[1] and close > ta.lowest(low, chUlsLen)[1] and chStretch < -chUlsStr and chRsi3 < chUlsRsi
-chUls2S = chUlsUse and high > ta.highest(high, chUlsLen)[1] and close < ta.highest(high, chUlsLen)[1] and chStretch > chUlsStr and chRsi3 > 100 - chUlsRsi
 chVzUse = input.bool(true, "VWAP Absorption Fade — ON", group=G_PULLBACK_NEW)
 chVzDev = input.float(2.0, "VZ deviation mult", minval=1.0, maxval=4.0, step=0.1, group=G_PULLBACK_NEW)
 chTp3 = (high + low + close) / 3
@@ -2616,10 +2594,10 @@ chVw = ta.sma(chTp3 * nz(volume, 0.0), 20) / (ta.sma(nz(volume, 0.0), 20) + 0.00
 chSdv = ta.stdev(chTp3 - chVw, 50)
 chVzB = chVzUse and low < chVw - chVzDev * chSdv and chRsi3 < 18.0 and chBig
 chVzS = chVzUse and high > chVw + chVzDev * chSdv and chRsi3 > 82.0 and chBig
-chCrevUse = input.bool(false, "CLIMAX REVERSAL — OFF (تحت الاختبار)", group=G_MOM_NEW)
+chCrevUse = input.bool(true, "CLIMAX REVERSAL (بديل MACD Vol) — ON", group=G_MOM_NEW)
 chCrevB = chCrevUse and chClim[1] and close[1] < open[1] and close > open and close > close[1]
 chCrevS = chCrevUse and chClim[1] and close[1] > open[1] and close < open and close < close[1]
-chCmoUse = input.bool(false, "CMO SNAP — OFF (تحت الاختبار)", group=G_MOM_NEW)
+chCmoUse = input.bool(true, "CMO SNAP — ON", group=G_MOM_NEW)
 chCmoLen = input.int(9, "CMO length", minval=3, maxval=30, group=G_MOM_NEW)
 chCmoLvl = input.float(60.0, "CMO extreme level", minval=30, maxval=90, step=5, group=G_MOM_NEW)
 chUp = math.max(close - close[1], 0)
@@ -2627,8 +2605,8 @@ chDn = math.max(close[1] - close, 0)
 chCmo = 100 * (ta.sma(chUp, chCmoLen) * chCmoLen - ta.sma(chDn, chCmoLen) * chCmoLen) / (ta.sma(chUp, chCmoLen) * chCmoLen + ta.sma(chDn, chCmoLen) * chCmoLen + 0.00001)
 chCmoB = chCmoUse and chCmo < -chCmoLvl and chRsi3 < 18.0 and chBig
 chCmoS = chCmoUse and chCmo > chCmoLvl and chRsi3 > 82.0 and chBig
-buySignal := buySignal or chUls2B or chVzB or chCrevB or chCmoB
-sellSignal := sellSignal or (courtUls2S and chUls2S) or (courtVzS and chVzS) or chCrevS or (courtCmoS and chCmoS)
+buySignal := buySignal or chVzB or chCrevB or chCmoB
+sellSignal := sellSignal or (courtVzS and chVzS) or chCrevS or (courtCmoS and chCmoS)
 // ━━━ الأربعة العنيدة — بدائل مخترعة مثبتة ━━━
 chKeltUse = input.bool(true, "KELTNER v2 — ON", group=G_PULLBACK_NEW)
 chKeltK = input.float(2.0, "Keltner mult", minval=0.5, maxval=5.0, step=0.1, group=G_PULLBACK_NEW)
@@ -2641,7 +2619,7 @@ chQuadR14 = input.float(40.0, "QUAD RSI14 buy below", minval=20, maxval=50, step
 chRsi14v = ta.rsi(close, 14)
 chQuadB = chQuadUse and chRsi3 < 18.0 and chRsi14v < chQuadR14 and chBig
 chQuadS = chQuadUse and chRsi3 > 82.0 and chRsi14v > 100 - chQuadR14 and chBig
-chR14Use = input.bool(false, "RSI14 TURN — OFF (تحت الاختبار)", group=G_MOM_NEW)
+chR14Use = input.bool(true, "RSI14 TURN — ON", group=G_MOM_NEW)
 chR14Str = input.float(1.0, "R14 stretch filter", minval=0.5, maxval=4.0, step=0.1, group=G_MOM_NEW)
 chR14B = chR14Use and chRsi14v < 30 and chRsi14v > chRsi14v[1] and chStretch < -chR14Str
 chR14S = chR14Use and chRsi14v > 70 and chRsi14v < chRsi14v[1] and chStretch > chR14Str
@@ -2655,7 +2633,7 @@ chCloudHi = math.max(chEma, chE55)
 chCloudLo = math.min(chEma, chE55)
 chCldB = chCldUse and close[1] <= chCloudHi[1] and close > chCloudHi and close > open
 chCldS = chCldUse and close[1] >= chCloudLo[1] and close < chCloudLo and close < open
-chUtUse = input.bool(false, "UT v2 — OFF (تحت الاختبار)", group=G_RISK_NEW)
+chUtUse = input.bool(true, "UT v2 — ON", group=G_RISK_NEW)
 chUtMult = input.float(6.0, "UT supertrend mult", minval=0.5, maxval=8.0, step=0.1, group=G_RISK_NEW)
 chUtLen = input.int(7, "UT supertrend ATR len", minval=2, maxval=60, group=G_RISK_NEW)
 [chCldUT, chUtDir] = ta.supertrend(chUtMult, chUtLen)
