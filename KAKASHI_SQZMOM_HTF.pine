@@ -1,0 +1,371 @@
+// This Pine Script code is subject to the terms of the Mozilla Public License 2.0
+//@version=6
+// ══════════════════════════════════════════════════════════════════
+// KAKASHI SQZMOM HTF — إشارات شراء/بيع من Squeeze Momentum
+// المحرك الأصلي: Squeeze Momentum Indicator [LazyBear]
+//
+// الفكرة:
+//   • المؤشر بيتحسب على فريم تختاره إنت (مثلاً 5 دقائق) وإنت فاتح شارت الدقيقة.
+//   • الإشارة ما بتطلع إلا بعد ما تسكّر شمعة الفريم الكبير → ما في ريبينت.
+//   • هيستوجرام تحت الصفر (أحمر) وبيتحوّل فوق الصفر (أخضر) = شراء.
+//     العكس = بيع.
+//   • عدد شموع التأكيد إنت بتختاره (Confirm Bars).
+//   • الهدف والستوب إنت بتكتبهم بالنقاط، وبينرسموا عالشارت مع الجدول.
+//
+// متوافق مع محرك KAKASHI PineLab (canEnterLong / canEnterShort + حالة الصفقة
+// الداخلية sy348*) فبتقدر تختبره داخل النسخ الموجودة بالمستودع.
+// ══════════════════════════════════════════════════════════════════
+indicator("KAKASHI SQZMOM HTF — Squeeze Momentum Signals", shorttitle="KAKASHI SQZMOM HTF", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=5000)
+
+// ─────────────── الألوان (نفس ألوان نسخة KAKASHI) ───────────────
+color BUY_C  = color.rgb(0, 170, 90)
+color SELL_C = color.rgb(230, 45, 55)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color EN_C   = color.rgb(255, 210, 0)
+color TXT_C  = color.white
+color WAIT_C = color.rgb(150, 150, 150)
+
+// ─────────────── ① الفريم والتأكيد ───────────────
+string G_HTF = "① الفريم والتأكيد"
+htfTF = input.timeframe("5", "فريم المؤشر (Signal Timeframe)", tooltip="إنت فاتح شارت الدقيقة والمؤشر بيقرا هذا الفريم. القيم: 1,2,3,5,15,30,60,120,240,D", group=G_HTF)
+confirmBars = input.int(1, "عدد شموع التأكيد", minval=1, maxval=50, tooltip="كم شمعة لازم يظل الزخم بنفس اللون قبل ما تطلع الإشارة. 1 = لحظة التحوّل.", group=G_HTF)
+signalMode = input.string("Zero Cross", "نوع الإشارة", options=["Zero Cross", "Early Turn"], tooltip="Zero Cross = عبور خط الصفر (أحمر→أخضر). Early Turn = دخول مبكر لما يبدأ الزخم يرتد وهو لسا تحت/فوق الصفر.", group=G_HTF)
+noRepaintGuard = input.bool(true, "قفل ضد الريبينت (Live)", tooltip="بالوقت الحقيقي بيستخدم آخر شمعة مسكّرة من الفريم الكبير فقط.", group=G_HTF)
+
+// ─────────────── ② إعدادات Squeeze Momentum ───────────────
+string G_SQZ = "② إعدادات Squeeze Momentum"
+bbLen = input.int(20, "BB Length", minval=1, group=G_SQZ)
+bbMult = input.float(2.0, "BB MultFactor", step=0.1, group=G_SQZ)
+kcLen = input.int(20, "KC Length", minval=1, group=G_SQZ)
+kcMult = input.float(1.5, "KC MultFactor", step=0.1, group=G_SQZ)
+useTrueRange = input.bool(true, "Use TrueRange (KC)", group=G_SQZ)
+lazyBearParity = input.bool(true, "مطابقة LazyBear الأصلية", tooltip="بالكود الأصلي انحراف البولنجر بينضرب بـ KC MultFactor مو BB MultFactor. خليه ON إذا بدك نفس نتيجة المؤشر المنشور على TradingView.", group=G_SQZ)
+
+// ─────────────── ③ الهدف والستوب ───────────────
+string G_RISK = "③ الهدف والستوب"
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_RISK)
+targetPoints = input.int(50, "③ Target Points (الهدف)", minval=1, group=G_RISK)
+stopPoints = input.int(65, "③ Stop Points (الستوب)", minval=1, group=G_RISK)
+sameCandleRule = input.string("Skip", "لو انضرب الهدف والستوب بنفس الشمعة", options=["Skip", "Stop First", "Target First"], group=G_RISK)
+sy963LotSize = input.float(0.02, "Lot", minval=0.01, step=0.01, group=G_RISK)
+
+// ─────────────── ④ فلاتر اختيارية ───────────────
+string G_FLT = "④ فلاتر اختيارية"
+useSqueezeRelease = input.bool(false, "لازم الانضغاط يكون مفكوك (SqzOff)", group=G_FLT)
+useLegFilter = input.bool(false, "لازم الموجة السابقة تكون حقيقية", tooltip="بيقيس أعلى قيمة وصلها الزخم بالموجة المعاكسة قبل التحوّل. بيرمي التحوّلات الصغيرة اللي بتصير لزقة على خط الصفر.", group=G_FLT)
+legMinPts = input.float(60.0, "أقل قمة للموجة السابقة (نقاط)", minval=0.0, step=5.0, group=G_FLT)
+useHtfTrend = input.bool(false, "لازم يوافق ترند الفريم الكبير", group=G_FLT)
+trendLen = input.int(50, "EMA الترند", minval=2, group=G_FLT)
+useAdxFilter = input.bool(false, "حد أدنى لـ ADX", group=G_FLT)
+adxLen = input.int(14, "ADX Length", minval=2, group=G_FLT)
+adxMin = input.float(20.0, "أقل ADX مقبول", minval=0.0, step=1.0, group=G_FLT)
+useSession = input.bool(false, "فلتر ساعات التداول (UTC)", group=G_FLT)
+sessStartHour = input.int(7, "من ساعة", minval=0, maxval=23, group=G_FLT)
+sessEndHour = input.int(21, "لساعة", minval=1, maxval=24, group=G_FLT)
+cooldownBars = input.int(0, "تبريد بعد كل صفقة (شموع M1)", minval=0, group=G_FLT)
+
+// ─────────────── ⑤ العرض ───────────────
+string G_VIS = "⑤ العرض"
+showSignals = input.bool(true, "Show BUY / SELL", group=G_VIS)
+showTradeLines = input.bool(true, "Show Entry / TP / SL Lines", group=G_VIS)
+lineBars = input.int(60, "طول الخطوط (شموع)", minval=5, group=G_VIS)
+showTable = input.bool(true, "Show Stats Table", group=G_VIS)
+statsMode = input.string("All Loaded History", "Stats Count", options=["All Loaded History", "From Custom Time"], group=G_VIS)
+statsStartTime = input.time(1767225600000, "Start Stats From (UTC)", group=G_VIS)
+
+// ─────────────── مشتقات عامة ───────────────
+pointUnit = math.max(pointUnitInput, syminfo.mintick)
+statsActive = statsMode == "All Loaded History" or time >= statsStartTime
+
+// ══════════════════════════════════════════════════════════════════
+// حساب Squeeze Momentum على الفريم المختار
+// كل الحساب جوّا الدالة، والدالة بتنقرا داخل request.security فبتشتغل
+// على شموع الفريم الكبير مو على شموع الدقيقة.
+// ══════════════════════════════════════════════════════════════════
+f_sqzPack() =>
+    src = close
+    // بولنجر باندز
+    basis = ta.sma(src, bbLen)
+    devMult = lazyBearParity ? kcMult : bbMult
+    dev = devMult * ta.stdev(src, bbLen)
+    upperBB = basis + dev
+    lowerBB = basis - dev
+    // قنوات كيلتنر
+    ma = ta.sma(src, kcLen)
+    rng = useTrueRange ? ta.tr(true) : high - low
+    rangema = ta.sma(rng, kcLen)
+    upperKC = ma + rangema * kcMult
+    lowerKC = ma - rangema * kcMult
+    sqzOn = lowerBB > lowerKC and upperBB < upperKC
+    sqzOff = lowerBB < lowerKC and upperBB > upperKC
+    // الزخم (نفس معادلة LazyBear)
+    hh = ta.highest(high, kcLen)
+    ll = ta.lowest(low, kcLen)
+    mid = (hh + ll) / 2
+    smaC = ta.sma(close, kcLen)
+    val = ta.linreg(src - (mid + smaC) / 2, kcLen, 0)
+    valPrev = val[1]
+
+    // اتجاه الإشارة الخام
+    bool rawUp = false
+    bool rawDn = false
+    if signalMode == "Zero Cross"
+        rawUp := val > 0
+        rawDn := val < 0
+    else
+        rawUp := val > valPrev and val < 0
+        rawDn := val < valPrev and val > 0
+
+    var int upRun = 0
+    var int dnRun = 0
+    upRun := rawUp ? upRun + 1 : 0
+    dnRun := rawDn ? dnRun + 1 : 0
+
+    // الإشارة بتنطلق بالضبط لما يوصل عدد الشموع للتأكيد المطلوب
+    buyRaw = upRun == confirmBars
+    sellRaw = dnRun == confirmBars
+
+    // قمة الموجة الحالية وقمة الموجة اللي قبلها (لفلتر الموجة الحقيقية)
+    var float curPeak = 0.0
+    var float lastPeak = 0.0
+    legFlip = (val > 0) != (valPrev > 0)
+    if legFlip
+        lastPeak := curPeak
+        curPeak := 0.0
+    curPeak := math.max(curPeak, math.abs(val))
+
+    // فلاتر الفريم الكبير
+    sqzOK = not useSqueezeRelease or sqzOff
+    momOK = not useLegFilter or lastPeak >= legMinPts * pointUnit
+    trendMa = ta.ema(close, trendLen)
+    trendBuyOK = not useHtfTrend or close > trendMa
+    trendSellOK = not useHtfTrend or close < trendMa
+    [dip, dim, adxV] = ta.dmi(adxLen, adxLen)
+    adxOK = not useAdxFilter or (not na(adxV) and adxV >= adxMin)
+
+    longNow = buyRaw and sqzOK and momOK and adxOK and trendBuyOK
+    shortNow = sellRaw and sqzOK and momOK and adxOK and trendSellOK
+    sigNow = longNow ? 1 : shortNow ? -1 : 0
+    // بالوقت الحقيقي بس: خُد آخر شمعة مسكّرة من الفريم الكبير
+    sigOut = noRepaintGuard and barstate.isrealtime ? sigNow[1] : sigNow
+    [val, valPrev, sqzOn, sqzOff, sigOut, upRun, dnRun, time, lastPeak]
+
+[htfVal, htfValPrev, htfSqzOn, htfSqzOff, htfSignal, htfUpRun, htfDnRun, htfBarTime, htfLastPeak] = request.security(syminfo.tickerid, htfTF, f_sqzPack(), barmerge.gaps_off, barmerge.lookahead_off)
+
+// شمعة جديدة من الفريم الكبير = وصلت قيمة جديدة مسكّرة
+newHTFBar = not na(htfBarTime) and (na(htfBarTime[1]) or htfBarTime != htfBarTime[1])
+
+// ══════════════════════════════════════════════════════════════════
+// بوابات الدخول على شارت الدقيقة
+// ══════════════════════════════════════════════════════════════════
+var int lastTradeBar = na
+hourNow = hour(time, "UTC")
+sessionOK = not useSession or (hourNow >= sessStartHour and hourNow < sessEndHour)
+canCooldown = cooldownBars <= 0 or na(lastTradeBar) or bar_index - lastTradeBar >= cooldownBars
+
+var bool active = false
+var int side = 0
+var float entryPrice = na
+var float tpPrice = na
+var float slPrice = na
+var float tradeTargetPts = na
+var float tradeStopPts = na
+var int entryBar = na
+var int tradeKind = 0
+var string tradeEntrySource = "SQZMOM HTF"
+var int tradeEntrySourceCode = 1
+
+canEnterLong = barstate.isconfirmed and not active and newHTFBar and htfSignal == 1 and sessionOK and canCooldown
+canEnterShort = barstate.isconfirmed and not active and newHTFBar and htfSignal == -1 and sessionOK and canCooldown
+tradeDecisionSide = canEnterLong ? 1 : canEnterShort ? -1 : 0
+
+// ══════════════════════════════════════════════════════════════════
+// إدارة الصفقة — صفقة وحدة بنفس الوقت، الدخول على إغلاق الشمعة،
+// والهدف/الستوب بينفحصوا من الشمعة اللي بعدها (نفس منطق KAKASHI).
+// ══════════════════════════════════════════════════════════════════
+var int wins = 0
+var int losses = 0
+var int trades = 0
+var float netPts = 0.0
+var float sumWinPts = 0.0
+var float sumLossPts = 0.0
+var float lastClosedPts = 0.0
+var int curWin = 0
+var int curLoss = 0
+var int maxWin = 0
+var int maxLoss = 0
+
+var line sy348EntryLine = na
+var line sy348TPLine = na
+var line sy348SLLine = na
+
+bool sy348EntryBuyPlot = false
+bool sy348EntrySellPlot = false
+bool sy348ExitTPPlot = false
+bool sy348ExitSLPlot = false
+bool skipTrade = false
+bool isWin = false
+bool isLoss = false
+
+if canEnterLong or canEnterShort
+    active := true
+    side := canEnterLong ? 1 : -1
+    entryPrice := close
+    tradeKind := side
+    tradeTargetPts := targetPoints
+    tradeStopPts := stopPoints
+    tpPrice := side == 1 ? entryPrice + tradeTargetPts * pointUnit : entryPrice - tradeTargetPts * pointUnit
+    slPrice := side == 1 ? entryPrice - tradeStopPts * pointUnit : entryPrice + tradeStopPts * pointUnit
+    entryBar := bar_index
+    lastTradeBar := bar_index
+    sy348EntryBuyPlot := side == 1
+    sy348EntrySellPlot := side == -1
+    if showTradeLines
+        if not na(sy348EntryLine)
+            line.delete(sy348EntryLine)
+        if not na(sy348TPLine)
+            line.delete(sy348TPLine)
+        if not na(sy348SLLine)
+            line.delete(sy348SLLine)
+        sy348EntryLine := line.new(bar_index, entryPrice, bar_index + lineBars, entryPrice, color=EN_C, width=1)
+        sy348TPLine := line.new(bar_index, tpPrice, bar_index + lineBars, tpPrice, color=TP_C, width=1)
+        sy348SLLine := line.new(bar_index, slPrice, bar_index + lineBars, slPrice, color=SL_C, width=1)
+
+if active and bar_index > entryBar
+    hitTP = side == 1 ? high >= tpPrice : low <= tpPrice
+    hitSL = side == 1 ? low <= slPrice : high >= slPrice
+    bothHit = hitTP and hitSL
+    if bothHit
+        if sameCandleRule == "Stop First"
+            hitTP := false
+        else if sameCandleRule == "Target First"
+            hitSL := false
+        else
+            skipTrade := true
+    if skipTrade or hitTP or hitSL
+        isWin := not skipTrade and hitTP
+        isLoss := not skipTrade and not hitTP and hitSL
+        exitPts = isWin ? tradeTargetPts : isLoss ? -tradeStopPts : 0.0
+        if statsActive and not skipTrade
+            trades += 1
+            netPts += exitPts
+            lastClosedPts := exitPts
+            if isWin
+                wins += 1
+                sumWinPts += exitPts
+                curWin += 1
+                curLoss := 0
+                maxWin := math.max(maxWin, curWin)
+                sy348ExitTPPlot := true
+            else
+                losses += 1
+                sumLossPts += math.abs(exitPts)
+                curLoss += 1
+                curWin := 0
+                maxLoss := math.max(maxLoss, curLoss)
+                sy348ExitSLPlot := true
+        if showSignals and statsActive and not skipTrade
+            if isWin
+                label.new(bar_index, tpPrice, "TP " + str.tostring(tradeTargetPts, "#"), color=TP_C, textcolor=TXT_C, size=size.tiny)
+            else
+                label.new(bar_index, slPrice, "SL " + str.tostring(tradeStopPts, "#"), color=SL_C, textcolor=TXT_C, size=size.tiny)
+        if showTradeLines
+            if not na(sy348EntryLine)
+                line.delete(sy348EntryLine)
+            if not na(sy348TPLine)
+                line.delete(sy348TPLine)
+            if not na(sy348SLLine)
+                line.delete(sy348SLLine)
+            sy348EntryLine := na
+            sy348TPLine := na
+            sy348SLLine := na
+        active := false
+        side := 0
+        entryPrice := na
+        tpPrice := na
+        slPrice := na
+        tradeTargetPts := na
+        tradeStopPts := na
+        lastTradeBar := bar_index
+
+// ══════════════════════════════════════════════════════════════════
+// الإشارات على الشارت — نفس شكل نسخة KAKASHI
+// ══════════════════════════════════════════════════════════════════
+plotshape(showSignals and statsActive and sy348EntryBuyPlot, title="SQZMOM BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and statsActive and sy348EntrySellPlot, title="SQZMOM SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and sy348ExitTPPlot, title="SQZMOM TP", style=shape.circle, location=location.abovebar, color=TP_C, text="TP", textcolor=TXT_C, size=size.tiny)
+plotshape(showSignals and sy348ExitSLPlot, title="SQZMOM SL", style=shape.circle, location=location.belowbar, color=SL_C, text="SL", textcolor=TXT_C, size=size.tiny)
+
+alertcondition(canEnterLong, "KAKASHI SQZMOM BUY", "KAKASHI SQZMOM HTF | BUY")
+alertcondition(canEnterShort, "KAKASHI SQZMOM SELL", "KAKASHI SQZMOM HTF | SELL")
+
+// ══════════════════════════════════════════════════════════════════
+// الجدول — نفس تنسيق وألوان جدول KAKASHI
+// ══════════════════════════════════════════════════════════════════
+color TBL_BG = color.rgb(16, 18, 26)
+color TBL_BG_HEAD = color.rgb(22, 24, 34)
+color TBL_BG_ROW = color.rgb(18, 20, 30)
+color TBL_BG_ROW2 = color.rgb(20, 22, 32)
+
+wr = trades > 0 ? 100.0 * wins / trades : 0.0
+momState = na(htfVal) ? "—" : htfVal > 0 ? (htfVal > htfValPrev ? "LIME ▲" : "GREEN ▼") : (htfVal < htfValPrev ? "RED ▼" : "MAROON ▲")
+sqzState = htfSqzOn ? "ON (ضغط)" : htfSqzOff ? "OFF (انفكاك)" : "NONE"
+posState = active ? (side == 1 ? "BUY مفتوحة" : "SELL مفتوحة") : "لا يوجد"
+
+var table t = table.new(position.top_right, 2, 17, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+if showTable and barstate.islast
+    table.cell(t, 0, 0, "SQZMOM HTF", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 1, 0, "LazyBear | " + htfTF, text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+
+    table.cell(t, 0, 1, "Win", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 2, "Loss", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 3, "WR", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(wr, "#.##") + "%", text_color=wr >= 60 ? BUY_C : wr >= 55 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 4, "Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 5, "Max W", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 6, "Max L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 6, str.tostring(maxLoss), text_color=maxLoss <= 9 ? EN_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    avgWinPts = wins > 0 ? sumWinPts / wins : 0.0
+    avgLossPts = losses > 0 ? sumLossPts / losses : 0.0
+    table.cell(t, 0, 7, "Avg TP", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 7, str.tostring(avgWinPts, "#.##"), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 8, "Avg SL", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 8, str.tostring(avgLossPts, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 9, "Last", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 9, (lastClosedPts > 0 ? "+" : "") + str.tostring(lastClosedPts, "#.##"), text_color=lastClosedPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 10, "From", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 10, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStartTime, "dd MMM HH:mm 'UTC'", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 11, "Signal TF", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 11, htfTF + " | " + signalMode, text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 12, "Confirm", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 12, str.tostring(nz(math.max(htfUpRun, htfDnRun), 0)) + " / " + str.tostring(confirmBars) + " شمعة", text_color=EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 13, "Momentum", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 13, str.tostring(htfVal, "#.###") + " | " + momState, text_color=na(htfVal) ? WAIT_C : htfVal > 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 14, "Squeeze | موجة", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 14, sqzState + " | " + str.tostring(nz(htfLastPeak, 0) / pointUnit, "#") + " pts", text_color=htfSqzOn ? WAIT_C : EN_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+
+    table.cell(t, 0, 15, "TP / SL", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 15, str.tostring(targetPoints) + " / " + str.tostring(stopPoints) + " pts", text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+
+    table.cell(t, 0, 16, "Position", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 16, posState, text_color=active ? (side == 1 ? BUY_C : SELL_C) : WAIT_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+else if not showTable and barstate.islast
+    table.clear(t, 0, 0, 1, 16)
