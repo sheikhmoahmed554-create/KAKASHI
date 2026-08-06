@@ -2831,13 +2831,6 @@ if canEnterLong or canEnterShort
         tradeStopPts := rsrcStopPts
         tradeRiskState := "RMI HARD"
         tradeTargetSource := "RMI 130/70"
-    if tradeEntrySourceCode == 8
-        float orbTpPx = side == 1 ? entryPrice + orbTgtMult * (orbHi - orbLo) : entryPrice - orbTgtMult * (orbHi - orbLo)
-        tradeTargetPts := math.abs(orbTpPx - entryPrice) / pointUnit
-        tradeStopPts := math.abs(entryPrice - orbMid) / pointUnit
-        tradeRiskState := "ORB HARD"
-        tradeTargetSource := "ORB لندن 07:30"
-        orbTradesToday += 1
     if tradeEntrySourceCode == 9
         float kzSlPx = side == 1 ? kzLoExt - kzStopBufPts * pointUnit : kzHiExt + kzStopBufPts * pointUnit
         tradeTargetPts := math.abs(kzMid - entryPrice) / pointUnit
@@ -2922,11 +2915,6 @@ if active and bar_index > entryBar
         alert(sy963AlertFormat == "JSON" ? closeJson : closeSimple, alert.freq_once_per_bar_close)
 
     earlyExit = false
-    if tradeEntrySourceCode == 8 and utcHourNow >= 13 and barstate.isconfirmed and not hardExit
-        earlyExit := true
-        sy999IntrabarExitPrice := close
-        if sy963UseAlertFunction and barstate.isrealtime
-            alert('{"key":"' + sy963WebhookKey + '","action":"CLOSE_AT","side":"' + (side == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"reason":"ORB_CUTOFF","trade_id":' + str.tostring(sy999TradeId) + ',"indicator":"SYR30","time":"' + str.tostring(time) + '"}', alert.freq_once_per_bar_close)
     if hardExit or earlyExit
         exitPts = skipTrade ? 0.0 : (earlyExit ? f_clamp_float(side == 1 ? (sy999IntrabarExitPrice - entryPrice) / pointUnit : (entryPrice - sy999IntrabarExitPrice) / pointUnit, -tradeStopPts, tradeTargetPts) : (isWin ? tradeTargetPts : -tradeStopPts))
         exitPrice = earlyExit ? sy999IntrabarExitPrice : (isWin ? tpPrice : slPrice)
