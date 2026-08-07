@@ -97,7 +97,8 @@ sy963AlertFormat = input.string("JSON", "alert() Message Format", options=["JSON
 // ── 05 ■ Visuals ──
 G_VIS = "05 ■ الإحصائيات والرسم"
 showSignals = input.bool(true, "اعرض BUY / SELL", group=G_VIS)
-showTradeLines = input.bool(true, "اعرض خطوط الدخول والهدف والستوب", group=G_VIS)
+showTradeLines = input.bool(true, "اعرض خطوط الصفقات المفتوحة فقط", group=G_VIS)
+showResultLabels = input.bool(false, "اعرض لصائق TP / SL عند الخروج", group=G_VIS, tooltip="مطفي: الشارت يبقى نظيف. عشر مدارس تسكّر مئة صفقة باليوم، ومئة لصيقة بتدفن الشموع.")
 showTable = input.bool(true, "اعرض الجدول", group=G_VIS)
 lineBars = input.int(70, "طول الخطوط (شموع)", minval=5, maxval=500, group=G_VIS)
 statsMode = input.string("All Loaded History", "بداية العد", options=["All Loaded History", "From Custom Time"], group=G_VIS)
@@ -114,7 +115,7 @@ statsCounted = statsMode == "All Loaded History" or time >= statsStart
 // ① measured reversion band — BUY
 G_S1 = "① قناة الارتداد المقيس — شراء"
 s1On = input.bool(true, "شغّل", group=G_S1)
-s1Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S1)
+s1Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S1)
 s1Tgt = input.float(6.0, "الهدف = كم مرة مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S1)
 s1Stp = input.float(3.0, "الستوب = كم مرة مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S1)
 s1Cd = input.int(0, "كولداون بعد صفقتها (شموع)", minval=0, maxval=500, group=G_S1)
@@ -127,7 +128,7 @@ s1Show = input.bool(true, "ارسم الخطين", group=G_S1)
 // ② EMA ribbon pullback — SELL
 G_S2 = "② شريط EMA — بيع"
 s2On = input.bool(true, "شغّل", group=G_S2)
-s2Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S2)
+s2Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S2)
 s2Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S2)
 s2Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S2)
 s2Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S2)
@@ -139,7 +140,7 @@ s2Show = input.bool(false, "ارسم الشريط", group=G_S2)
 // ③ CMO snap — BUY
 G_S3 = "③ CMO — شراء"
 s3On = input.bool(true, "شغّل", group=G_S3)
-s3Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S3)
+s3Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S3)
 s3Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S3)
 s3Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S3)
 s3Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S3)
@@ -151,7 +152,7 @@ s3Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=
 // ④ QUAD — BUY
 G_S4 = "④ QUAD — شراء"
 s4On = input.bool(true, "شغّل", group=G_S4)
-s4Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S4)
+s4Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S4)
 s4Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S4)
 s4Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S4)
 s4Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S4)
@@ -162,7 +163,7 @@ s4Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=
 // ⑤ RMI overbought fade — SELL
 G_S5 = "⑤ رمي — بيع"
 s5On = input.bool(true, "شغّل", group=G_S5)
-s5Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S5)
+s5Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S5)
 s5Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S5)
 s5Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S5)
 s5Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S5)
@@ -176,7 +177,7 @@ s5Ext = input.int(40, "لازم يكسر قمة كم شمعة (0 = بدون)", m
 // ⑥ TSI fade — BUY
 G_S6 = "⑥ TSI — شراء"
 s6On = input.bool(true, "شغّل", group=G_S6)
-s6Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S6)
+s6Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S6)
 s6Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S6)
 s6Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S6)
 s6Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S6)
@@ -190,8 +191,8 @@ s6Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=
 G_S7 = "⑦⑩ لمسة Keltner — شراء وبيع"
 s7On = input.bool(true, "⑦ شغّل الشراء", group=G_S7)
 s10On = input.bool(true, "⑩ شغّل البيع", group=G_S7)
-s7Resp = input.bool(false, "⑦ يحترم الصفقة المفتوحة", group=G_S7)
-s10Resp = input.bool(false, "⑩ يحترم الصفقة المفتوحة", group=G_S7)
+s7Resp = input.bool(true, "⑦ يحترم الصفقة المفتوحة", group=G_S7)
+s10Resp = input.bool(true, "⑩ يحترم الصفقة المفتوحة", group=G_S7)
 s7Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S7)
 s7Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S7)
 s7Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S7)
@@ -205,7 +206,7 @@ s7Show = input.bool(false, "ارسم الحدين", group=G_S7)
 // ⑧ Keltner band pierce — SELL
 G_S8 = "⑧ قناة Keltner — بيع"
 s8On = input.bool(true, "شغّل", group=G_S8)
-s8Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S8)
+s8Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S8)
 s8Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S8)
 s8Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S8)
 s8Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S8)
@@ -216,7 +217,7 @@ s8Show = input.bool(false, "ارسم القناة", group=G_S8)
 // ⑨ QUAD — SELL
 G_S9 = "⑨ QUAD — بيع"
 s9On = input.bool(true, "شغّل", group=G_S9)
-s9Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S9)
+s9Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S9)
 s9Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S9)
 s9Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S9)
 s9Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S9)
@@ -347,6 +348,13 @@ var array<float> schTPts  = array.new_float(10, 0.0)
 var array<float> schSPts  = array.new_float(10, 0.0)
 var array<int>   schBar   = array.new_int(10, 0)
 var array<int>   schLast  = array.new_int(10, -100000)
+// one entry/target/stop line per book, deleted the moment that book closes.
+// Drawing a permanent set per trade buries the chart within a day: ten books at
+// a hundred and sixty trades a day is five hundred lines, and none of them
+// describe anything that is still running.
+var array<line> schLnE = array.new_line(10, na)
+var array<line> schLnT = array.new_line(10, na)
+var array<line> schLnS = array.new_line(10, na)
 var int schOpen = 0
 var int schRun = 0
 var int schBlock = -1
@@ -399,6 +407,13 @@ if barstate.isconfirmed
                 array.set(schPos, i, 0)
                 array.set(schLast, i, bar_index)
                 schOpen := schOpen - 1
+                if not na(array.get(schLnE, i))
+                    line.delete(array.get(schLnE, i))
+                    line.delete(array.get(schLnT, i))
+                    line.delete(array.get(schLnS, i))
+                    array.set(schLnE, i, na)
+                    array.set(schLnT, i, na)
+                    array.set(schLnS, i, na)
                 if statsCounted
                     trades += 1
                     netPts += res
@@ -424,7 +439,7 @@ if barstate.isconfirmed
                         if schPauseAfter > 0 and schRun >= schPauseAfter
                             schBlock := bar_index + schPauseBars
                             schRun := 0
-                if showSignals and statsCounted
+                if showResultLabels and statsCounted
                     label.new(bar_index, px, (res > 0 ? "TP " : "SL ") + str.tostring(math.abs(res), "#"), style=res > 0 ? label.style_label_down : label.style_label_up, color=res > 0 ? TP_C : SL_C, textcolor=TXT_C, size=size.tiny)
                 if sy963UseAlertFunction and barstate.isrealtime
                     string cj = '{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (sd == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(px, format.mintick) + ',"points":' + str.tostring(res, "#.##") + ',"school":"' + array.get(schName, i) + '","indicator":"SCHOOLS10","time":"' + str.tostring(time) + '"}'
@@ -466,9 +481,9 @@ if barstate.isconfirmed and schOK and bar_index >= schBlock
                 tpShown := tpx
                 slShown := spx
                 if showTradeLines and statsCounted
-                    line.new(bar_index, close, bar_index + lineBars, close, color=EN_C, width=1)
-                    line.new(bar_index, tpx, bar_index + lineBars, tpx, color=TP_C, width=1)
-                    line.new(bar_index, spx, bar_index + lineBars, spx, color=SL_C, width=1)
+                    array.set(schLnE, i, line.new(bar_index, close, bar_index + lineBars, close, color=EN_C, width=1))
+                    array.set(schLnT, i, line.new(bar_index, tpx, bar_index + lineBars, tpx, color=TP_C, width=1))
+                    array.set(schLnS, i, line.new(bar_index, spx, bar_index + lineBars, spx, color=SL_C, width=1))
                 if sy963UseAlertFunction and barstate.isrealtime
                     string j = '{"key":"' + sy963WebhookKey + '","action":"' + (sd == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"target_points":' + str.tostring(tpts, "#.#") + ',"stop_points":' + str.tostring(spts, "#.#") + ',"school":"' + array.get(schName, i) + '","indicator":"SCHOOLS10","time":"' + str.tostring(time) + '"}'
                     string p = sy963WebhookKey + " " + (sd == 1 ? "BUY" : "SELL") + " " + sy963BotSymbol + " " + str.tostring(sy963LotSize) + " TP " + str.tostring(tpts, "#") + " SL " + str.tostring(spts, "#") + " " + array.get(schName, i)
@@ -477,6 +492,8 @@ if barstate.isconfirmed and schOK and bar_index >= schBlock
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // signals and lines, in the same shape the old indicator drew them
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// several books can fire on the same bar; one label per bar per side, not one
+// per book, or they stack into an unreadable pile
 plotshape(showSignals and statsCounted and enteredBuy, title="BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
 plotshape(showSignals and statsCounted and enteredSell, title="SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
 
