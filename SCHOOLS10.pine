@@ -77,7 +77,7 @@
 // Both are one click away if the market changes shape.
 //
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-indicator("SCHOOLS 16 — XAUUSD M1", "SCHOOLS16", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=1000)
+indicator("SCHOOLS 16 + HULL GATE — XAUUSD M1", "SCHOOLS16", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=1000)
 
 color BUY_C  = color.rgb(0, 170, 90)
 color SELL_C = color.rgb(230, 45, 55)
@@ -128,6 +128,16 @@ plot(regEff, "efficiency", display=display.none)
 // rule that reliably wins reversed. And unlike a gate, a flip costs nothing in
 // slot time: the same signal at the same moment for the same duration, with only
 // the side changed — which is why it is worth testing after the gate failed.
+// He sets the targets, in points. The multiples stay available because a number
+// of points is a number about one volatility regime — 130 points was six bar
+// ranges in 2026 and thirty-three in 2021, which is what broke the RMI source —
+// but inside a period where the scale holds, a typed number is a typed number.
+// The point defaults below are each school's swept multiple times 21.4, the
+// average one-minute bar range on 2026, so switching modes changes nothing until
+// he changes a number.
+G_PLAN = "03d ■ الأهداف"
+planPts = input.bool(true, "الأهداف بالنقاط (مطفي = ×مدى الشمعة)", group=G_PLAN)
+
 G_FLIP = "03c ■ اقلب الاتجاه بالترند"
 flipEff = input.float(1.00, "اقلب اتجاه مدارس العكس إذا الاستقامة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_FLIP, tooltip="1.00 = لا يقلب أبداً. أقل من هيك: لما السوق يمشي، السيل يصير باي والباي يصير سيل.")
 flipOn = regEff >= flipEff
@@ -168,6 +178,8 @@ s1On = input.bool(true, "شغّل", group=G_S1)
 s1Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S1)
 s1Tgt = input.float(6.0, "الهدف = كم مرة مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S1)
 s1Stp = input.float(3.0, "الستوب = كم مرة مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S1)
+s1TgtP = input.float(128, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S1)
+s1StpP = input.float(64, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S1)
 s1Cd = input.int(0, "كولداون بعد صفقتها (شموع)", minval=0, maxval=500, group=G_S1)
 s1Centre = input.int(200, "طول خط المنتصف", minval=20, maxval=1000, group=G_S1)
 s1Swing = input.int(8, "نصف عرض القمة/القاع (شموع)", minval=2, maxval=50, group=G_S1)
@@ -182,6 +194,8 @@ s2On = input.bool(true, "شغّل", group=G_S2)
 s2Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S2)
 s2Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S2)
 s2Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S2)
+s2TgtP = input.float(128, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S2)
+s2StpP = input.float(64, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S2)
 s2Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S2)
 s2Fast = input.int(20, "EMA سريع", minval=3, maxval=100, group=G_S2)
 s2MidL = input.int(50, "EMA وسط — خط الارتداد", minval=10, maxval=200, group=G_S2)
@@ -195,6 +209,8 @@ s3On = input.bool(true, "شغّل", group=G_S3)
 s3Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S3)
 s3Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S3)
 s3Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S3)
+s3TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S3)
+s3StpP = input.float(43, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S3)
 s3Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S3)
 s3Len = input.int(9, "طول CMO", minval=3, maxval=50, group=G_S3)
 s3Lvl = input.float(60.0, "مستوى CMO المتطرف", minval=20, maxval=95, step=1, group=G_S3)
@@ -208,6 +224,8 @@ s4On = input.bool(true, "شغّل", group=G_S4)
 s4Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S4)
 s4Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S4)
 s4Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S4)
+s4TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S4)
+s4StpP = input.float(43, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S4)
 s4Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S4)
 s4R3 = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S4)
 s4R14 = input.float(40.0, "RSI14 تحت", minval=15, maxval=50, step=1, group=G_S4)
@@ -220,6 +238,8 @@ s5On = input.bool(true, "شغّل", group=G_S5)
 s5Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S5)
 s5Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S5)
 s5Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S5)
+s5TgtP = input.float(128, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S5)
+s5StpP = input.float(64, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S5)
 s5Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S5)
 s5Len = input.int(18, "طول رمي", minval=2, maxval=100, group=G_S5)
 s5Mom = input.int(6, "زخم رمي", minval=1, maxval=50, group=G_S5)
@@ -235,6 +255,8 @@ s6On = input.bool(true, "شغّل", group=G_S6)
 s6Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S6)
 s6Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S6)
 s6Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S6)
+s6TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S6)
+s6StpP = input.float(43, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S6)
 s6Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S6)
 s6Long = input.int(13, "TSI طويل", minval=3, maxval=60, group=G_S6)
 s6Short = input.int(7, "TSI قصير", minval=2, maxval=40, group=G_S6)
@@ -251,6 +273,8 @@ s7Resp = input.bool(true, "⑦ يحترم الصفقة المفتوحة", group=
 s10Resp = input.bool(true, "⑩ يحترم الصفقة المفتوحة", group=G_S7)
 s7Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S7)
 s7Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S7)
+s7TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S7)
+s7StpP = input.float(43, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S7)
 s7Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S7)
 s7EmaL = input.int(20, "طول EMA المركز", minval=3, maxval=200, group=G_S7)
 s7Mult = input.float(2.0, "مضاعف Keltner", minval=0.5, maxval=6, step=0.1, group=G_S7)
@@ -267,6 +291,8 @@ s8On = input.bool(true, "شغّل", group=G_S8)
 s8Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S8)
 s8Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S8)
 s8Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S8)
+s8TgtP = input.float(128, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S8)
+s8StpP = input.float(64, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S8)
 s8Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S8)
 s8Len = input.int(20, "طول القناة", minval=3, maxval=200, group=G_S8)
 s8Mult = input.float(2.0, "مضاعف القناة", minval=0.5, maxval=6, step=0.1, group=G_S8)
@@ -279,6 +305,8 @@ s9On = input.bool(true, "شغّل", group=G_S9)
 s9Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S9)
 s9Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S9)
 s9Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S9)
+s9TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S9)
+s9StpP = input.float(43, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S9)
 s9Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S9)
 s9R3 = input.float(82.0, "RSI3 فوق", minval=55, maxval=95, step=1, group=G_S9)
 s9R14 = input.float(60.0, "RSI14 فوق", minval=50, maxval=85, step=1, group=G_S9)
@@ -317,6 +345,8 @@ s11On = input.bool(false, "شغّل", group=G_S11)
 s11Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S11)
 s11Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S11)
 s11Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S11)
+s11TgtP = input.float(171, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S11)
+s11StpP = input.float(86, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S11)
 s11Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S11)
 s11Look = input.int(240, "طول القمة", minval=20, maxval=1000, group=G_S11)
 s11Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S11)
@@ -327,6 +357,8 @@ s12On = input.bool(false, "شغّل", group=G_S12)
 s12Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S12)
 s12Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S12)
 s12Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S12)
+s12TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S12)
+s12StpP = input.float(64, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S12)
 s12Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S12)
 s12Look = input.int(240, "طول القاع", minval=20, maxval=1000, group=G_S12)
 s12Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S12)
@@ -337,6 +369,8 @@ s13On = input.bool(false, "شغّل", group=G_S13)
 s13Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S13)
 s13Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S13)
 s13Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S13)
+s13TgtP = input.float(171, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S13)
+s13StpP = input.float(86, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S13)
 s13Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S13)
 s13Look = input.int(60, "طول القمة", minval=10, maxval=500, group=G_S13)
 s13Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S13)
@@ -347,6 +381,8 @@ s14On = input.bool(false, "شغّل", group=G_S14)
 s14Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S14)
 s14Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S14)
 s14Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S14)
+s14TgtP = input.float(86, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S14)
+s14StpP = input.float(64, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S14)
 s14Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S14)
 s14Look = input.int(60, "طول القاع", minval=10, maxval=500, group=G_S14)
 s14Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S14)
@@ -357,6 +393,8 @@ s15On = input.bool(false, "شغّل", group=G_S15)
 s15Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S15)
 s15Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S15)
 s15Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S15)
+s15TgtP = input.float(171, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S15)
+s15StpP = input.float(86, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S15)
 s15Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S15)
 s15Run = input.int(4, "كم إغلاق هابط متتالي", minval=2, maxval=15, group=G_S15)
 s15Slow = input.int(200, "طول المتوسط البطيء", minval=50, maxval=1000, group=G_S15)
@@ -367,10 +405,72 @@ s16On = input.bool(false, "شغّل", group=G_S16)
 s16Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S16)
 s16Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S16)
 s16Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S16)
+s16TgtP = input.float(171, "   ...أو الهدف بالنقاط", minval=1, maxval=2000, step=1, group=G_S16)
+s16StpP = input.float(86, "   ...والستوب بالنقاط", minval=1, maxval=2000, step=1, group=G_S16)
 s16Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S16)
 s16Exp = input.float(2.5, "الشمعة أكبر من ×ATR", minval=1.0, maxval=6.0, step=0.1, group=G_S16)
 s16Mid = input.int(50, "المتوسط الي لازم يكون فوقه", minval=10, maxval=400, group=G_S16)
 s16Close = input.float(0.7, "الإغلاق بأعلى كم من الشمعة", minval=0.5, maxval=0.95, step=0.05, group=G_S16)
+
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 06 ■ HULL GATE — البوابة النهائية
+//
+// The Hull Suite by InSilico, used the way he asked: not as another school
+// competing for the position, but as the last word before any entry. Green means
+// only buys pass. Red means only sells pass.
+//
+// That shape matters. Every repair tried before this one had to take the position
+// away from something else — a gate that silenced a school freed the slot for a
+// worse one, and with-trend schools squatted on it for an 8x target. This costs
+// nothing in slot time. It never opens a trade of its own; it only refuses one.
+//
+// Its settings are the original's, unchanged: source, the three variations, the
+// length and its multiplier. The one addition is the timeframe, so a one-minute
+// chart can be gated by the Hull of an hour without changing anything else.
+//
+// The higher-timeframe read is taken from the last CLOSED bar of that timeframe.
+// The original uses a plain security() call, which shows the forming bar and
+// repaints — every backtest number from it would be a number the chart could not
+// have traded.
+//
+// Measured on 2026, against the same build with the gate off:
+//
+//   gate off          43.0/day  35.79%  +32,469  drawdown 4,892   5.36 a trade
+//   gate, Hma 55      23.6/day  36.08%  +21,837  drawdown 3,514   6.57 a trade
+//   gate, 15m Hma 55  29.0/day  35.24%  +14,197  drawdown 6,724
+//   gate, Hma 180     26.9/day  35.18%   +9,204  drawdown 7,561
+//
+// The gate improves the average trade by 1.21 points and cuts the drawdown to
+// 3,514 — the trades it lets through really are better. It also halves the count,
+// from 43 a day to 23.6, and the schools earn on both sides, so removing half the
+// directions removes more money than the quality gains back. It ships off.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+G_HULL = "06 ■ Hull Gate — البوابة النهائية"
+hullUse = input.bool(false, "استخدم Hull كبوابة نهائية", group=G_HULL, tooltip="أخضر = الشراء مسموح فقط. أحمر = البيع مسموح فقط.")
+hullSrc = input.source(close, "Source", group=G_HULL)
+hullMode = input.string("Hma", "Hull Variation", options=["Hma", "Thma", "Ehma"], group=G_HULL)
+hullLen = input.int(55, "Length (180-200 floating S/R, 55 swing entry)", minval=4, maxval=600, group=G_HULL)
+hullMult = input.float(1.0, "Length multiplier", minval=0.1, maxval=10.0, step=0.1, group=G_HULL)
+hullUseHtf = input.bool(false, "اقرأ Hull من فريم أعلى", group=G_HULL)
+hullHtf = input.timeframe("15", "الفريم الأعلى", group=G_HULL, tooltip="تبقى على شارت الدقيقة، والبوابة تقرأ الفريم المختار. تُقرأ من آخر شمعة مغلقة فقط.")
+hullShow = input.bool(true, "ارسم الخط", group=G_HULL)
+
+hullN = math.max(4, math.round(hullLen * hullMult))
+hullHalf = math.max(1, math.floor(hullN / 2))
+hullThird = math.max(1, math.floor(hullN / 3))
+hullSqrt = math.max(1, math.round(math.sqrt(hullN)))
+hullHma = ta.wma(2 * ta.wma(hullSrc, hullHalf) - ta.wma(hullSrc, hullN), hullSqrt)
+hullEhma = ta.ema(2 * ta.ema(hullSrc, hullHalf) - ta.ema(hullSrc, hullN), hullSqrt)
+hullThma = ta.wma(ta.wma(hullSrc, hullThird) * 3 - ta.wma(hullSrc, hullHalf) - ta.wma(hullSrc, hullN), hullN)
+hullLocal = hullMode == "Hma" ? hullHma : hullMode == "Ehma" ? hullEhma : hullThma
+hullHtfVal = request.security(syminfo.tickerid, hullHtf, hullLocal[1], lookahead=barmerge.lookahead_on)
+hullHtfPrev = request.security(syminfo.tickerid, hullHtf, hullLocal[3], lookahead=barmerge.lookahead_on)
+hullNow = hullUseHtf ? hullHtfVal : hullLocal
+hullPrev = hullUseHtf ? hullHtfPrev : hullLocal[2]
+hullGreen = hullNow > hullPrev
+hullBuyOK = not hullUse or hullGreen
+hullSellOK = not hullUse or not hullGreen
 
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // the series the schools read
@@ -495,7 +595,9 @@ schEnab = array.from(s1On, s2On, s3On, s4On, s5On, s6On, s7On, s8On, s9On, s10On
 schRes  = array.from(s1Resp, s2Resp, s3Resp, s4Resp, s5Resp, s6Resp, s7Resp, s8Resp, s9Resp, s10Resp, s11Resp, s12Resp, s13Resp, s14Resp, s15Resp, s16Resp)
 schSide = array.from(1, -1, 1, 1, -1, 1, 1, -1, -1, -1, 1, -1, 1, -1, -1, 1)
 schT    = array.from(s1Tgt, s2Tgt, s3Tgt, s4Tgt, s5Tgt, s6Tgt, s7Tgt, s8Tgt, s9Tgt, s7Tgt, s11Tgt, s12Tgt, s13Tgt, s14Tgt, s15Tgt, s16Tgt)
+schTP_  = array.from(s1TgtP, s2TgtP, s3TgtP, s4TgtP, s5TgtP, s6TgtP, s7TgtP, s8TgtP, s9TgtP, s7TgtP, s11TgtP, s12TgtP, s13TgtP, s14TgtP, s15TgtP, s16TgtP)
 schS    = array.from(s1Stp, s2Stp, s3Stp, s4Stp, s5Stp, s6Stp, s7Stp, s8Stp, s9Stp, s7Stp, s11Stp, s12Stp, s13Stp, s14Stp, s15Stp, s16Stp)
+schSP_  = array.from(s1StpP, s2StpP, s3StpP, s4StpP, s5StpP, s6StpP, s7StpP, s8StpP, s9StpP, s7StpP, s11StpP, s12StpP, s13StpP, s14StpP, s15StpP, s16StpP)
 schCd   = array.from(s1Cd, s2Cd, s3Cd, s4Cd, s5Cd, s6Cd, s7Cd, s8Cd, s9Cd, s7Cd, s11Cd, s12Cd, s13Cd, s14Cd, s15Cd, s16Cd)
 schName = array.from("REVERSION", "RIBBON", "CMO", "QUAD", "RMI", "TSI", "KELT", "KC BAND", "QUAD", "KELT", "BRK240 HI", "BRK240 LO", "BRK60 HI", "BRK60 LO", "5DOWN", "EXPANSION")
 
@@ -617,13 +719,15 @@ if barstate.isconfirmed and schOK and bar_index >= schBlock
             // the flip touches only the ten fade rules; 11 to 16 already want the
             // market to move, so turning them around would be turning them off
             int sd = flipOn and i <= 9 ? -sd0 : sd0
-            bool sideOK = sd == 1 ? allowLong : allowShort
+            // the last word: green passes buys only, red passes sells only
+            bool sideOK = (sd == 1 ? allowLong and hullBuyOK : allowShort and hullSellOK)
             // "respects the open trade" means it waits until nothing is running —
             // not another school's position either
             bool blocked = array.get(schRes, i) and schOpen > 0
             if sideOK and not blocked
-                float tpts = math.max(10.0, schRng * array.get(schT, i))
-                float spts = math.max(10.0, schRng * array.get(schS, i))
+                // his number in points, or the multiple of the bar range
+                float tpts = planPts ? array.get(schTP_, i) : math.max(10.0, schRng * array.get(schT, i))
+                float spts = planPts ? array.get(schSP_, i) : math.max(10.0, schRng * array.get(schS, i))
                 float tpx = sd == 1 ? close + tpts * pointUnit : close - tpts * pointUnit
                 float spx = sd == 1 ? close - spts * pointUnit : close + spts * pointUnit
                 array.set(schPos, i, sd)
@@ -667,6 +771,7 @@ plot(s1Show and s1On ? s1DnLine : na, title="REVERSION LOW", color=color.new(col
 plot(s1Show and s1On ? s1UpLine : na, title="REVERSION HIGH", color=color.new(color.fuchsia, 35), linewidth=1)
 plot(s7Show and (s7On or s10On) ? s7Upper : na, title="KELTNER UPPER", color=color.new(color.orange, 55), linewidth=1)
 plot(s7Show and (s7On or s10On) ? s7Lower : na, title="KELTNER LOWER", color=color.new(color.orange, 55), linewidth=1)
+plot(hullShow ? hullNow : na, title="HULL GATE", color=hullGreen ? color.new(color.lime, 20) : color.new(color.red, 20), linewidth=2)
 plot(s8Show and s8On ? s8Upper : na, title="KC BAND UPPER", color=color.new(color.yellow, 55), linewidth=1)
 plot(s2Show and s2On ? s2M : na, title="RIBBON MID", color=color.new(color.silver, 45), linewidth=1)
 
