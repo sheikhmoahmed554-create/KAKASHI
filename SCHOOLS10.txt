@@ -51,8 +51,33 @@
 // the chart did not have at the time. Keeping the two sides apart makes the band
 // asymmetric whenever rallies and dips are punished differently — which no
 // symmetric band can be. It has the highest edge of the ten by a wide margin.
+//
+// WHAT WAS TRIED THIS ROUND AND SHIPS OFF
+//
+// Nine of the ten fade rules fire within five bars of each other on the same
+// side, and twelve of thirteen lose money once the market picks a direction — the
+// EMA ribbon makes +7.14 a trade in the quiet and -63.69 in a trend. So two
+// repairs were built: a regime gate per school, and six rules that need the
+// market to move. Standalone both measured strongly; breaking the 240-bar high in
+// a trend has an edge of 15.45 against the best fade rule's 9.33.
+//
+// Both lose money in the configuration that actually ships. On 2026, one shared
+// position:
+//
+//   fade only, no gates           43.0/day  35.79%  +32,469  drawdown  4,892
+//   fade + trend on its own slot  50.4/day  37.05%  +33,242  drawdown  8,724
+//   fade + gates 0.35             36.3/day  35.73%  +23,051  drawdown  5,516
+//   fade + gates + trend shared   38.1/day  36.40%  +17,611  drawdown  7,641
+//
+// A standalone edge is measured with a position always available. Here there is
+// one, and a rule holding it for an 8x target blocks every fade trade that would
+// have used those hours. The edge is real; the rent on the slot is higher.
+//
+// So the gates ship at 1.00, which is no gate, and schools 11 to 16 ship off.
+// Both are one click away if the market changes shape.
+//
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-indicator("SCHOOLS 10 — XAUUSD M1", "SCHOOLS10", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=1000)
+indicator("SCHOOLS 16 — XAUUSD M1", "SCHOOLS16", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=1000)
 
 color BUY_C  = color.rgb(0, 170, 90)
 color SELL_C = color.rgb(230, 45, 55)
@@ -81,7 +106,22 @@ schLen = input.int(500, "شموع قياس مدى الشمعة", minval=50, maxv
 schRng = ta.sma(high - low, schLen) / pointUnit
 schOK = schRng > 0
 
-// ── 03 ■ Common pause ──
+// ── 03 ■ Regime ──
+// How straight the last N bars are: net travel over total travel. 1 is a ruler,
+// 0 is churn. Every fade rule in this file loses money above roughly 0.35 and
+// earns below it — the EMA ribbon makes +7.14 a trade in the quiet and -63.69 in
+// a trend — so each school below carries the band of regime it is allowed to
+// fire in rather than firing blind.
+G_REG = "03 ■ حالة السوق"
+regLen = input.int(60, "شموع قياس استقامة الحركة", minval=10, maxval=500, group=G_REG)
+// hoisted: math.sum keeps a rolling state, so calling it twice in one
+// expression is two claims on the same window
+regPath = math.sum(math.abs(close - close[1]), regLen)
+regNet = math.abs(close - close[regLen])
+regEff = regPath <= 0 ? 0.0 : regNet / regPath
+plot(regEff, "efficiency", display=display.none)
+
+// ── 03b ■ Common pause ──
 G_PAUSE = "03 ■ وقفة بعد الخسائر"
 schPauseAfter = input.int(0, "وقف الكل بعد كم خسارة متتالية (0 = بدون)", minval=0, maxval=20, group=G_PAUSE, tooltip="4 خسائر ثم وقفة 60 شمعة نزّلت أكبر تراجع من 4,480 إلى 3,017 وأطول سلسلة من 20 إلى 16.")
 schPauseBars = input.int(60, "طول الوقفة (شموع)", minval=0, maxval=600, group=G_PAUSE)
@@ -123,6 +163,7 @@ s1Centre = input.int(200, "طول خط المنتصف", minval=20, maxval=1000, 
 s1Swing = input.int(8, "نصف عرض القمة/القاع (شموع)", minval=2, maxval=50, group=G_S1)
 s1Mem = input.int(60, "كم قمة/قاع يتذكر", minval=20, maxval=300, group=G_S1)
 s1Pct = input.int(85, "النسبة المئوية للخط", minval=50, maxval=99, group=G_S1)
+s1Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S1, tooltip="مدارس العكس تخسر بالترند. 0.35 قياس، و1.0 يعني بدون بوابة.")
 s1Show = input.bool(true, "ارسم الخطين", group=G_S1)
 
 // ② EMA ribbon pullback — SELL
@@ -135,6 +176,7 @@ s2Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S
 s2Fast = input.int(20, "EMA سريع", minval=3, maxval=100, group=G_S2)
 s2MidL = input.int(50, "EMA وسط — خط الارتداد", minval=10, maxval=200, group=G_S2)
 s2Slow = input.int(100, "EMA بطيء", minval=20, maxval=400, group=G_S2)
+s2Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S2, tooltip="بالقياس: +812 نقطة عند 0.25.")
 s2Show = input.bool(false, "ارسم الشريط", group=G_S2)
 
 // ③ CMO snap — BUY
@@ -148,6 +190,7 @@ s3Len = input.int(9, "طول CMO", minval=3, maxval=50, group=G_S3)
 s3Lvl = input.float(60.0, "مستوى CMO المتطرف", minval=20, maxval=95, step=1, group=G_S3)
 s3Rsi = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S3)
 s3Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S3)
+s3Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S3)
 
 // ④ QUAD — BUY
 G_S4 = "④ QUAD — شراء"
@@ -159,6 +202,7 @@ s4Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S
 s4R3 = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S4)
 s4R14 = input.float(40.0, "RSI14 تحت", minval=15, maxval=50, step=1, group=G_S4)
 s4Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S4)
+s4Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S4, tooltip="بالقياس: +1,590 نقطة عند 0.25.")
 
 // ⑤ RMI overbought fade — SELL
 G_S5 = "⑤ رمي — بيع"
@@ -173,6 +217,7 @@ s5Zone = input.float(78.0, "منطقة التشبع", minval=50, maxval=99, step
 s5Wait = input.int(12, "أقصى انتظار بعد المنطقة (شموع)", minval=1, maxval=60, group=G_S5)
 s5React = input.int(2, "شموع رفض متتالية", minval=1, maxval=10, group=G_S5)
 s5Ext = input.int(40, "لازم يكسر قمة كم شمعة (0 = بدون)", minval=0, maxval=500, group=G_S5)
+s5Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S5, tooltip="بالقياس: +734 نقطة عند 0.25.")
 
 // ⑥ TSI fade — BUY
 G_S6 = "⑥ TSI — شراء"
@@ -186,6 +231,7 @@ s6Short = input.int(7, "TSI قصير", minval=2, maxval=40, group=G_S6)
 s6Lvl = input.float(15.0, "مستوى TSI المتطرف", minval=3, maxval=60, step=1, group=G_S6)
 s6Rsi = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S6)
 s6Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S6)
+s6Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S6)
 
 // ⑦ and ⑩ Keltner touch — the two sides share one set of parameters
 G_S7 = "⑦⑩ لمسة Keltner — شراء وبيع"
@@ -201,6 +247,8 @@ s7Mult = input.float(2.0, "مضاعف Keltner", minval=0.5, maxval=6, step=0.1, 
 s7AtrL = input.int(14, "طول ATR", minval=2, maxval=100, group=G_S7)
 s7Rsi = input.float(18.0, "RSI3 تحت للشراء (والمكمّل للبيع)", minval=5, maxval=45, step=1, group=G_S7)
 s7Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S7)
+s7Eff = input.float(1.00, "⑦ لا تشتغل إذا الاستقامة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S7, tooltip="بالقياس: +1,235 للشراء عند 0.25 و +1,292 للبيع عند 0.35.")
+s10Eff = input.float(1.00, "⑩ لا تشتغل إذا الاستقامة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S7)
 s7Show = input.bool(false, "ارسم الحدين", group=G_S7)
 
 // ⑧ Keltner band pierce — SELL
@@ -212,6 +260,7 @@ s8Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxva
 s8Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S8)
 s8Len = input.int(20, "طول القناة", minval=3, maxval=200, group=G_S8)
 s8Mult = input.float(2.0, "مضاعف القناة", minval=0.5, maxval=6, step=0.1, group=G_S8)
+s8Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S8, tooltip="الوحيدة الي بتربح بالترند: +15.74 نقطة بالصفقة مقابل +4.67 بالهدوء. فبدون بوابة.")
 s8Show = input.bool(false, "ارسم القناة", group=G_S8)
 
 // ⑨ QUAD — SELL
@@ -224,6 +273,94 @@ s9Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S
 s9R3 = input.float(82.0, "RSI3 فوق", minval=55, maxval=95, step=1, group=G_S9)
 s9R14 = input.float(60.0, "RSI14 فوق", minval=50, maxval=85, step=1, group=G_S9)
 s9Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S9)
+s9Eff = input.float(1.00, "لا تشتغل إذا استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S9, tooltip="بالقياس: +1,221 نقطة عند 0.35.")
+
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 20 ■ WITH THE MOVE
+//
+// The ten above are one idea in ten costumes: nine of them fire within five bars
+// of each other on the same side, and twelve of the thirteen measured lose money
+// the moment the market picks a direction. So the set earns while price is still
+// and hands it back as soon as it moves — which is exactly the shape of the
+// drawdown, and exactly what he saw on the chart when it kept selling a rally.
+//
+// These six want the opposite. They need the market to be going somewhere, they
+// fire when the fade rules are gated off, and their edge is larger than anything
+// on the fade side. Measured on 2026 the same way — points per trade above a
+// random entry on the same side with the same plan:
+//
+//   school                          side   plan   /day    WR     net    edge
+//   ⑪ break the 240-bar high        BUY    8x/4x   1.4  39.6  +2,781  15.45
+//   ⑫ break the 240-bar low         SELL   4x/3x   1.5  45.5  +3,248  14.39
+//   ⑬ break the 60-bar high         BUY    8x/4x   1.6  38.1  +2,995  14.21
+//   ⑭ break the 60-bar low          SELL   4x/3x   1.7  44.9  +2,223   8.22
+//   ⑮ five down closes under EMA200 SELL   8x/4x  10.1  35.6 +11,466   5.39
+//   ⑯ expansion bar with the trend  BUY    8x/4x   3.2  34.5  +2,496   6.55
+//
+// The best fade rule in this file has an edge of 9.33. Two of these are above 14.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ⑪ break the 240-bar high while the market is going somewhere — BUY
+G_S11 = "⑪ كسر قمة 240 شمعة بترند — شراء"
+s11On = input.bool(false, "شغّل", group=G_S11)
+s11Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S11)
+s11Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S11)
+s11Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S11)
+s11Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S11)
+s11Look = input.int(240, "طول القمة", minval=20, maxval=1000, group=G_S11)
+s11Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S11)
+
+// ⑫ break the 240-bar low — SELL
+G_S12 = "⑫ كسر قاع 240 شمعة بترند — بيع"
+s12On = input.bool(false, "شغّل", group=G_S12)
+s12Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S12)
+s12Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S12)
+s12Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S12)
+s12Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S12)
+s12Look = input.int(240, "طول القاع", minval=20, maxval=1000, group=G_S12)
+s12Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S12)
+
+// ⑬ break the 60-bar high — BUY
+G_S13 = "⑬ كسر قمة 60 شمعة بترند — شراء"
+s13On = input.bool(false, "شغّل", group=G_S13)
+s13Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S13)
+s13Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S13)
+s13Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S13)
+s13Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S13)
+s13Look = input.int(60, "طول القمة", minval=10, maxval=500, group=G_S13)
+s13Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S13)
+
+// ⑭ break the 60-bar low — SELL
+G_S14 = "⑭ كسر قاع 60 شمعة بترند — بيع"
+s14On = input.bool(false, "شغّل", group=G_S14)
+s14Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S14)
+s14Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S14)
+s14Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S14)
+s14Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S14)
+s14Look = input.int(60, "طول القاع", minval=10, maxval=500, group=G_S14)
+s14Eff = input.float(0.35, "لازم استقامة الحركة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_S14)
+
+// ⑮ five down closes under the 200 — SELL. The biggest earner of the six.
+G_S15 = "⑮ خمس إغلاقات هابطة تحت الـ200 — بيع"
+s15On = input.bool(false, "شغّل", group=G_S15)
+s15Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S15)
+s15Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S15)
+s15Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S15)
+s15Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S15)
+s15Run = input.int(4, "كم إغلاق هابط متتالي", minval=2, maxval=15, group=G_S15)
+s15Slow = input.int(200, "طول المتوسط البطيء", minval=50, maxval=1000, group=G_S15)
+
+// ⑯ expansion bar with the trend — BUY
+G_S16 = "⑯ شمعة تمدد مع الترند — شراء"
+s16On = input.bool(false, "شغّل", group=G_S16)
+s16Resp = input.bool(true, "يحترم الصفقة المفتوحة", group=G_S16)
+s16Tgt = input.float(8.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S16)
+s16Stp = input.float(4.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=30, step=0.1, group=G_S16)
+s16Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S16)
+s16Exp = input.float(2.5, "الشمعة أكبر من ×ATR", minval=1.0, maxval=6.0, step=0.1, group=G_S16)
+s16Mid = input.int(50, "المتوسط الي لازم يكون فوقه", minval=10, maxval=400, group=G_S16)
+s16Close = input.float(0.7, "الإغلاق بأعلى كم من الشمعة", minval=0.5, maxval=0.95, step=0.05, group=G_S16)
 
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // the series the schools read
@@ -249,6 +386,14 @@ s6Tsi = 100 * ta.ema(ta.ema(s6Pc, s6Long), s6Short) / (ta.ema(ta.ema(math.abs(s6
 s8Mid = ta.ema(close, s8Len)
 s8Avg = ta.sma(high - low, s8Len)
 s8Upper = s8Mid + s8Mult * s8Avg
+
+s11Hi = ta.highest(high[1], s11Look)
+s12Lo = ta.lowest(low[1], s12Look)
+s13Hi = ta.highest(high[1], s13Look)
+s14Lo = ta.lowest(low[1], s14Look)
+s15Ema = ta.ema(close, s15Slow)
+s16Ema = ta.ema(close, s16Mid)
+s15Down = ta.barssince(close >= close[1]) >= s15Run
 
 s7Upper = schEma + s7Mult * schAtr
 s7Lower = schEma - s7Mult * schAtr
@@ -316,45 +461,53 @@ float s1DnLine = na(s1DnMult) or not schOK ? na : s1Mid - s1DnMult * schRng * po
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // the ten conditions
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-c1 = not na(s1DnLine) and low < s1DnLine and close > s1DnLine
-c2 = s2F < s2M and s2M < s2S and high >= s2M and close < s2M and close < open
-c3 = s3Cmo < -s3Lvl and schR3 < s3Rsi and schBody > s3Big * schAtr
-c4 = schR3 < s4R3 and schR14 < s4R14 and schBody > s4Big * schAtr
-c5 = s5Fire
-c6 = s6Tsi < -s6Lvl and schR3 < s6Rsi and schBody > s6Big * schAtr
-c7 = low < s7Lower and schR3 < s7Rsi and schBody > s7Big * schAtr
-c8 = high > s8Upper and close < s8Upper
-c9 = schR3 > s9R3 and schR14 > s9R14 and schBody > s9Big * schAtr
-c10 = high > s7Upper and schR3 > 100 - s7Rsi and schBody > s7Big * schAtr
+// ①-⑩ fade: each refuses to fire once the market is straighter than its band
+c1 = not na(s1DnLine) and low < s1DnLine and close > s1DnLine and regEff < s1Eff
+c2 = s2F < s2M and s2M < s2S and high >= s2M and close < s2M and close < open and regEff < s2Eff
+c3 = s3Cmo < -s3Lvl and schR3 < s3Rsi and schBody > s3Big * schAtr and regEff < s3Eff
+c4 = schR3 < s4R3 and schR14 < s4R14 and schBody > s4Big * schAtr and regEff < s4Eff
+c5 = s5Fire and regEff < s5Eff
+c6 = s6Tsi < -s6Lvl and schR3 < s6Rsi and schBody > s6Big * schAtr and regEff < s6Eff
+c7 = low < s7Lower and schR3 < s7Rsi and schBody > s7Big * schAtr and regEff < s7Eff
+c8 = high > s8Upper and close < s8Upper and regEff < s8Eff
+c9 = schR3 > s9R3 and schR14 > s9R14 and schBody > s9Big * schAtr and regEff < s9Eff
+c10 = high > s7Upper and schR3 > 100 - s7Rsi and schBody > s7Big * schAtr and regEff < s10Eff
+// ⑪-⑯ with the move: each needs the market to be going somewhere
+c11 = close > s11Hi and regEff >= s11Eff
+c12 = close < s12Lo and regEff >= s12Eff
+c13 = close > s13Hi and regEff >= s13Eff
+c14 = close < s14Lo and regEff >= s14Eff
+c15 = s15Down and close < s15Ema
+c16 = schBody > s16Exp * schAtr and close > open and close > s16Ema and (close - low) / math.max(high - low, syminfo.mintick) > s16Close
 
-schFire = array.from(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10)
-schEnab = array.from(s1On, s2On, s3On, s4On, s5On, s6On, s7On, s8On, s9On, s10On)
-schRes  = array.from(s1Resp, s2Resp, s3Resp, s4Resp, s5Resp, s6Resp, s7Resp, s8Resp, s9Resp, s10Resp)
-schSide = array.from(1, -1, 1, 1, -1, 1, 1, -1, -1, -1)
-schT    = array.from(s1Tgt, s2Tgt, s3Tgt, s4Tgt, s5Tgt, s6Tgt, s7Tgt, s8Tgt, s9Tgt, s7Tgt)
-schS    = array.from(s1Stp, s2Stp, s3Stp, s4Stp, s5Stp, s6Stp, s7Stp, s8Stp, s9Stp, s7Stp)
-schCd   = array.from(s1Cd, s2Cd, s3Cd, s4Cd, s5Cd, s6Cd, s7Cd, s8Cd, s9Cd, s7Cd)
-schName = array.from("REVERSION", "RIBBON", "CMO", "QUAD", "RMI", "TSI", "KELT", "KC BAND", "QUAD", "KELT")
+schFire = array.from(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16)
+schEnab = array.from(s1On, s2On, s3On, s4On, s5On, s6On, s7On, s8On, s9On, s10On, s11On, s12On, s13On, s14On, s15On, s16On)
+schRes  = array.from(s1Resp, s2Resp, s3Resp, s4Resp, s5Resp, s6Resp, s7Resp, s8Resp, s9Resp, s10Resp, s11Resp, s12Resp, s13Resp, s14Resp, s15Resp, s16Resp)
+schSide = array.from(1, -1, 1, 1, -1, 1, 1, -1, -1, -1, 1, -1, 1, -1, -1, 1)
+schT    = array.from(s1Tgt, s2Tgt, s3Tgt, s4Tgt, s5Tgt, s6Tgt, s7Tgt, s8Tgt, s9Tgt, s7Tgt, s11Tgt, s12Tgt, s13Tgt, s14Tgt, s15Tgt, s16Tgt)
+schS    = array.from(s1Stp, s2Stp, s3Stp, s4Stp, s5Stp, s6Stp, s7Stp, s8Stp, s9Stp, s7Stp, s11Stp, s12Stp, s13Stp, s14Stp, s15Stp, s16Stp)
+schCd   = array.from(s1Cd, s2Cd, s3Cd, s4Cd, s5Cd, s6Cd, s7Cd, s8Cd, s9Cd, s7Cd, s11Cd, s12Cd, s13Cd, s14Cd, s15Cd, s16Cd)
+schName = array.from("REVERSION", "RIBBON", "CMO", "QUAD", "RMI", "TSI", "KELT", "KC BAND", "QUAD", "KELT", "BRK240 HI", "BRK240 LO", "BRK60 HI", "BRK60 LO", "5DOWN", "EXPANSION")
 
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // each school carries its own position; the counters are shared, so the table
 // reports one undivided total and never splits by school
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-var array<int>   schPos   = array.new_int(10, 0)
-var array<float> schEntry = array.new_float(10, na)
-var array<float> schTP    = array.new_float(10, na)
-var array<float> schSL    = array.new_float(10, na)
-var array<float> schTPts  = array.new_float(10, 0.0)
-var array<float> schSPts  = array.new_float(10, 0.0)
-var array<int>   schBar   = array.new_int(10, 0)
-var array<int>   schLast  = array.new_int(10, -100000)
+var array<int>   schPos   = array.new_int(16, 0)
+var array<float> schEntry = array.new_float(16, na)
+var array<float> schTP    = array.new_float(16, na)
+var array<float> schSL    = array.new_float(16, na)
+var array<float> schTPts  = array.new_float(16, 0.0)
+var array<float> schSPts  = array.new_float(16, 0.0)
+var array<int>   schBar   = array.new_int(16, 0)
+var array<int>   schLast  = array.new_int(16, -100000)
 // one entry/target/stop line per book, deleted the moment that book closes.
 // Drawing a permanent set per trade buries the chart within a day: ten books at
 // a hundred and sixty trades a day is five hundred lines, and none of them
 // describe anything that is still running.
-var array<line> schLnE = array.new_line(10, na)
-var array<line> schLnT = array.new_line(10, na)
-var array<line> schLnS = array.new_line(10, na)
+var array<line> schLnE = array.new_line(16, na)
+var array<line> schLnT = array.new_line(16, na)
+var array<line> schLnS = array.new_line(16, na)
 var int schOpen = 0
 var int schRun = 0
 var int schBlock = -1
@@ -383,7 +536,7 @@ float slShown = na
 
 // exits first, so a slot freed on this bar can only be refilled on the next one
 if barstate.isconfirmed
-    for i = 0 to 9
+    for i = 0 to 15
         if array.get(schPos, i) != 0 and bar_index > array.get(schBar, i)
             int sd = array.get(schPos, i)
             float tp = array.get(schTP, i)
@@ -448,7 +601,7 @@ if barstate.isconfirmed
 
 // entries
 if barstate.isconfirmed and schOK and bar_index >= schBlock
-    for i = 0 to 9
+    for i = 0 to 15
         if array.get(schEnab, i) and array.get(schPos, i) == 0 and array.get(schFire, i) and bar_index - array.get(schLast, i) >= array.get(schCd, i)
             int sd = array.get(schSide, i)
             bool sideOK = sd == 1 ? allowLong : allowShort
@@ -521,7 +674,7 @@ avgLoss = losses > 0 ? sumLossPts / losses : 0.0
 var table t = table.new(position.top_right, 2, 12, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
 if barstate.islast and showTable
     table.clear(t, 0, 0, 1, 11)
-    table.cell(t, 0, 0, "SCHOOLS 10", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 0, 0, "SCHOOLS 16", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 1, 0, str.tostring(schOpen) + " مفتوحة", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
     table.cell(t, 0, 1, "Win", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
     table.cell(t, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
