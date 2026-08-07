@@ -1,0 +1,530 @@
+// This Pine Script code is subject to the terms of the Mozilla Public License 2.0
+//@version=6
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SCHOOLS 10 — XAUUSD M1
+//
+// Ten entry rules and nothing else. No router, no arbiter, no vote, no source
+// priority. Each school has its own settings, its own target and stop, its own
+// cooldown, and its own switch for whether it waits for the position to be free.
+//
+// It exists because of one measurement. The old engine handed every school a
+// 35.6-point target against a 53.8-point stop, and that plan breaks even at
+// 60.2%. Wired through it, Keltner made -183 points at a 60.1% win rate. The same
+// signal on the same bars, given a target at twice its stop, made +10,733 at
+// 41.8%. Nothing about the rule changed — only the plan it was handed.
+//
+// So every plan here is a multiple of the average bar range rather than a number
+// of points, and every target is larger than its stop. There is no distance in
+// points anywhere in this file. That matters: the average one-minute bar is 21.4
+// points in 2026, 3.9 in 2021 and 3.6 in 2023, so a plan written in raw points is
+// a plan written for one year only.
+//
+// The win rates near 35% are the price of a 2:1 target and are not a fault — such
+// a plan cannot win more often than it loses. It does mean long losing runs.
+// Measured on 2026, all ten sharing one position: worst run 20, drawdown 5,062.
+// Flattening to a 1:1 target raises the win rate to 51% and makes the drawdown
+// WORSE, 5,330, while halving the profit. A comfortable win rate is bought with
+// money, not with safety.
+//
+// Standalone on 2026, one position each, sorted by edge — points per trade above
+// entering at random on the same side with the same plan, so a falling year
+// cannot flatter a sell rule:
+//
+//   school                    side   plan    /day    WR      net    edge
+//   ① measured reversion      BUY    6x/3x    4.5   36.0   +5,283   9.33
+//   ② EMA ribbon pullback     SELL   6x/3x    8.5   35.6   +8,401   5.08
+//   ③ CMO snap                BUY    4x/2x   11.7   35.2   +7,259   4.83
+//   ④ QUAD RSI3+RSI14         BUY    4x/2x   19.5   35.0  +11,938   4.79
+//   ⑤ RMI overbought fade     SELL   6x/3x   12.2   36.3  +10,043   3.85
+//   ⑥ TSI fade                BUY    4x/2x   18.3   34.9   +8,797   3.84
+//   ⑦ Keltner touch           BUY    4x/2x   18.1   35.1   +8,483   3.76
+//   ⑧ Keltner band pierce     SELL   6x/3x   18.7   35.7  +14,118   3.38
+//   ⑨ QUAD RSI3+RSI14         SELL   4x/2x   15.2   36.0   +9,848   3.20
+//   ⑩ Keltner touch           SELL   4x/2x   13.9   35.5   +8,930   3.17
+//
+// ① is not a standard band. Bollinger takes its width from the deviation of
+// closes and Keltner from a multiple of bar range; neither asks how far price
+// actually gets before it turns. This records every swing high as its distance
+// above the centre in bar-ranges and sets the upper line at a percentile of the
+// last sixty of them, and does the same below from the swing lows. A swing is
+// only counted once its right shoulder has printed, so nothing uses information
+// the chart did not have at the time. Keeping the two sides apart makes the band
+// asymmetric whenever rallies and dips are punished differently — which no
+// symmetric band can be. It has the highest edge of the ten by a wide margin.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+indicator("SCHOOLS 10 — XAUUSD M1", "SCHOOLS10", overlay=true, max_labels_count=500, max_lines_count=500, max_bars_back=1000)
+
+color BUY_C  = color.rgb(0, 170, 90)
+color SELL_C = color.rgb(230, 45, 55)
+color TP_C   = color.rgb(0, 120, 255)
+color SL_C   = color.rgb(230, 45, 55)
+color EN_C   = color.rgb(255, 210, 0)
+color TXT_C  = color.white
+color TBL_BG      = color.rgb(16, 18, 26)
+color TBL_BG_HEAD = color.rgb(22, 24, 34)
+color TBL_BG_ROW  = color.rgb(18, 20, 30)
+color TBL_BG_ROW2 = color.rgb(20, 22, 32)
+
+// ── 01 ■ General ──
+G_MAIN = "01 ■ عام"
+pointUnitInput = input.float(0.10, "1 Point = Price Move", minval=0.00001, step=0.01, group=G_MAIN)
+pointUnit = pointUnitInput <= 0 ? 0.10 : pointUnitInput
+allowLong = input.bool(true, "اسمح بالشراء", group=G_MAIN)
+allowShort = input.bool(true, "اسمح بالبيع", group=G_MAIN)
+maxHold = input.int(600, "أقصى شموع للصفقة قبل الإغلاق", minval=10, maxval=5000, group=G_MAIN)
+
+// ── 02 ■ Market Scale ──
+// The unit every distance in this file is quoted in: how far a bar actually
+// travels lately. Not ATR — no true range and no Wilder smoothing.
+G_SCALE = "02 ■ مقياس السوق"
+schLen = input.int(500, "شموع قياس مدى الشمعة", minval=50, maxval=5000, group=G_SCALE)
+schRng = ta.sma(high - low, schLen) / pointUnit
+schOK = schRng > 0
+
+// ── 03 ■ Common pause ──
+G_PAUSE = "03 ■ وقفة بعد الخسائر"
+schPauseAfter = input.int(0, "وقف الكل بعد كم خسارة متتالية (0 = بدون)", minval=0, maxval=20, group=G_PAUSE, tooltip="4 خسائر ثم وقفة 60 شمعة نزّلت أكبر تراجع من 4,480 إلى 3,017 وأطول سلسلة من 20 إلى 16.")
+schPauseBars = input.int(60, "طول الوقفة (شموع)", minval=0, maxval=600, group=G_PAUSE)
+
+// ── 04 ■ Alerts / Webhook / Bot ──
+G_ALERT = "04 ■ Alerts / Webhook / Bot"
+sy963UseAlertFunction = input.bool(true, "Send BOT Message alert()", group=G_ALERT)
+sy963WebhookKey = input.string("SECRET_135", "BOT Secret Key", group=G_ALERT)
+sy963BotSymbol = input.string("XAUUSD", "BOT Symbol - Message Only", group=G_ALERT)
+sy963LotSize = input.float(0.02, "BOT Lot Size - Message Only", minval=0.01, step=0.01, group=G_ALERT)
+sy963AlertFormat = input.string("JSON", "alert() Message Format", options=["JSON", "Simple"], group=G_ALERT)
+
+// ── 05 ■ Visuals ──
+G_VIS = "05 ■ الإحصائيات والرسم"
+showSignals = input.bool(true, "اعرض BUY / SELL", group=G_VIS)
+showTradeLines = input.bool(true, "اعرض خطوط الدخول والهدف والستوب", group=G_VIS)
+showTable = input.bool(true, "اعرض الجدول", group=G_VIS)
+lineBars = input.int(70, "طول الخطوط (شموع)", minval=5, maxval=500, group=G_VIS)
+statsMode = input.string("All Loaded History", "بداية العد", options=["All Loaded History", "From Custom Time"], group=G_VIS)
+statsStart = input.time(0, "من وقت", group=G_VIS)
+statsCounted = statsMode == "All Loaded History" or time >= statsStart
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 10 ■ THE SCHOOLS
+// Each block below is one school and holds everything about it: whether it runs,
+// whether it waits for a free position, its target and stop as multiples of the
+// bar range, its own cooldown, and its own parameters.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ① measured reversion band — BUY
+G_S1 = "① قناة الارتداد المقيس — شراء"
+s1On = input.bool(true, "شغّل", group=G_S1)
+s1Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S1)
+s1Tgt = input.float(6.0, "الهدف = كم مرة مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S1)
+s1Stp = input.float(3.0, "الستوب = كم مرة مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S1)
+s1Cd = input.int(0, "كولداون بعد صفقتها (شموع)", minval=0, maxval=500, group=G_S1)
+s1Centre = input.int(200, "طول خط المنتصف", minval=20, maxval=1000, group=G_S1)
+s1Swing = input.int(8, "نصف عرض القمة/القاع (شموع)", minval=2, maxval=50, group=G_S1)
+s1Mem = input.int(60, "كم قمة/قاع يتذكر", minval=20, maxval=300, group=G_S1)
+s1Pct = input.int(85, "النسبة المئوية للخط", minval=50, maxval=99, group=G_S1)
+s1Show = input.bool(true, "ارسم الخطين", group=G_S1)
+
+// ② EMA ribbon pullback — SELL
+G_S2 = "② شريط EMA — بيع"
+s2On = input.bool(true, "شغّل", group=G_S2)
+s2Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S2)
+s2Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S2)
+s2Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S2)
+s2Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S2)
+s2Fast = input.int(20, "EMA سريع", minval=3, maxval=100, group=G_S2)
+s2MidL = input.int(50, "EMA وسط — خط الارتداد", minval=10, maxval=200, group=G_S2)
+s2Slow = input.int(100, "EMA بطيء", minval=20, maxval=400, group=G_S2)
+s2Show = input.bool(false, "ارسم الشريط", group=G_S2)
+
+// ③ CMO snap — BUY
+G_S3 = "③ CMO — شراء"
+s3On = input.bool(true, "شغّل", group=G_S3)
+s3Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S3)
+s3Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S3)
+s3Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S3)
+s3Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S3)
+s3Len = input.int(9, "طول CMO", minval=3, maxval=50, group=G_S3)
+s3Lvl = input.float(60.0, "مستوى CMO المتطرف", minval=20, maxval=95, step=1, group=G_S3)
+s3Rsi = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S3)
+s3Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S3)
+
+// ④ QUAD — BUY
+G_S4 = "④ QUAD — شراء"
+s4On = input.bool(true, "شغّل", group=G_S4)
+s4Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S4)
+s4Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S4)
+s4Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S4)
+s4Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S4)
+s4R3 = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S4)
+s4R14 = input.float(40.0, "RSI14 تحت", minval=15, maxval=50, step=1, group=G_S4)
+s4Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S4)
+
+// ⑤ RMI overbought fade — SELL
+G_S5 = "⑤ رمي — بيع"
+s5On = input.bool(true, "شغّل", group=G_S5)
+s5Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S5)
+s5Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S5)
+s5Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S5)
+s5Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S5)
+s5Len = input.int(18, "طول رمي", minval=2, maxval=100, group=G_S5)
+s5Mom = input.int(6, "زخم رمي", minval=1, maxval=50, group=G_S5)
+s5Zone = input.float(78.0, "منطقة التشبع", minval=50, maxval=99, step=1, group=G_S5)
+s5Wait = input.int(12, "أقصى انتظار بعد المنطقة (شموع)", minval=1, maxval=60, group=G_S5)
+s5React = input.int(2, "شموع رفض متتالية", minval=1, maxval=10, group=G_S5)
+s5Ext = input.int(40, "لازم يكسر قمة كم شمعة (0 = بدون)", minval=0, maxval=500, group=G_S5)
+
+// ⑥ TSI fade — BUY
+G_S6 = "⑥ TSI — شراء"
+s6On = input.bool(true, "شغّل", group=G_S6)
+s6Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S6)
+s6Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S6)
+s6Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S6)
+s6Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S6)
+s6Long = input.int(13, "TSI طويل", minval=3, maxval=60, group=G_S6)
+s6Short = input.int(7, "TSI قصير", minval=2, maxval=40, group=G_S6)
+s6Lvl = input.float(15.0, "مستوى TSI المتطرف", minval=3, maxval=60, step=1, group=G_S6)
+s6Rsi = input.float(18.0, "RSI3 تحت", minval=5, maxval=45, step=1, group=G_S6)
+s6Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S6)
+
+// ⑦ and ⑩ Keltner touch — the two sides share one set of parameters
+G_S7 = "⑦⑩ لمسة Keltner — شراء وبيع"
+s7On = input.bool(true, "⑦ شغّل الشراء", group=G_S7)
+s10On = input.bool(true, "⑩ شغّل البيع", group=G_S7)
+s7Resp = input.bool(false, "⑦ يحترم الصفقة المفتوحة", group=G_S7)
+s10Resp = input.bool(false, "⑩ يحترم الصفقة المفتوحة", group=G_S7)
+s7Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S7)
+s7Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S7)
+s7Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S7)
+s7EmaL = input.int(20, "طول EMA المركز", minval=3, maxval=200, group=G_S7)
+s7Mult = input.float(2.0, "مضاعف Keltner", minval=0.5, maxval=6, step=0.1, group=G_S7)
+s7AtrL = input.int(14, "طول ATR", minval=2, maxval=100, group=G_S7)
+s7Rsi = input.float(18.0, "RSI3 تحت للشراء (والمكمّل للبيع)", minval=5, maxval=45, step=1, group=G_S7)
+s7Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S7)
+s7Show = input.bool(false, "ارسم الحدين", group=G_S7)
+
+// ⑧ Keltner band pierce — SELL
+G_S8 = "⑧ قناة Keltner — بيع"
+s8On = input.bool(true, "شغّل", group=G_S8)
+s8Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S8)
+s8Tgt = input.float(6.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S8)
+s8Stp = input.float(3.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S8)
+s8Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S8)
+s8Len = input.int(20, "طول القناة", minval=3, maxval=200, group=G_S8)
+s8Mult = input.float(2.0, "مضاعف القناة", minval=0.5, maxval=6, step=0.1, group=G_S8)
+s8Show = input.bool(false, "ارسم القناة", group=G_S8)
+
+// ⑨ QUAD — SELL
+G_S9 = "⑨ QUAD — بيع"
+s9On = input.bool(true, "شغّل", group=G_S9)
+s9Resp = input.bool(false, "يحترم الصفقة المفتوحة", group=G_S9)
+s9Tgt = input.float(4.0, "الهدف ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S9)
+s9Stp = input.float(2.0, "الستوب ×مدى الشمعة", minval=0.5, maxval=20, step=0.1, group=G_S9)
+s9Cd = input.int(0, "كولداون (شموع)", minval=0, maxval=500, group=G_S9)
+s9R3 = input.float(82.0, "RSI3 فوق", minval=55, maxval=95, step=1, group=G_S9)
+s9R14 = input.float(60.0, "RSI14 فوق", minval=50, maxval=85, step=1, group=G_S9)
+s9Big = input.float(1.5, "الشمعة أكبر من ×ATR", minval=0.5, maxval=4, step=0.1, group=G_S9)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// the series the schools read
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+schAtr = ta.atr(s7AtrL)
+schEma = ta.ema(close, s7EmaL)
+schR3 = ta.rsi(close, 3)
+schR14 = ta.rsi(close, 14)
+schBody = high - low
+
+s2F = ta.ema(close, s2Fast)
+s2M = ta.ema(close, s2MidL)
+s2S = ta.ema(close, s2Slow)
+
+s3Up = math.max(close - close[1], 0)
+s3Dn = math.max(close[1] - close, 0)
+s3Sum = ta.sma(s3Up, s3Len) * s3Len + ta.sma(s3Dn, s3Len) * s3Len
+s3Cmo = 100 * (ta.sma(s3Up, s3Len) * s3Len - ta.sma(s3Dn, s3Len) * s3Len) / (s3Sum + 0.00001)
+
+s6Pc = (close - close[1]) / (close[1] + 0.00001)
+s6Tsi = 100 * ta.ema(ta.ema(s6Pc, s6Long), s6Short) / (ta.ema(ta.ema(math.abs(s6Pc), s6Long), s6Short) + 0.00001)
+
+s8Mid = ta.ema(close, s8Len)
+s8Avg = ta.sma(high - low, s8Len)
+s8Upper = s8Mid + s8Mult * s8Avg
+
+s7Upper = schEma + s7Mult * schAtr
+s7Lower = schEma - s7Mult * schAtr
+
+// RMI: armed when the zone is entered, fired on the rejection candles
+s5U = ta.ema(math.max(close - close[s5Mom], 0.0), s5Len)
+s5D = ta.ema(math.max(close[s5Mom] - close, 0.0), s5Len)
+s5Rmi = s5D == 0.0 ? (s5U == 0.0 ? 50.0 : 100.0) : 100.0 - 100.0 / (1.0 + s5U / s5D)
+s5PrevHi = ta.highest(high[1], math.max(s5Ext, 1))
+var bool s5Armed = false
+var int s5ArmBar = 0
+var int s5Cnt = 0
+var bool s5Seen = false
+bool s5Fire = false
+if barstate.isconfirmed
+    if s5Rmi >= s5Zone and s5Rmi[1] < s5Zone
+        s5Armed := true
+        s5ArmBar := bar_index
+        s5Cnt := 0
+        s5Seen := false
+    if s5Armed
+        if bar_index - s5ArmBar > s5Wait
+            s5Armed := false
+        else
+            if s5Ext > 0 and high >= s5PrevHi
+                s5Seen := true
+            s5Cnt := close < open ? s5Cnt + 1 : 0
+            if s5Cnt >= s5React and (s5Ext == 0 or s5Seen)
+                s5Fire := true
+                s5Armed := false
+
+// ① the measured reversion band
+s1Mid = ta.sma(close, s1Centre)
+var array<float> s1HiD = array.new_float(0)
+var array<float> s1LoD = array.new_float(0)
+var float s1UpMult = na
+var float s1DnMult = na
+if barstate.isconfirmed and bar_index > s1Centre + 2 * s1Swing and schRng[s1Swing] > 0
+    bool isHi = true
+    bool isLo = true
+    for k = 1 to s1Swing
+        if high[s1Swing + k] > high[s1Swing] or high[s1Swing - k] > high[s1Swing]
+            isHi := false
+        if low[s1Swing + k] < low[s1Swing] or low[s1Swing - k] < low[s1Swing]
+            isLo := false
+    if isHi
+        float dh = (high[s1Swing] - s1Mid[s1Swing]) / pointUnit / schRng[s1Swing]
+        if dh > 0
+            array.push(s1HiD, dh)
+            if array.size(s1HiD) > s1Mem
+                array.shift(s1HiD)
+    if isLo
+        float dl = (s1Mid[s1Swing] - low[s1Swing]) / pointUnit / schRng[s1Swing]
+        if dl > 0
+            array.push(s1LoD, dl)
+            if array.size(s1LoD) > s1Mem
+                array.shift(s1LoD)
+    if array.size(s1HiD) >= 20
+        s1UpMult := array.percentile_nearest_rank(s1HiD, s1Pct)
+    if array.size(s1LoD) >= 20
+        s1DnMult := array.percentile_nearest_rank(s1LoD, s1Pct)
+float s1UpLine = na(s1UpMult) or not schOK ? na : s1Mid + s1UpMult * schRng * pointUnit
+float s1DnLine = na(s1DnMult) or not schOK ? na : s1Mid - s1DnMult * schRng * pointUnit
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// the ten conditions
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+c1 = not na(s1DnLine) and low < s1DnLine and close > s1DnLine
+c2 = s2F < s2M and s2M < s2S and high >= s2M and close < s2M and close < open
+c3 = s3Cmo < -s3Lvl and schR3 < s3Rsi and schBody > s3Big * schAtr
+c4 = schR3 < s4R3 and schR14 < s4R14 and schBody > s4Big * schAtr
+c5 = s5Fire
+c6 = s6Tsi < -s6Lvl and schR3 < s6Rsi and schBody > s6Big * schAtr
+c7 = low < s7Lower and schR3 < s7Rsi and schBody > s7Big * schAtr
+c8 = high > s8Upper and close < s8Upper
+c9 = schR3 > s9R3 and schR14 > s9R14 and schBody > s9Big * schAtr
+c10 = high > s7Upper and schR3 > 100 - s7Rsi and schBody > s7Big * schAtr
+
+schFire = array.from(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10)
+schEnab = array.from(s1On, s2On, s3On, s4On, s5On, s6On, s7On, s8On, s9On, s10On)
+schRes  = array.from(s1Resp, s2Resp, s3Resp, s4Resp, s5Resp, s6Resp, s7Resp, s8Resp, s9Resp, s10Resp)
+schSide = array.from(1, -1, 1, 1, -1, 1, 1, -1, -1, -1)
+schT    = array.from(s1Tgt, s2Tgt, s3Tgt, s4Tgt, s5Tgt, s6Tgt, s7Tgt, s8Tgt, s9Tgt, s7Tgt)
+schS    = array.from(s1Stp, s2Stp, s3Stp, s4Stp, s5Stp, s6Stp, s7Stp, s8Stp, s9Stp, s7Stp)
+schCd   = array.from(s1Cd, s2Cd, s3Cd, s4Cd, s5Cd, s6Cd, s7Cd, s8Cd, s9Cd, s7Cd)
+schName = array.from("REVERSION", "RIBBON", "CMO", "QUAD", "RMI", "TSI", "KELT", "KC BAND", "QUAD", "KELT")
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// each school carries its own position; the counters are shared, so the table
+// reports one undivided total and never splits by school
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var array<int>   schPos   = array.new_int(10, 0)
+var array<float> schEntry = array.new_float(10, na)
+var array<float> schTP    = array.new_float(10, na)
+var array<float> schSL    = array.new_float(10, na)
+var array<float> schTPts  = array.new_float(10, 0.0)
+var array<float> schSPts  = array.new_float(10, 0.0)
+var array<int>   schBar   = array.new_int(10, 0)
+var array<int>   schLast  = array.new_int(10, -100000)
+var int schOpen = 0
+var int schRun = 0
+var int schBlock = -1
+
+var int trades = 0
+var int wins = 0
+var int losses = 0
+var float netPts = 0.0
+var float sumWinPts = 0.0
+var float sumLossPts = 0.0
+var float lastClosedPts = na
+var int curWin = 0
+var int curLoss = 0
+var int maxWin = 0
+var int maxLoss = 0
+var int longTrades = 0
+var int shortTrades = 0
+var float peakEq = 0.0
+var float maxDD = 0.0
+
+bool enteredBuy = false
+bool enteredSell = false
+float entryShown = na
+float tpShown = na
+float slShown = na
+
+// exits first, so a slot freed on this bar can only be refilled on the next one
+if barstate.isconfirmed
+    for i = 0 to 9
+        if array.get(schPos, i) != 0 and bar_index > array.get(schBar, i)
+            int sd = array.get(schPos, i)
+            float tp = array.get(schTP, i)
+            float sl = array.get(schSL, i)
+            bool hitT = sd == 1 ? high >= tp : low <= tp
+            bool hitS = sd == 1 ? low <= sl : high >= sl
+            bool timeOut = bar_index - array.get(schBar, i) >= maxHold
+            float res = na
+            float px = na
+            // the stop takes a same-bar tie
+            if hitS
+                res := -array.get(schSPts, i)
+                px := sl
+            else if hitT
+                res := array.get(schTPts, i)
+                px := tp
+            else if timeOut
+                res := (sd == 1 ? close - array.get(schEntry, i) : array.get(schEntry, i) - close) / pointUnit
+                px := close
+            if not na(res)
+                array.set(schPos, i, 0)
+                array.set(schLast, i, bar_index)
+                schOpen := schOpen - 1
+                if statsCounted
+                    trades += 1
+                    netPts += res
+                    lastClosedPts := res
+                    if netPts > peakEq
+                        peakEq := netPts
+                    if peakEq - netPts > maxDD
+                        maxDD := peakEq - netPts
+                    if res > 0
+                        wins += 1
+                        sumWinPts += res
+                        curWin += 1
+                        curLoss := 0
+                        maxWin := math.max(maxWin, curWin)
+                        schRun := 0
+                    else
+                        losses += 1
+                        sumLossPts += math.abs(res)
+                        curLoss += 1
+                        curWin := 0
+                        maxLoss := math.max(maxLoss, curLoss)
+                        schRun += 1
+                        if schPauseAfter > 0 and schRun >= schPauseAfter
+                            schBlock := bar_index + schPauseBars
+                            schRun := 0
+                if showSignals and statsCounted
+                    label.new(bar_index, px, (res > 0 ? "TP " : "SL ") + str.tostring(math.abs(res), "#"), style=res > 0 ? label.style_label_down : label.style_label_up, color=res > 0 ? TP_C : SL_C, textcolor=TXT_C, size=size.tiny)
+                if sy963UseAlertFunction and barstate.isrealtime
+                    string cj = '{"key":"' + sy963WebhookKey + '","action":"CLOSE","side":"' + (sd == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"close_price":' + str.tostring(px, format.mintick) + ',"points":' + str.tostring(res, "#.##") + ',"school":"' + array.get(schName, i) + '","indicator":"SCHOOLS10","time":"' + str.tostring(time) + '"}'
+                    string cp = sy963WebhookKey + " CLOSE " + sy963BotSymbol + " " + (sd == 1 ? "BUY" : "SELL") + " " + str.tostring(res, "#.##") + " " + array.get(schName, i)
+                    alert(sy963AlertFormat == "JSON" ? cj : cp, alert.freq_once_per_bar_close)
+
+// entries
+if barstate.isconfirmed and schOK and bar_index >= schBlock
+    for i = 0 to 9
+        if array.get(schEnab, i) and array.get(schPos, i) == 0 and array.get(schFire, i) and bar_index - array.get(schLast, i) >= array.get(schCd, i)
+            int sd = array.get(schSide, i)
+            bool sideOK = sd == 1 ? allowLong : allowShort
+            // "respects the open trade" means it waits until nothing is running —
+            // not another school's position either
+            bool blocked = array.get(schRes, i) and schOpen > 0
+            if sideOK and not blocked
+                float tpts = math.max(10.0, schRng * array.get(schT, i))
+                float spts = math.max(10.0, schRng * array.get(schS, i))
+                float tpx = sd == 1 ? close + tpts * pointUnit : close - tpts * pointUnit
+                float spx = sd == 1 ? close - spts * pointUnit : close + spts * pointUnit
+                array.set(schPos, i, sd)
+                array.set(schEntry, i, close)
+                array.set(schTPts, i, tpts)
+                array.set(schSPts, i, spts)
+                array.set(schTP, i, tpx)
+                array.set(schSL, i, spx)
+                array.set(schBar, i, bar_index)
+                schOpen := schOpen + 1
+                if statsCounted
+                    if sd == 1
+                        longTrades += 1
+                    else
+                        shortTrades += 1
+                if sd == 1
+                    enteredBuy := true
+                else
+                    enteredSell := true
+                entryShown := close
+                tpShown := tpx
+                slShown := spx
+                if showTradeLines and statsCounted
+                    line.new(bar_index, close, bar_index + lineBars, close, color=EN_C, width=1)
+                    line.new(bar_index, tpx, bar_index + lineBars, tpx, color=TP_C, width=1)
+                    line.new(bar_index, spx, bar_index + lineBars, spx, color=SL_C, width=1)
+                if sy963UseAlertFunction and barstate.isrealtime
+                    string j = '{"key":"' + sy963WebhookKey + '","action":"' + (sd == 1 ? "BUY" : "SELL") + '","symbol":"' + sy963BotSymbol + '","lot":' + str.tostring(sy963LotSize) + ',"price":' + str.tostring(close, format.mintick) + ',"target_points":' + str.tostring(tpts, "#.#") + ',"stop_points":' + str.tostring(spts, "#.#") + ',"school":"' + array.get(schName, i) + '","indicator":"SCHOOLS10","time":"' + str.tostring(time) + '"}'
+                    string p = sy963WebhookKey + " " + (sd == 1 ? "BUY" : "SELL") + " " + sy963BotSymbol + " " + str.tostring(sy963LotSize) + " TP " + str.tostring(tpts, "#") + " SL " + str.tostring(spts, "#") + " " + array.get(schName, i)
+                    alert(sy963AlertFormat == "JSON" ? j : p, alert.freq_once_per_bar_close)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// signals and lines, in the same shape the old indicator drew them
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(showSignals and statsCounted and enteredBuy, title="BUY", style=shape.labelup, location=location.belowbar, color=BUY_C, text="BUY", textcolor=TXT_C, size=size.small)
+plotshape(showSignals and statsCounted and enteredSell, title="SELL", style=shape.labeldown, location=location.abovebar, color=SELL_C, text="SELL", textcolor=TXT_C, size=size.small)
+
+plot(s1Show and s1On ? s1DnLine : na, title="REVERSION LOW", color=color.new(color.aqua, 35), linewidth=1)
+plot(s1Show and s1On ? s1UpLine : na, title="REVERSION HIGH", color=color.new(color.fuchsia, 35), linewidth=1)
+plot(s7Show and (s7On or s10On) ? s7Upper : na, title="KELTNER UPPER", color=color.new(color.orange, 55), linewidth=1)
+plot(s7Show and (s7On or s10On) ? s7Lower : na, title="KELTNER LOWER", color=color.new(color.orange, 55), linewidth=1)
+plot(s8Show and s8On ? s8Upper : na, title="KC BAND UPPER", color=color.new(color.yellow, 55), linewidth=1)
+plot(s2Show and s2On ? s2M : na, title="RIBBON MID", color=color.new(color.silver, 45), linewidth=1)
+
+// values the harness reads back when this file is measured bar by bar
+plot(trades, "trades", display=display.none)
+plot(wins, "wins", display=display.none)
+plot(losses, "losses", display=display.none)
+plot(netPts, "netPts", display=display.none)
+plot(maxDD, "maxDD", display=display.none)
+plot(schOpen, "openBooks", display=display.none)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// the table — one undivided total, never split by school
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+wrPct = trades > 0 ? 100.0 * wins / trades : 0.0
+avgWin = wins > 0 ? sumWinPts / wins : 0.0
+avgLoss = losses > 0 ? sumLossPts / losses : 0.0
+var table t = table.new(position.top_right, 2, 12, bgcolor=TBL_BG, border_width=0, frame_color=color.new(color.black, 100), frame_width=0)
+if barstate.islast and showTable
+    table.clear(t, 0, 0, 1, 11)
+    table.cell(t, 0, 0, "SCHOOLS 10", text_color=color.white, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 1, 0, str.tostring(schOpen) + " مفتوحة", text_color=EN_C, bgcolor=TBL_BG_HEAD, text_size=size.small)
+    table.cell(t, 0, 1, "Win", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 0, 2, "Loss", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 0, 3, "WR", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 3, str.tostring(wrPct, "#.##") + " %", text_color=wrPct >= 50 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 0, 4, "Net", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#.##"), text_color=netPts >= 0 ? BUY_C : SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 0, 5, "Max W", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 5, str.tostring(maxWin), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 0, 6, "Max L", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 6, str.tostring(maxLoss), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 0, 7, "Avg TP", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 7, str.tostring(avgWin, "#.##"), text_color=BUY_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 0, 8, "Avg SL", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 8, str.tostring(avgLoss, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 0, 9, "Max DD", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 9, str.tostring(maxDD, "#.##"), text_color=SELL_C, bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 0, 10, "Last", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 1, 10, na(lastClosedPts) ? "—" : str.tostring(lastClosedPts, "#.##"), text_color=na(lastClosedPts) ? color.gray : (lastClosedPts >= 0 ? BUY_C : SELL_C), bgcolor=TBL_BG_ROW2, text_size=size.small)
+    table.cell(t, 0, 11, "From", text_color=color.rgb(220, 225, 235), bgcolor=TBL_BG_ROW, text_size=size.small)
+    table.cell(t, 1, 11, statsMode == "All Loaded History" ? "ALL" : str.format_time(statsStart, "yyyy-MM-dd", "UTC"), text_color=EN_C, bgcolor=TBL_BG_ROW, text_size=size.small)
