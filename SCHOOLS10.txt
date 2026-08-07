@@ -122,6 +122,16 @@ regEff = regPath <= 0 ? 0.0 : regNet / regPath
 plot(regEff, "efficiency", display=display.none)
 
 // ── 03b ■ Common pause ──
+// His observation, made testable: in a trend the fade rules do not drift to zero,
+// they lose hard and consistently — the EMA ribbon at -63.69 a trade, the
+// reversion band -31.12, the EMA cloud -26.36. A rule that reliably loses is a
+// rule that reliably wins reversed. And unlike a gate, a flip costs nothing in
+// slot time: the same signal at the same moment for the same duration, with only
+// the side changed — which is why it is worth testing after the gate failed.
+G_FLIP = "03c ■ اقلب الاتجاه بالترند"
+flipEff = input.float(1.00, "اقلب اتجاه مدارس العكس إذا الاستقامة فوق", minval=0.05, maxval=1.0, step=0.05, group=G_FLIP, tooltip="1.00 = لا يقلب أبداً. أقل من هيك: لما السوق يمشي، السيل يصير باي والباي يصير سيل.")
+flipOn = regEff >= flipEff
+
 G_PAUSE = "03 ■ وقفة بعد الخسائر"
 schPauseAfter = input.int(0, "وقف الكل بعد كم خسارة متتالية (0 = بدون)", minval=0, maxval=20, group=G_PAUSE, tooltip="4 خسائر ثم وقفة 60 شمعة نزّلت أكبر تراجع من 4,480 إلى 3,017 وأطول سلسلة من 20 إلى 16.")
 schPauseBars = input.int(60, "طول الوقفة (شموع)", minval=0, maxval=600, group=G_PAUSE)
@@ -603,7 +613,10 @@ if barstate.isconfirmed
 if barstate.isconfirmed and schOK and bar_index >= schBlock
     for i = 0 to 15
         if array.get(schEnab, i) and array.get(schPos, i) == 0 and array.get(schFire, i) and bar_index - array.get(schLast, i) >= array.get(schCd, i)
-            int sd = array.get(schSide, i)
+            int sd0 = array.get(schSide, i)
+            // the flip touches only the ten fade rules; 11 to 16 already want the
+            // market to move, so turning them around would be turning them off
+            int sd = flipOn and i <= 9 ? -sd0 : sd0
             bool sideOK = sd == 1 ? allowLong : allowShort
             // "respects the open trade" means it waits until nothing is running —
             // not another school's position either
