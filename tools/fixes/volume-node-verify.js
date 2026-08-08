@@ -727,6 +727,86 @@ function stageNoise() {
   }
 }
 
+/**
+ * The only part that does anything: short at the previous session's value area
+ * high. Tested on its own terms, with every correction applied at once.
+ */
+function stageVah() {
+  console.log('8. THE PART THAT ACTUALLY WORKS — VAH alone, fully corrected\n');
+  const cut = bars.findIndex(b => b.t >= Date.parse('2026-05-01T00:00:00Z'));
+  const lv = buildLevels(CLAIM);
+  const evAll = reading(allEvents(lv, {}), 'to-value');
+
+  for (const [nm, ev] of [['vah+val (the claim)', evAll], ['vah only', evAll.filter(e => e.src === 'vah')], ['val only', evAll.filter(e => e.src === 'val')]]) {
+    const r = contributions(ev, TP, SL, HOLD);
+    const q = summarise(r, sessionOf);
+    const bs = clusterBootstrap(r.map(x => x.x), r.map(x => sessionOf(x.e)));
+    const w = summarise(contributions(ev, TP, SL, HOLD, { base: 'window', win: 1440 }), sessionOf);
+    console.log(`  ${nm.padEnd(20)} n ${String(q.n).padStart(4)}  ${q.clusters} sessions`);
+    console.log(`      alpha ${sg(q.alpha).padStart(7)}   t naive ${sg(q.tNaive, 2).padStart(6)}   t clustered ${sg(q.tCluster, 2).padStart(6)}   boot 95% CI ${sg(bs.lo)} .. ${sg(bs.hi)}  P(<=0) ${(100 * bs.pLeq0).toFixed(1)}%`);
+    console.log(`      time-matched alpha ${sg(w.alpha).padStart(7)}  t clustered ${sg(w.tCluster, 2)}`);
+  }
+
+  console.log('\n  ── one trade per session per level (the repeat tests are not new information) ──');
+  for (const [nm, kinds] of [['vah+val', ['vah', 'val']], ['vah', ['vah']]]) {
+    const seen = new Set();
+    const first = evAll.filter(e => {
+      if (!kinds.includes(e.src)) return false;
+      const k = `${e.session}|${e.src}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    const r = contributions(first, TP, SL, HOLD);
+    const q = summarise(r, sessionOf);
+    const bs = clusterBootstrap(r.map(x => x.x), r.map(x => sessionOf(x.e)));
+    console.log(`    ${nm.padEnd(8)} first test only: n ${String(q.n).padStart(3)}  alpha ${sg(q.alpha).padStart(7)}  t naive ${sg(q.tNaive, 2)}  t cl ${sg(q.tCluster, 2)}  CI ${sg(bs.lo)} .. ${sg(bs.hi)}`);
+  }
+
+  console.log('\n  ── session-weighted rather than trade-weighted (a 41-test day is one day) ──');
+  for (const [nm, ev] of [['vah+val', evAll], ['vah only', evAll.filter(e => e.src === 'vah')], ['val only', evAll.filter(e => e.src === 'val')]]) {
+    const r = contributions(ev, TP, SL, HOLD);
+    const by = new Map();
+    for (const x of r) { if (!by.has(x.e.session)) by.set(x.e.session, []); by.get(x.e.session).push(x.x); }
+    const per = [...by.values()].map(mean);
+    console.log(`    ${nm.padEnd(8)} ${per.length} sessions  mean-of-session-means ${sg(mean(per))}  t ${sg(mean(per) / (sd(per) / Math.sqrt(per.length)), 2)}`);
+  }
+
+  console.log('\n  ── VAH: drop the best sessions ──');
+  const r = contributions(evAll.filter(e => e.src === 'vah'), TP, SL, HOLD);
+  const by = new Map();
+  for (const x of r) { if (!by.has(x.e.session)) by.set(x.e.session, []); by.get(x.e.session).push(x.x); }
+  const ss = [...by.entries()].map(([s, xs]) => ({ n: xs.length, sum: xs.reduce((a, b) => a + b, 0) })).sort((a, b) => b.sum - a.sum);
+  const tot = ss.reduce((a, b) => a + b.sum, 0), nn = r.length;
+  for (const k of [0, 1, 3, 5]) {
+    const d = ss.slice(0, k);
+    const rem = tot - d.reduce((a, b) => a + b.sum, 0), remN = nn - d.reduce((a, b) => a + b.n, 0);
+    console.log(`    drop best ${k}: alpha ${sg(rem / remN)} on ${remN} trades`);
+  }
+  console.log(`    ${ss.filter(x => x.sum > 0).length}/${ss.length} sessions net positive`);
+
+  console.log('\n  ── VAH vs its own position-matched control (level displaced, direction kept) ──');
+  const raw = buildLevels({ ...CLAIM, kinds: ['vah', 'val', 'hi', 'lo'] });
+  const byS = new Map();
+  for (const x of raw) { if (!byS.has(x.session)) byS.set(x.session, {}); byS.get(x.session)[x.kind] = x; }
+  const alphas = [];
+  for (let seed = 1; seed <= 15; seed++) {
+    let s0 = seed * 7919 + 13;
+    const rnd = () => { s0 |= 0; s0 = s0 + 0x6D2B79F5 | 0; let t = Math.imul(s0 ^ s0 >>> 15, 1 | s0); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const nl = raw.filter(x => x.kind === 'vah').map(x => {
+      const g = byS.get(x.session);
+      const span = g.hi.value - g.lo.value;
+      return { ...x, value: x.value + (0.05 + rnd() * 0.15) * span * (rnd() < 0.5 ? -1 : 1) };
+    });
+    const nev = reading(allEvents(nl, {}), 'to-value');
+    const rr = contributions(nev, TP, SL, HOLD);
+    if (rr.length < 80) continue;
+    alphas.push(mean(rr.map(z => z.x)));
+  }
+  const real = mean(contributions(evAll.filter(e => e.src === 'vah'), TP, SL, HOLD).map(x => x.x));
+  console.log(`    VAH ${sg(real)}   displaced-copy control ${sg(mean(alphas))} +/- ${(sd(alphas) / Math.sqrt(alphas.length)).toFixed(2)}  (${alphas.length} seeds, spread ${sg(Math.min(...alphas))} .. ${sg(Math.max(...alphas))})`);
+  console.log(`    edge over the control ${sg(real - mean(alphas))}, against a clustered standard error on VAH of about ${(sd(contributions(evAll.filter(e => e.src === 'vah'), TP, SL, HOLD).map(x => x.x)) / Math.sqrt(79)).toFixed(1)}`);
+}
+
 const stage = process.argv[2] || 'check';
-({ check: stageCheck, direction: stageDirection, sample: stageSample, oos: stageOOS, matched: stageMatched, noise: stageNoise }[stage]
-  || (() => console.log('stages: check direction sample oos matched noise')))();
+({ check: stageCheck, direction: stageDirection, sample: stageSample, oos: stageOOS, matched: stageMatched, noise: stageNoise, vah: stageVah }[stage]
+  || (() => console.log('stages: check direction sample oos matched noise vah')))();

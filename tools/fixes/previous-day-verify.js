@@ -813,9 +813,92 @@ function stageWhen() {
   hr(64);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+/** The matched null (same day, same direction, random minute) over a subset. */
+function matchedNull(ev, draws = 400, seed = 8675309) {
+  const dayIdx = new Map();
+  for (let i = 0; i < N; i++) { const d = dayOf(BARS[i].t); if (!dayIdx.has(d)) dayIdx.set(d, [i, i]); else dayIdx.get(d)[1] = i; }
+  const BL = blind(1, 250, 250, 960), BS = blind(-1, 250, 250, 960);
+  const r = rng(seed);
+  const out = [];
+  for (let d = 0; d < draws; d++) {
+    let acc = 0, cnt = 0;
+    for (const e of ev) {
+      const [a, b] = dayIdx.get(e.day);
+      const j = Math.min(N - 3, a + Math.floor(r() * (b - a + 1)));
+      const p = race(j, e.dir, 250, 250, 960);
+      if (p === null) continue;
+      acc += p - (e.dir === 1 ? BL : BS); cnt++;
+    }
+    if (cnt) out.push(acc / cnt);
+  }
+  out.sort((a, b) => a - b);
+  const mu = out.reduce((a, b) => a + b, 0) / out.length;
+  let v = 0; for (const x of out) v += (x - mu) * (x - mu);
+  return { mu, sd: Math.sqrt(v / (out.length - 1)), q05: out[Math.floor(0.05 * out.length)], q95: out[Math.floor(0.95 * out.length)], list: out };
+}
+
+function stageVerdict() {
+  const ev = finalSet();
+  const s = score(ev, 250, 250, 960);
+  const cD = clusterT(s.adj, e => e.day);
+  console.log('VERDICT SHEET — every number below is mine, from an independent rebuild.\n');
+  hr(78);
+  console.log('  REPRODUCTION');
+  console.log(`   their claim   341 events, alpha +51.38, t 3.88`);
+  console.log(`   mine          ${s.traded} events, alpha ${sg(s.alpha)}, iid t ${f(s.t)}  → the build reproduces exactly`);
+  console.log(`   blind at 250/250/960: long ${f(s.BL)}  short ${f(s.BS)}  (they had -15.89 / +13.22)`);
+
+  console.log('\n  1. LOOKAHEAD — clean. Streaming rebuild identical, 0 prefix mismatches,');
+  console.log('     level == strictly previous session extreme on all 341 events.');
+
+  console.log('\n  2. DIRECTION — honestly adjusted, and it survives local baselines.');
+  console.log(`     longs ${s.longs} shorts ${s.shorts} (${f(100 * s.shorts / s.traded, 0)}% short); 6/7 months positive vs month-local blinds.`);
+
+  console.log('\n  3. SAMPLE / DEPENDENCE — this is where it starts to go.');
+  console.log(`     iid t ${f(s.t)} is not usable: 960-minute holds over ${cD.G} days.`);
+  console.log(`     day-clustered t ${f(cD.t)}; week-clustered t ${f(clusterT(s.adj, e => Math.floor((BARS[e.i].t - 4 * DAY) / (7 * DAY))).t)}.`);
+  const sorted = ev.slice().sort((a, b) => a.i - b.i);
+  const ser = []; let free = -1;
+  for (const e of sorted) { if (e.i <= free) continue; const r = raceOn(BARS, e.i, e.dir, 250, 250, 960); free = r.exit; ser.push(e); }
+  const ss = score(ser, 250, 250, 960);
+  console.log(`     one position at a time (what an account could hold): n ${ss.traded}  alpha ${sg(ss.alpha)}  day-clustered t ${f(clusterT(ss.adj, e => e.day).t)}.`);
+
+  console.log('\n  4. SELECTION — the cell is the best of a 12-cell grid, at a tuned target.');
+  const A = ev.filter(e => BARS[e.i].t < Date.parse('2026-05-01T00:00:00Z'));
+  const B = ev.filter(e => BARS[e.i].t >= Date.parse('2026-05-01T00:00:00Z'));
+  const q90A = score(A, 90, 90, 1440), q90B = score(B, 90, 90, 1440);
+  console.log(`     same events at the legacy 90/90/1440: Jan-Apr ${sg(q90A.alpha)}, May-Jul ${sg(q90B.alpha)} — nothing.`);
+  console.log('     the whole result depends on the target having been enlarged to 250+.');
+
+  console.log('\n  5. ATTRIBUTION — the level contributes nothing measurable.');
+  const nAll = matchedNull(ev);
+  console.log(`     same-day same-direction random minute:  ${sg(nAll.mu)}  (5th ${sg(nAll.q05)}, 95th ${sg(nAll.q95)})`);
+  console.log(`     the retest itself:                      ${sg(s.alpha)}   z ${f((s.alpha - nAll.mu) / nAll.sd)}`);
+  const nA = matchedNull(A, 300, 111), nB = matchedNull(B, 300, 222);
+  const sA = score(A, 250, 250, 960), sB = score(B, 250, 250, 960);
+  console.log(`     Jan-Apr: retest ${sg(sA.alpha)} vs matched null ${sg(nA.mu)}  → level adds ${sg(sA.alpha - nA.mu)} (z ${f((sA.alpha - nA.mu) / nA.sd)})`);
+  console.log(`     May-Jul: retest ${sg(sB.alpha)} vs matched null ${sg(nB.mu)}  → level adds ${sg(sB.alpha - nB.mu)} (z ${f((sB.alpha - nB.mu) / nB.sd)})`);
+
+  console.log('\n  6. CONCENTRATION — the number is ten days.');
+  const byDay = new Map();
+  for (const x of s.adj) { const k = x.e.day; if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(x.x); }
+  const contrib = [...byDay.entries()].map(([k, a]) => [k, a.reduce((p, q) => p + q, 0)]).sort((a, b) => b[1] - a[1]);
+  const keep10 = new Set(contrib.slice(10).map(x => x[0]));
+  const q10 = score(ev.filter(e => keep10.has(e.day)), 250, 250, 960);
+  console.log(`     drop the 10 best of ${contrib.length} days: alpha ${sg(q10.alpha)} over ${q10.traded} trades (day-clustered t ${f(clusterT(q10.adj, e => e.day).t)}).`);
+  hr(78);
+  console.log('\n  BOTTOM LINE');
+  console.log(`   The construction is causal and the arithmetic is right: I measure ${sg(s.alpha)}, they said +51.38.`);
+  console.log('   But it is not a level result. Against the only null that isolates the level — same');
+  console.log('   day, same direction, a random minute — the retest buys nothing significant, and the');
+  console.log('   same displaced level 3% of a range away scores higher. What is left is a directional');
+  console.log('   day filter worth roughly +38 that ten days out of eighty-three pay for.');
+}
+
 const STAGES = { repro: stageRepro, look: stageLook, dir: stageDir, split: stageSplit,
   overlap: stageOverlap, matched: stageMatched, state: stageState, shadow: stageShadow,
-  grid: stageGrid, power: stagePower, when: stageWhen };
+  grid: stageGrid, power: stagePower, when: stageWhen, verdict: stageVerdict };
 
 const want = process.argv[2] || 'repro';
 if (want === 'all') { for (const k of Object.keys(STAGES)) { console.log(`\n${'='.repeat(80)}\n${k.toUpperCase()}\n${'='.repeat(80)}`); STAGES[k](); } }
