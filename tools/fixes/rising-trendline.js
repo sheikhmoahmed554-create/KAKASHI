@@ -264,8 +264,18 @@ function risingTrendline(hbars, atr, o = {}) {
             if (pick === 'recent') break;
           }
           if (best) {
+            // Parameterise the ray by the SECOND anchor. Algebraically
+            // identical to using the first — the ray passes through both — but
+            // it isolates the slope, which is what the placebo control swaps.
+            let slope = best.slope;
+            if (o.slopePool) {
+              const a0 = atr[p.bar] || 1;
+              slope = o.slopePool[Math.floor(o.slopeRng() * o.slopePool.length)] * a0;
+            } else if (o.collectSlopes) {
+              o.collectSlopes.push(best.slope / (atr[p.bar] || 1));
+            }
             active = {
-              x0: best.q.bar, y0: best.q.price, slope: best.slope,
+              x0: p.bar, y0: p.price, slope,
               born: i, id: nextId++, touches: 0,
               lastTouch: -1, published: confirmTouches === 0,
             };
@@ -688,12 +698,52 @@ function stageRobust() {
       `${(100 * pos / a.length).toFixed(0)}% positive`);
   }
   const all = [];
-  for (const rows of byTf.values()) for (const r of rows) all.push(r);
+  for (const [m, rows] of byTf.entries()) for (const r of rows) all.push({ ...r, m });
   all.sort((x, y) => y.s.alpha - x.s.alpha);
   console.log('\n  best few:');
   for (const r of all.slice(0, 6)) {
-    console.log(`    ${f(r.s.alpha)}  n=${r.s.traded}  ${JSON.stringify(r.o)}`);
+    console.log(`    ${TF_NAME[r.m].padEnd(4)} ${f(r.s.alpha)}  n=${r.s.traded}  ${JSON.stringify(r.o)}`);
   }
+  console.log('\n  worst few:');
+  for (const r of all.slice(-4)) {
+    console.log(`    ${TF_NAME[r.m].padEnd(4)} ${f(r.s.alpha)}  n=${r.s.traded}  ${JSON.stringify(r.o)}`);
+  }
+}
+
+/*
+ * Placebo. The claim is that the ray through two confirmed higher lows is a
+ * line the market treats as support, so that closing through it means
+ * something. The alternative explanation is much duller: any rising ray
+ * anchored at a recent swing low will be "broken" whenever price falls
+ * quickly, and shorting fast falls is the whole result.
+ *
+ * The control separates them. Same pivots, same pairing, same births and
+ * deaths, same anchor point — only the SLOPE is replaced by a draw from the
+ * pool of slopes the real construction produced. If the two anchors carry
+ * information the real line beats this; if they do not, the placebo matches it.
+ */
+function stagePlacebo() {
+  const { m, opts, reading, tp, sl, hold } = BEST;
+  const { bars: hb, atr: ha } = tf(m);
+  const pool = [];
+  risingTrendline(hb, ha, { ...opts, collectSlopes: pool });
+  const real = run(m, opts, reading, tp, sl, hold);
+  console.log(`\nplacebo — ${TF_NAME[m]} ${reading} ${tp}/${sl} hold ${hold}m`);
+  console.log(`  slope pool: ${pool.length} accepted slopes, ` +
+    `median ${fp(quant(pool).med, 4)} ATR/bar, p90 ${fp(quant(pool).p90, 4)}`);
+  console.log(`  REAL     alpha ${f(real.s.alpha)}   n=${real.s.traded}`);
+  const alphas = [];
+  for (let k = 0; k < 12; k++) {
+    const r = rng(1000 + k * 7919);
+    const { line, id } = project(m, (b, a) =>
+      risingTrendline(b, a, { ...opts, slopePool: pool, slopeRng: r }));
+    const ev = levelTestEvents(bars, line, atr1);
+    const s = score(ONLY[reading](ev), tp, sl, hold, 20000);
+    alphas.push(s.alpha);
+    console.log(`  placebo ${String(k).padStart(2)} alpha ${f(s.alpha)}   n=${s.traded}`);
+  }
+  const mean = alphas.reduce((a, b) => a + b, 0) / alphas.length;
+  console.log(`  placebo mean ${f(mean)}   real minus placebo ${f(real.s.alpha - mean)}`);
 }
 
 // The construction the sweeps land on. Filled in from measured results.
@@ -783,6 +833,7 @@ function stageFinal() {
 const stage = process.argv[2] || 'final';
 ({ base: stageBase, causal: stageCausal, tf: stageTf, knobs: stageKnobs,
    detail: stageDetail, excursion: stageExcursion, targets: stageTargets,
-   fine: stageFine, robust: stageRobust, final: stageFinal }[stage] || stageFinal)();
+   fine: stageFine, robust: stageRobust, placebo: stagePlacebo,
+   final: stageFinal }[stage] || stageFinal)();
 
 module.exports = { risingTrendline, idTestEvents, excursion, score, race, blind, loadBars };
