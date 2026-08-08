@@ -1,0 +1,4 @@
+# Rebuilt from the candles in seven seconds by tools/generator_library.js.
+# Committing it would put a 4.5MB derived blob in history for no gain.
+.cache/
+node_modules/
