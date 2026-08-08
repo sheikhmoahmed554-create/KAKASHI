@@ -48,6 +48,52 @@
  *   cost 0.5 pts round trip. 1 pt = $0.10.
  *
  * Usage:  node --max-old-space-size=3500 tools/fixes/daily-open.js [stage...]
+ *
+ * ───────────────────────── WHAT CAME OUT OF IT ─────────────────────────
+ *
+ * BEFORE  levels.js:dailyOpenLevels, 1m ATR, all events, 90/90/1440
+ *         1,406 tests, respect 68.3% against a 68.95% control, ALPHA -6.32
+ *
+ * AFTER   the daily open plus the five session opens, each frozen as a fixed
+ *         value and published one bar late; tested at 1H ATR; the BOUNCE
+ *         reading; target 180 / stop 180 / hold 240 minutes
+ *         590 tests, ALPHA +11.99, Jan–Apr +14.59, May–Jul +10.04
+ *
+ * The four fixes, in order of how much they were worth:
+ *
+ *   TIMEFRAME  worth the most. At 1m ATR the approach band is 35 pts, so a test
+ *              of the daily open fires ten times a day and means nothing. At 1H
+ *              ATR price must leave by ~313 pts and return inside ~42 pts, which
+ *              happens 0.7 times a day and is a real test. Same level, same
+ *              direction, same target: +3.08 at 1m against +11.99 at 1H.
+ *   SIZE       90/90/1440 was not too wide, it was unrelated to anything. The
+ *              measured median excursion at a 240-minute hold is ~180 pts, and
+ *              180/180/240 is simply that number. Worth roughly +6.
+ *   DIRECTION  the bounce, decisively. Fading it is the mirror image and loses.
+ *              The break reading never reaches 100 events at the honest scale.
+ *   ANCHOR     worth nothing, and this is the uncomfortable part. 01:00 scores
+ *              +29.7, but 05:00 — where no session opens — scores +43.6, and the
+ *              28-anchor family has sd 9.5. The spread across anchors is noise.
+ *
+ * AND THE HONEST CAVEATS, which are serious:
+ *
+ *   - the day-block bootstrap gives 95% -7.1 … +30.9 and one-sided p = 0.107.
+ *     That is not significant. The naive t is much friendlier and much wronger:
+ *     these trades overlap heavily and are nowhere near independent.
+ *   - the matched placebo — the same pipeline on a real traded price from
+ *     30–240 minutes after the anchor — scores +11.14 against the real +11.99.
+ *     NET +0.85. The construction earns; the OPEN does not. What is being
+ *     measured is reversion after a large excursion back to any fixed intraday
+ *     reference, and the opening print is one such reference among many.
+ *   - the respect rate carries no edge at all: +0.2 to +1.7 points over a
+ *     scale-matched placebo, at every scale tested. The open is not a wall.
+ *   - stage 8 tests the other reading the brief suggests — price above or below
+ *     the open as a directional state — and it is flat: +1 to +7 pooled, and the
+ *     controls that replace the open with an arbitrary earlier price match it.
+ *   - one configuration did survive the Jan–Apr / May–Jul split spectacularly
+ *     (Globex 01:00, 15m ATR, fade, 320/320/480: IS +39.98, OOS +41.84). Stage 7
+ *     kills it: run that exact cell at all 28 anchors and the family mean is
+ *     -7.96 with 10/28 positive. It is one cell out of ~110,000 searched.
  * =========================================================================== */
 
 const fs = require('fs');
@@ -1087,9 +1133,103 @@ function stage9() {
   return rows;
 }
 
+// ---- stage 10: the recommended construction, audited end to end ------------
+/**
+ * THE ANSWER.
+ *
+ *   level      the OPENING PRICE of each of the five sessions a gold desk really
+ *              marks from — London 10:00, US macro 15:30, COMEX pit 16:20,
+ *              NYSE 16:30, LBMA PM 17:00 on this feed's clock — frozen as a
+ *              fixed value, published one bar after its anchor, held for the day.
+ *              NOT the 01:00 exchange boundary that levels.js uses.
+ *   test       levelTestEvents at 5m ATR, not 1m: price must leave by 1.5×5m ATR
+ *              (about 84 pts) and come back inside 0.2×5m ATR (about 11 pts).
+ *   direction  the BOUNCE. A rejection is traded back in the direction price
+ *              came from. The break reading and both inversions are worse.
+ *   size       target = stop = 180 pts, hold 240 minutes — dictated by the
+ *              measured median excursion at that hold, not searched.
+ */
+const FINAL = { anchors: [60, ...SESSION_SET], tf: 60, kind: 'reject', flip: false, tp: 180, sl: 180, hold: 240 };
+
+function stage10(cfg = FINAL) {
+  console.log(hr('10.  THE RECOMMENDED CONSTRUCTION, AUDITED END TO END'));
+  const ti = TP_GRID.indexOf(cfg.tp), si = SL_GRID.indexOf(cfg.sl), hi = HOLD_GRID.indexOf(cfg.hold);
+  console.log(`  anchors    ${cfg.anchors.map(m => hhmm(m) + ' ' + (NAMED[m] || '')).join(', ')}`);
+  console.log(`  scale      ${TF_NAME[cfg.tf]} ATR for tolerance and approach   direction  ${cfg.kind}${cfg.flip ? ', inverted' : ', as signalled (bounce)'}`);
+  console.log(`  size       target ${cfg.tp} / stop ${cfg.sl} / hold ${cfg.hold} min\n`);
+
+  const ev = pooled(cfg.anchors, cfg.tf).filter(e => e.kind === cfg.kind);
+  const s = scoreAt(ev, ti, si, hi, cfg.flip);
+  console.log(`  FULL SAMPLE   n=${s.n}   longs ${s.longs} / shorts ${s.shorts}   win ${fp(s.win)}%   raw ${f(s.raw)}   ALPHA ${f(s.alpha)} pts/trade`);
+  const bb = dayBlockBootstrap(ev, ti, si, hi, cfg.flip, 4000);
+  if (bb) console.log(`                day-block bootstrap over ${bb.days} days: 95% ${f(bb.lo)} … ${f(bb.hi)}   one-sided p = ${bb.pOneSided.toFixed(3)}`);
+
+  console.log('\n  PLACEBOS');
+  for (const mode of ['far', 'near', 'intraday']) {
+    const p = placeboAlpha(cfg.anchors, cfg.tf, cfg.kind, cfg.flip, ti, si, hi, 12, undefined, mode);
+    console.log(`    ${mode.padEnd(9)} ${String(p.n).padStart(2)} runs  alpha ${f(p.mean).padStart(7)} ± ${fp(p.sd, 1)}   → NET ${f(s.alpha - p.mean).padStart(7)}  (${fp((s.alpha - p.mean) / p.sd, 2)} placebo sd)`);
+  }
+
+  console.log('\n  SAME FIXED CELL, NO RE-SEARCH, EACH HALF');
+  const a1 = scoreAt(ev.filter(e => e.i < SPLIT_I), ti, si, hi, cfg.flip, 0);
+  const a2 = scoreAt(ev.filter(e => e.i >= SPLIT_I), ti, si, hi, cfg.flip, 1);
+  console.log(`    Jan–Apr  n=${a1.n}  win ${fp(a1.win)}%  alpha ${f(a1.alpha)}`);
+  console.log(`    May–Jul  n=${a2.n}  win ${fp(a2.win)}%  alpha ${f(a2.alpha)}`);
+
+  console.log('\n  MONTH BY MONTH');
+  const byMonth = new Map();
+  for (const e of ev) { const k = new Date(bars[e.i].t).toISOString().slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(e); }
+  let pos = 0, tot = 0;
+  for (const k of [...byMonth.keys()].sort()) {
+    const x = scoreAt(byMonth.get(k), ti, si, hi, cfg.flip);
+    if (x.n >= 20) { tot++; if (x.alpha > 0) pos++; }
+    console.log(`    ${k}  n=${String(x.n).padStart(4)}  win ${fp(x.win).padStart(5)}%  raw ${f(x.raw).padStart(7)}  alpha ${f(x.alpha).padStart(7)}`);
+  }
+  console.log(`    → positive in ${pos} of ${tot} months`);
+
+  console.log('\n  PER ANCHOR (is the pool carried by one session?)');
+  for (const m of cfg.anchors) {
+    const e2 = eventsFor(m, cfg.tf).filter(e => e.kind === cfg.kind);
+    const x = scoreAt(e2, ti, si, hi, cfg.flip);
+    console.log(`    ${hhmm(m)} ${(NAMED[m] || '').padEnd(24)} n=${String(x.n).padStart(4)}  alpha ${f(x.alpha).padStart(7)}`);
+  }
+  console.log('  and, for contrast, the anchor levels.js actually uses and some dead hours:');
+  for (const m of [60, 180, 300, 1320]) {
+    const e2 = eventsFor(m, cfg.tf).filter(e => e.kind === cfg.kind);
+    const x = scoreAt(e2, ti, si, hi, cfg.flip);
+    console.log(`    ${hhmm(m)} ${(NAMED[m] || 'no session here').padEnd(24)} n=${String(x.n).padStart(4)}  alpha ${f(x.alpha).padStart(7)}`);
+  }
+
+  console.log('\n  SENSITIVITY (a real effect does not sit on a knife edge)');
+  console.log('    target/stop, hold fixed at ' + cfg.hold + ':');
+  for (const v of [110, 140, 180, 240]) {
+    const t2 = TP_GRID.indexOf(v);
+    console.log(`      TP=SL ${String(v).padStart(3)}   alpha ${f(scoreAt(ev, t2, t2, hi, cfg.flip).alpha).padStart(7)}`);
+  }
+  console.log('    hold, target/stop fixed at ' + cfg.tp + ':');
+  for (let h2 = 0; h2 < NH; h2++) console.log(`      hold ${String(HOLD_GRID[h2]).padStart(4)}   n=${String(scoreAt(ev, ti, si, h2, cfg.flip).n).padStart(4)}   alpha ${f(scoreAt(ev, ti, si, h2, cfg.flip).alpha).padStart(7)}`);
+  console.log('    ATR scale, everything else fixed:');
+  for (const tf of [1, 5, 15, 60]) {
+    const e2 = pooled(cfg.anchors, tf).filter(e => e.kind === cfg.kind);
+    const x = scoreAt(e2, ti, si, hi, cfg.flip);
+    if (x.n >= 100) console.log(`      ${TF_NAME[tf].padStart(4)} ATR   n=${String(x.n).padStart(5)}   alpha ${f(x.alpha).padStart(7)}`);
+  }
+  console.log('    publication lag (0 = same bar, 1 = one bar late, 5 = five bars late):');
+  for (const lag of [0, 1, 5, 15]) {
+    const e2 = [];
+    for (const m of cfg.anchors) e2.push(...eventsFor(m, cfg.tf, { lag }));
+    const x = scoreAt(e2.filter(e => e.kind === cfg.kind), ti, si, hi, cfg.flip);
+    console.log(`      lag ${String(lag).padStart(2)}   n=${String(x.n).padStart(5)}   alpha ${f(x.alpha).padStart(7)}`);
+  }
+
+  console.log('\n  COST SENSITIVITY (0.5 pts is assumed; slippage on a 180 pt target)');
+  for (const c of [0.5, 1, 2, 4]) console.log(`    cost ${String(c).padStart(3)} pts   alpha ${f(s.alpha - (c - COST)).padStart(7)}`);
+  return { s, bb };
+}
+
 module.exports = {
   bars, atr1, N, ATR_TF, TFS, TF_NAME, sessionOpenLine, walk, pnl, scoreAt, attach,
-  stage7, stage8, stage9, stateEvents, timeExitAlpha, dayBlockBootstrap, placeboAlpha, excursion,
+  stage7, stage8, stage9, stage10, FINAL, stateEvents, timeExitAlpha, dayBlockBootstrap, placeboAlpha, excursion,
   TP_GRID, SL_GRID, HOLD_GRID, buildBaselines, BLIND, BLIND_SEG, bIdx, EV, ANCHORS,
   SESSION_SET, NAMED, hhmm, median, quant, f, fp, respectRate, levelTestEvents,
   RANDOM_RESPECT, bestConfig, eventsFor, pooled, placeboEvents, placeboLine,
@@ -1136,6 +1276,7 @@ if (require.main === module) {
   }
   if (on(8)) stage8();
   if (on(9)) stage9();
+  if (on(10)) stage10();
   if (on(7)) stage7([
     { name: 'the split survivor', anchor: 60, tf: 15, kind: 'reject', flip: true, tp: 320, sl: 320, hold: 480 },
     { name: 'the split survivor at 5m', anchor: 60, tf: 5, kind: 'reject', flip: true, tp: 320, sl: 320, hold: 480 },

@@ -46,6 +46,52 @@
  * Monday to Friday, 140 days.  So the shipped `startHour: 0` window is really
  * 01:00–07:00.  Sessions below are stated in UTC and clipped by the data.
  *
+ * ───────────────────────────────────────────────────────────────────────────
+ * WHAT THE MEASUREMENT SAID  (stage `report` reproduces this table)
+ *
+ *   shipped: nearest edge, 90/90          n 1534   alpha  +0.95   t 0.41
+ *   shipped line, box 150/120             n 1537   alpha  +4.11   t 1.20
+ *   edges split, all events, 90/90        n 1539   alpha  +0.87   t 0.38
+ *   edges split, bounce only, 90/90       n 1051   alpha  +1.58   t 0.57
+ *   edges split, bounce only, 150/120     n 1053   alpha  +5.85   t 1.42
+ *   + narrow sessions only, 150/120       n  412   alpha +11.38   t 1.73
+ *
+ * The definition fix is right and the number moves, but read the attribution
+ * honestly: at the 90/90 box, splitting the edges is worth nothing (+0.95 ->
+ * +0.87). Almost all of the apparent gain is the bigger box, and a bigger box
+ * raises the standard error in exactly the same proportion — the t-statistic
+ * barely moves. Nothing here reaches t = 2.
+ *
+ * Three independent checks say the session extremes are not the source:
+ *
+ *   RESPECT.  The Asia high is respected 68.8% of the time and the Asia low
+ *   67.7%, against 68.95% for a random price level. Both edges are at or
+ *   slightly below chance.
+ *
+ *   HEIGHT PLACEBO.  Lines drawn at low + q*(high-low) for q across the range
+ *   score as well as the edges or better — q = 0.3 gives +22.2 at 150/120
+ *   against +6.7 for the actual high. The alpha-versus-q curve has no peak at
+ *   q = 0 or q = 1.
+ *
+ *   SHIFT PLACEBO.  Slide the whole range up or down by a fraction of its own
+ *   width and trade it identically: the placebo family has mean +3.2 and sd
+ *   6.2 while the real range scores +5.85, i.e. z = 0.43. Under the narrow
+ *   width filter a placebo shifted +0.3 reaches t = 2.60, higher than the real
+ *   range's 1.73.
+ *
+ *   EXCURSION.  Median favourable travel after a test is 91.8 points at one
+ *   hour against 85.4 adverse, and 195.6 against 172.7 at four hours — a ratio
+ *   of 1.07 to 1.13 that barely moves with horizon. There is no asymmetry for
+ *   a target to exploit, which is why no box rescues this level.
+ *
+ * The best-looking thing found anywhere was London 08-13 sweep-and-reclaim
+ * (poke through the edge, close back inside within 60 bars, fade it) at
+ * +19.65 points over 162 events with both sides positive — but t = 1.85, the
+ * 95% interval is -1.2 to +40.5, and a range shifted -0.3 of its width scores
+ * +20.0 on the same trade. It is a real intraday mean-reversion effect at
+ * those hours, not a property of the session high and low.
+ * ───────────────────────────────────────────────────────────────────────────
+ *
  * Usage:
  *   node --max-old-space-size=3500 tools/fixes/session-range.js <stage>
  *     recon      data shape, session widths
@@ -56,8 +102,17 @@
  *     excursion  measured MFE / MAE after a test  -> target and stop
  *     grid       target x stop grid for the surviving readings
  *     width      range-width filter
- *     final      the chosen construction, with out-of-sample halves
- *     all        everything
+ *     sides      long and short alpha separately, every window
+ *     placebo    level height inside the range — the decisive control
+ *     sweep      sweep-and-reclaim vs break-and-hold
+ *     sweepall / sweepparams / sweepplacebo / sweepfinal
+ *     firstbreak breakout as a directional signal, by width band
+ *     combined   both edges pooled against a placebo distribution
+ *     box        box size vs standard error
+ *     verdict    full workup of a candidate
+ *     chosen     the best build, stress-tested to destruction
+ *     report     the before/after table
+ *     all        recon + baseline + causal + current + tf + split
  * =========================================================================== */
 
 const fs = require('fs');
@@ -1162,6 +1217,45 @@ function stageChosen(o, name, band, tp, sl) {
   return st;
 }
 
+/** The before / after, with each fix isolated so credit lands where it belongs. */
+function stageReport() {
+  head('SUMMARY — WHAT EACH FIX WAS WORTH');
+  const shipped = levelTestEvents(bars, shippedSessionRange(bars, { startHour: 0, endHour: 7 }).line, atr1);
+  const sr = sessionRange(bars, SESSIONS[0][1]);
+  const pooled = [
+    ...READINGS.bounce(levelTestEvents(bars, sr.hi, atr1)),
+    ...READINGS.bounce(levelTestEvents(bars, sr.lo, atr1)),
+  ];
+  const pooledAll = [
+    ...levelTestEvents(bars, sr.hi, atr1),
+    ...levelTestEvents(bars, sr.lo, atr1),
+  ];
+  const rows = [
+    ['shipped: nearest edge, 90/90', shipped, 90, 90],
+    ['shipped line, box 150/120', shipped, 150, 120],
+    ['edges split, all events, 90/90', pooledAll, 90, 90],
+    ['edges split, bounce only, 90/90', pooled, 90, 90],
+    ['edges split, bounce only, 150/120', pooled, 150, 120],
+    ['+ narrow sessions only, 150/120', chosenEvents(SESSIONS[0][1], [0, 0.34]), 150, 120],
+  ];
+  console.log(pad('construction', 36) + rpad('n', 7) + rpad('raw', 9) + rpad('alpha', 9) + rpad('t', 7));
+  hr();
+  for (const [nm, ev, t, q] of rows) {
+    const x = tstat(ev, t, q);
+    const s = scoreGrid(ev);
+    const k = TPS.indexOf(t) * NS + SLS.indexOf(q);
+    console.log(pad(nm, 36) + rpad(x.n, 7) + rpad(f(s.raw[k], 1), 9) + rpad(f(x.mean, 1), 9) + rpad(g(x.t, 2), 7));
+  }
+  console.log('\nrespect, against the 68.95% random control:');
+  for (const [nm, line] of [['asia high edge', sr.hi], ['asia low edge', sr.lo], ['shipped nearest-edge line', shippedSessionRange(bars, { startHour: 0, endHour: 7 }).line]]) {
+    const r = respectRate(levelTestEvents(bars, line, atr1));
+    console.log(`  ${pad(nm, 28)} ${rpad(r.tests, 5)} tests   ${g(r.respect)}%   ${f(r.respect - RANDOM_RESPECT, 1)} vs random`);
+  }
+  console.log('\nnone of the t-statistics reach 2. the definition fix is correct and the');
+  console.log('numbers move, but the placebo tests say the movement is not coming from');
+  console.log('the session extremes themselves.');
+}
+
 function stageSides(tp, sl) {
   head(`LONG AND SHORT ALPHA SEPARATELY (box ${tp}/${sl})`);
   console.log('a level that carries information has to work on both sides. if every');
@@ -1277,6 +1371,7 @@ if (stage === 'verdict') {
   stageVerdict(LDN, 'london 08-13', 120, 120);
 }
 if (stage === 'chosen') stageChosen(SESSIONS[0][1], 'asia 01-07', [0, 0.34], 150, 120);
+if (stage === 'report') stageReport();
 
 module.exports = {
   bars, atr1, N, PU, COST, MAX_HOLD, TPS, SLS, NS, NT, cell,
