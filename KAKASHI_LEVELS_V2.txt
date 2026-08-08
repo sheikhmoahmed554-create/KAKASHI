@@ -91,10 +91,15 @@ tlBreakA  = input.float(0.40, "عمق الكسر الذي يُنهي الخط ×
 
 gVis = "⑦ العرض"
 showLevels = input.bool(true, "رسم المستويات", group = gVis)
-showTrades = input.bool(true, "رسم الهدف والوقف", group = gVis)
+showTrades = input.bool(true, "خطوط الدخول والهدف والوقف", group = gVis)
+showTags   = input.bool(true, "أسماء الخطوط", group = gVis)
+showResult = input.bool(true, "علامة عند الهدف أو الوقف", group = gVis)
 showTable  = input.bool(true, "جدول الإحصائيات", group = gVis)
+lineBars   = input.int(60, "طول خطوط الصفقة (شمعة)", minval = 5, maxval = 300, group = gVis)
 cBuy  = input.color(#00aa5a, "شراء", group = gVis)
 cSell = input.color(#e62d37, "بيع", group = gVis)
+cEntry = input.color(#ffd200, "خط الدخول", group = gVis)
+cTP    = input.color(#0078ff, "خط الهدف", group = gVis)
 
 atrv = ta.atr(atrLen)
 
@@ -275,6 +280,7 @@ f_manage(int sig, float tp, float sl, int holdMin, bool enabled) =>
     var int   openBar = na
     int  result = 0
     float pts = 0.0
+    bool opened = false
 
     if dir != 0 and bar_index > openBar
         bool hitTP = dir == 1 ? high >= tpPx : low <= tpPx
@@ -303,15 +309,17 @@ f_manage(int sig, float tp, float sl, int holdMin, bool enabled) =>
         tpPx := close + sig * tp * pointUnit
         slPx := close - sig * sl * pointUnit
         openBar := bar_index
-    [dir, entry, tpPx, slPx, result, pts]
+        opened := true
+    [dir, entry, tpPx, slPx, result, pts, opened]
 
-[dnDir, dnEntry, dnTPpx, dnSLpx, dnRes, dnPts] = f_manage(dnSig, dnTP, dnSL, dnHold, useDN)
-[fvDir, fvEntry, fvTPpx, fvSLpx, fvRes, fvPts] = f_manage(fvgSig, fvgTP, fvgSL, fvgHold, useFVG)
-[upDir, upEntry, upTPpx, upSLpx, upRes, upPts] = f_manage(upSig, upTP, upSL, upHold, useUP)
+// A trade can close and the next one open on the same candle. Reading the entry
+// off `dir != 0 and dir[1] == 0` would miss exactly that case and leave a live
+// position with no label, no lines and no alert, so the flag is raised where the
+// entry actually happens.
+[dnDir, dnEntry, dnTPpx, dnSLpx, dnRes, dnPts, enteredDN] = f_manage(dnSig, dnTP, dnSL, dnHold, useDN)
+[fvDir, fvEntry, fvTPpx, fvSLpx, fvRes, fvPts, enteredFV] = f_manage(fvgSig, fvgTP, fvgSL, fvgHold, useFVG)
+[upDir, upEntry, upTPpx, upSLpx, upRes, upPts, enteredUP] = f_manage(upSig, upTP, upSL, upHold, useUP)
 
-enteredDN = dnDir != 0 and dnDir[1] == 0
-enteredFV = fvDir != 0 and fvDir[1] == 0
-enteredUP = upDir != 0 and upDir[1] == 0
 anyBuy  = (enteredDN and dnDir == 1) or (enteredFV and fvDir == 1) or (enteredUP and upDir == 1)
 anySell = (enteredDN and dnDir == -1) or (enteredFV and fvDir == -1) or (enteredUP and upDir == -1)
 
@@ -356,20 +364,76 @@ if upRes != 0
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Drawing
+//
+//  Same shape as the older build, because a signal you have to hunt for is a
+//  signal you will miss: a labelled BUY or SELL where the trade opens, then the
+//  entry, target and stop drawn forward as lines with their names on the right
+//  end, cleared the moment the trade closes.
 // ─────────────────────────────────────────────────────────────────────────────
 plot(showLevels ? dnLine : na,  "ترند هابط", color = color.new(#e62d37, 0), style = plot.style_linebr, linewidth = 2)
 plot(showLevels ? upLine : na,  "ترند صاعد", color = color.new(#46a5ff, 20), style = plot.style_linebr, linewidth = 1)
 plot(showLevels ? fvgLine : na, "فجوة FVG",  color = color.new(#ffd45a, 15), style = plot.style_linebr, linewidth = 2)
 
-plotshape(anyBuy,  "شراء", location = location.belowbar, style = shape.triangleup,   size = size.small, color = cBuy)
-plotshape(anySell, "بيع",  location = location.abovebar, style = shape.triangledown, size = size.small, color = cSell)
+// One drawing set per source. Pine keeps these var's per call site, so each
+// source owns its own lines without any index bookkeeping.
+// The close is handled before the open, because both can land on one candle and
+// clearing afterwards would erase the drawing of the trade that just started.
+f_draw(bool opened, int dir, float entry, float tpPx, float slPx, int res, string tag) =>
+    var line lnE = na
+    var line lnT = na
+    var line lnS = na
+    var label lbE = na
+    var label lbT = na
+    var label lbS = na
 
-plot(showTrades and dnDir != 0 ? dnTPpx : na, "هدف الترند الهابط", color = color.new(cBuy, 40), style = plot.style_linebr)
-plot(showTrades and dnDir != 0 ? dnSLpx : na, "وقف الترند الهابط", color = color.new(cSell, 40), style = plot.style_linebr)
-plot(showTrades and fvDir != 0 ? fvTPpx : na, "هدف الفجوة", color = color.new(cBuy, 55), style = plot.style_linebr)
-plot(showTrades and fvDir != 0 ? fvSLpx : na, "وقف الفجوة", color = color.new(cSell, 55), style = plot.style_linebr)
-plot(showTrades and upDir != 0 ? upTPpx : na, "هدف الترند الصاعد", color = color.new(cBuy, 70), style = plot.style_linebr)
-plot(showTrades and upDir != 0 ? upSLpx : na, "وقف الترند الصاعد", color = color.new(cSell, 70), style = plot.style_linebr)
+    if res != 0
+        if not na(lnE)
+            line.delete(lnE)
+            lnE := na
+        if not na(lnT)
+            line.delete(lnT)
+            lnT := na
+        if not na(lnS)
+            line.delete(lnS)
+            lnS := na
+        if not na(lbE)
+            label.delete(lbE)
+            lbE := na
+        if not na(lbT)
+            label.delete(lbT)
+            lbT := na
+        if not na(lbS)
+            label.delete(lbS)
+            lbS := na
+
+    if opened and showTrades
+        int x2 = bar_index + lineBars
+        lnE := line.new(bar_index, entry, x2, entry, xloc = xloc.bar_index, color = cEntry, width = 1, style = line.style_solid)
+        lnT := line.new(bar_index, tpPx,  x2, tpPx,  xloc = xloc.bar_index, color = cTP,   width = 1, style = line.style_dashed)
+        lnS := line.new(bar_index, slPx,  x2, slPx,  xloc = xloc.bar_index, color = cSell, width = 1, style = line.style_dashed)
+        if showTags
+            string side = dir == 1 ? "شراء" : "بيع"
+            lbE := label.new(x2, entry, "دخول " + side + " · " + tag, xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = cEntry, textcolor = color.black, size = size.tiny)
+            lbT := label.new(x2, tpPx,  "هدف · " + tag, xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = cTP,   textcolor = color.white, size = size.tiny)
+            lbS := label.new(x2, slPx,  "وقف · " + tag, xloc = xloc.bar_index, yloc = yloc.price, style = label.style_label_left, color = cSell, textcolor = color.white, size = size.tiny)
+            label.set_tooltip(lbE, tag + " — " + side + " عند " + str.tostring(entry, format.mintick))
+    opened
+
+f_draw(enteredDN, dnDir, dnEntry, dnTPpx, dnSLpx, dnRes, "ترند هابط")
+f_draw(enteredFV, fvDir, fvEntry, fvTPpx, fvSLpx, fvRes, "فجوة")
+f_draw(enteredUP, upDir, upEntry, upTPpx, upSLpx, upRes, "ترند صاعد")
+
+plotshape(anyBuy,  "شراء", location = location.belowbar, style = shape.labelup,   size = size.small, color = cBuy,  text = "BUY",  textcolor = color.white)
+plotshape(anySell, "بيع",  location = location.abovebar, style = shape.labeldown, size = size.small, color = cSell, text = "SELL", textcolor = color.white)
+
+// Where the trade actually ended, so the chart shows the outcome and not only
+// the intention.
+closedTP   = (dnRes == 1) or (fvRes == 1) or (upRes == 1)
+closedSL   = (dnRes == -1) or (fvRes == -1) or (upRes == -1)
+closedTime = (dnRes == 2) or (fvRes == 2) or (upRes == 2)
+plotshape(showResult and closedTP,   "تحقق الهدف",  location = location.abovebar, style = shape.circle, size = size.tiny, color = cTP,   text = "TP", textcolor = color.white)
+plotshape(showResult and closedSL,   "ضرب الوقف",   location = location.belowbar, style = shape.circle, size = size.tiny, color = cSell, text = "SL", textcolor = color.white)
+plotshape(showResult and closedTime, "خروج بالوقت", location = location.abovebar, style = shape.xcross, size = size.tiny, color = #aa5aff)
 
 var table t = table.new(position.top_right, 2, 8, bgcolor = #10121a, frame_width = 0)
 if showTable and barstate.islast
