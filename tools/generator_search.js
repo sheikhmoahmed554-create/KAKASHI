@@ -411,6 +411,25 @@ if (has('--sweep') || has('--sweep2')) {
     console.log(`  شراء ${ln} (${f(100 * lw / Math.max(1, ln), 1)}%، ${f(lnet, 0)})   بيع ${sn} (${f(100 * sw / Math.max(1, sn), 1)}%، ${f(snet, 0)})`);
     console.log(`  الانحراف للصفقة ${f(sd, 1)} نقطة   t = ${f(t)}   بعد خصم التداخل ${f(te)}   ${Math.abs(te) >= 1.96 ? '★ دال' : 'غير دال'}`);
     console.log(`  بحذف أفضل 5 أيام ${(drop5 > 0 ? '+' : '') + f(drop5, 0)}   أفضل 10 أيام ${(drop10 > 0 ? '+' : '') + f(drop10, 0)}   (من ${byDay.size} يوم)`);
+    // Which days they are decides what the number means. Five separate days
+    // spread across five months is a thin edge; five days inside one week is
+    // one market event wearing a strategy's clothes.
+    const dayList = [...byDay.entries()].sort((a, b) => b[1] - a[1]);
+    console.log(`  أفضل خمسة أيام: ${dayList.slice(0, 5).map(([d, v]) => `${d} ${(v > 0 ? '+' : '') + f(v, 0)}`).join('   ')}`);
+    console.log(`  أسوأ خمسة أيام: ${dayList.slice(-5).reverse().map(([d, v]) => `${d} ${f(v, 0)}`).join('   ')}`);
+    const posDays = dayList.filter(([, v]) => v > 0).length;
+    console.log(`  أيام رابحة ${posDays} من ${dayList.length} (${f(100 * posDays / dayList.length, 1)}%)   وسيط اليوم ${f(dayList[dayList.length >> 1][1], 0)}`);
+    // Dropping only the best days is a crude test and an unfair one when the
+    // daily distribution has heavy tails on BOTH sides — it charges the result
+    // for its best days while letting it keep its worst. Trim symmetrically.
+    const trimmed = dayList.slice(5, -5).reduce((a, [, v]) => a + v, 0);
+    console.log(`  بحذف أفضل 5 وأسوأ 5 معًا ${(trimmed > 0 ? '+' : '') + f(trimmed, 0)}   (أسوأ 5 تخسر ${f(dayList.slice(-5).reduce((a, [, v]) => a + v, 0), 0)})`);
+    // The day is the honest unit. Trades inside one day overlap so heavily that
+    // counting each as an independent observation inflates t; days do not.
+    const dv = dayList.map(([, v]) => v);
+    const dmean = dv.reduce((a, x) => a + x, 0) / dv.length;
+    const dsd = Math.sqrt(dv.reduce((a, x) => a + (x - dmean) ** 2, 0) / (dv.length - 1));
+    console.log(`  على مستوى اليوم: متوسط ${f(dmean, 0)} ± ${f(dsd, 0)}   t = ${f(dmean / (dsd / Math.sqrt(dv.length)))}   ${Math.abs(dmean / (dsd / Math.sqrt(dv.length))) >= 1.96 ? '★ دال' : 'غير دال'}`);
     const above = r.nulls.filter(x => x >= r.realWR).length;
     console.log(`\n  توزيع العشوائي: متوسط ${f(r.nm, 2)}%   انحراف ${f(r.nsd, 2)}   المدى ${f(r.nulls[0], 2)}–${f(r.nulls[r.nulls.length - 1], 2)}%`);
     console.log(`  الحقيقي ${f(r.realWR, 2)}%   الفارق ${f(r.realWR - r.nm, 2)}pp = ${f((r.realWR - r.nm) / r.nsd, 2)}σ`);
