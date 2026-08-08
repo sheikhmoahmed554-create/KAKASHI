@@ -1,0 +1,565 @@
+//@version=6
+// ═══════════════════════════════════════════════════════════════════════════════
+//  KAKASHI CONFLUENCE ENGINE — XAUUSD (M1 / M5 / M15)
+//  ─────────────────────────────────────────────────────────────────────────────
+//  محرك توافق رباعي يعطي إشارة دخول واحدة نظيفة مع هدف ووقف خسارة محسوبين تلقائيًا:
+//    ① محرك الترند      : EMA + Supertrend + DMI + انحياز الفريم الأعلى
+//    ② محرك الارتداد     : RSI + Bollinger %B + الابتعاد عن VWAP
+//    ③ محرك الاختراق     : قناة Donchian + انفجار الضغط + اختراق نطاق الجلسة
+//    ④ محرك السيولة SMC : BOS/CHoCH + صيد السيولة + FVG + Order Block
+//
+//  كل محرك يعطي تصويتًا بين -1 و +1، ثم تُجمع الأصوات بأوزان قابلة للتعديل،
+//  وتتكيّف الأوزان مع حالة السوق (ترند / عرضي) عبر ADX.
+//  الدخول يحصل فقط لما تتجاوز درجة التوافق العتبة وتنجح كل الفلاتر.
+//
+//  ⚠️ ملاحظة مهمة: كل الحسابات تتم على إغلاق الشمعة (No Repaint) افتراضيًا،
+//     وبيانات الفريم الأعلى تُقرأ بإزاحة شمعة واحدة لمنع النظر للمستقبل.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+indicator("KAKASHI Confluence — XAUUSD", "KAKASHI", overlay = true, max_bars_back = 1000, max_labels_count = 500, max_lines_count = 500, max_boxes_count = 500)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  مجموعات الإعدادات
+// ─────────────────────────────────────────────────────────────────────────────
+var string G0 = "⚙️ عام"
+var string G1 = "① محرك الترند"
+var string G2 = "② محرك الارتداد"
+var string G3 = "③ محرك الاختراق"
+var string G4 = "④ محرك السيولة (Smart Money)"
+var string G5 = "⑤ التوافق والدخول"
+var string G6 = "⑥ الهدف ووقف الخسارة"
+var string G7 = "⑦ الفلاتر"
+var string G8 = "⑧ العرض والتنبيهات"
+
+// ── عام ──────────────────────────────────────────────────────────────────────
+pointValue = input.float(0.10, "قيمة النقطة", minval = 0.00001, step = 0.01, group = G0, tooltip = "للذهب XAUUSD: 0.10 يعني أن حركة 1.00 دولار تساوي 10 نقاط.\nإذا كنت تحسب النقطة بـ 0.01 غيّرها هنا.")
+atrLen     = input.int(14, "طول ATR", minval = 1, group = G0)
+confirmBar = input.bool(true, "الإشارة على إغلاق الشمعة فقط", group = G0, tooltip = "مفعّل = لا تتغيّر الإشارة أثناء تكوّن الشمعة (No Repaint).\nمعطّل = إشارة أسرع لكنها قد تختفي قبل الإغلاق.")
+tzInput    = input.string("UTC", "المنطقة الزمنية للجلسات", options = ["UTC", "Etc/GMT-2", "Etc/GMT-3", "Europe/London", "America/New_York", "Asia/Riyadh"], group = G0)
+
+// ── ① محرك الترند ────────────────────────────────────────────────────────────
+useTrend   = input.bool(true, "تفعيل محرك الترند", group = G1)
+emaFastLen = input.int(21, "EMA السريع", minval = 1, group = G1)
+emaSlowLen = input.int(55, "EMA البطيء", minval = 1, group = G1)
+slopeLen   = input.int(5, "شموع قياس ميل EMA البطيء", minval = 1, group = G1)
+stFactor   = input.float(3.0, "Supertrend — المضاعف", minval = 0.1, step = 0.1, group = G1)
+stAtrLen   = input.int(10, "Supertrend — طول ATR", minval = 1, group = G1)
+useHTF     = input.bool(true, "استخدام انحياز الفريم الأعلى", group = G1)
+htfTF      = input.timeframe("15", "الفريم الأعلى", group = G1)
+htfEmaLen  = input.int(50, "EMA الفريم الأعلى", minval = 1, group = G1)
+
+// ── ② محرك الارتداد ──────────────────────────────────────────────────────────
+useMR      = input.bool(true, "تفعيل محرك الارتداد", group = G2)
+rsiLen     = input.int(14, "طول RSI", minval = 1, group = G2)
+rsiOS      = input.float(30, "RSI — تشبع بيعي", minval = 1, maxval = 50, group = G2)
+rsiOB      = input.float(70, "RSI — تشبع شرائي", minval = 50, maxval = 99, group = G2)
+bbLen      = input.int(20, "Bollinger — الطول", minval = 2, group = G2)
+bbMult     = input.float(2.0, "Bollinger — الانحراف المعياري", minval = 0.1, step = 0.1, group = G2)
+vwapDevMin = input.float(1.0, "أدنى ابتعاد عن VWAP (بوحدات ATR)", minval = 0.0, step = 0.1, group = G2)
+
+// ── ③ محرك الاختراق ──────────────────────────────────────────────────────────
+useBO      = input.bool(true, "تفعيل محرك الاختراق", group = G3)
+donLen     = input.int(40, "طول قناة الاختراق", minval = 2, group = G3)
+sqzLen     = input.int(120, "نافذة قياس ضغط التذبذب", minval = 10, group = G3)
+sqzPct     = input.float(25, "عتبة الضغط (نسبة مئوية)", minval = 1, maxval = 99, step = 1, group = G3, tooltip = "كلما صغرت القيمة كان الضغط المطلوب أشد قبل اعتبار الانفجار إشارة.")
+useSessBO  = input.bool(true, "اختراق نطاق الجلسة", group = G3)
+rangeSess  = input.session("0000-0700", "جلسة بناء النطاق (آسيا)", group = G3, tooltip = "يُبنى أعلى وأدنى سعر خلال هذه الجلسة، ثم يُرصد اختراقه بعد انتهائها.")
+
+// ── ④ محرك السيولة SMC ───────────────────────────────────────────────────────
+useSMC     = input.bool(true, "تفعيل محرك السيولة", group = G4)
+swingLen   = input.int(8, "طول القمم والقيعان (Pivot)", minval = 1, group = G4)
+useSweep   = input.bool(true, "صيد السيولة (Liquidity Sweep)", group = G4)
+useFVG     = input.bool(true, "فجوات القيمة (FVG)", group = G4)
+useOB      = input.bool(true, "مناطق الأوامر (Order Block)", group = G4)
+fvgMinAtr  = input.float(0.25, "أصغر حجم FVG مقبول (بوحدات ATR)", minval = 0.0, step = 0.05, group = G4)
+obLookback = input.int(12, "مدى البحث خلف الاختراق عن OB", minval = 1, maxval = 60, group = G4)
+
+// ── ⑤ التوافق والدخول ────────────────────────────────────────────────────────
+wT         = input.float(1.0, "وزن محرك الترند", minval = 0, step = 0.1, group = G5)
+wM         = input.float(1.0, "وزن محرك الارتداد", minval = 0, step = 0.1, group = G5)
+wB         = input.float(1.0, "وزن محرك الاختراق", minval = 0, step = 0.1, group = G5)
+wS         = input.float(1.0, "وزن محرك السيولة", minval = 0, step = 0.1, group = G5)
+minScore   = input.float(45, "أدنى درجة توافق للدخول (%)", minval = 1, maxval = 100, step = 1, group = G5)
+adaptive   = input.bool(true, "تكيّف الأوزان مع حالة السوق", group = G5, tooltip = "في الترند تُرفع أوزان الترند والاختراق ويُخفَّض الارتداد، وفي السوق العرضي يحصل العكس.")
+adxLen     = input.int(14, "تنعيم ADX", minval = 1, group = G5)
+diLen      = input.int(14, "طول DI", minval = 1, group = G5)
+adxTrendTh = input.float(22, "ADX — عتبة بداية الترند", minval = 1, step = 0.5, group = G5)
+adxRangeTh = input.float(18, "ADX — عتبة السوق العرضي", minval = 1, step = 0.5, group = G5)
+strictHTF  = input.bool(true, "منع الدخول عكس الفريم الأعلى", group = G5)
+
+// ── ⑥ الهدف ووقف الخسارة ─────────────────────────────────────────────────────
+exitMode   = input.string("ATR", "طريقة حساب الهدف والوقف", options = ["ATR", "نقاط ثابتة", "هيكلي"], group = G6, tooltip = "ATR: مسافات تتنفّس مع تذبذب السوق.\nنقاط ثابتة: أرقام ثابتة مثل 50/65.\nهيكلي: الوقف خلف آخر قمة/قاع والهدف بنسبة R:R.")
+slAtrMult  = input.float(1.5, "وقف الخسارة × ATR", minval = 0.1, step = 0.1, group = G6)
+tpAtrMult  = input.float(2.5, "الهدف × ATR", minval = 0.1, step = 0.1, group = G6)
+slPts      = input.float(65, "وقف ثابت (نقاط)", minval = 1, step = 1, group = G6)
+tpPts      = input.float(50, "هدف ثابت (نقاط)", minval = 1, step = 1, group = G6)
+structBuf  = input.float(0.30, "هامش خلف الهيكل × ATR", minval = 0.0, step = 0.05, group = G6)
+structLook = input.int(20, "مدى البحث عن الهيكل (شموع)", minval = 2, group = G6)
+rrTarget   = input.float(1.8, "نسبة الهدف للمخاطرة R:R", minval = 0.1, step = 0.1, group = G6)
+minSLpts   = input.float(15, "أدنى مسافة وقف (نقاط)", minval = 0.1, step = 1, group = G6)
+maxSLpts   = input.float(200, "أقصى مسافة وقف (نقاط)", minval = 1, step = 1, group = G6)
+tieRule    = input.string("الوقف أولًا", "لو لمست الشمعة الهدف والوقف معًا", options = ["الوقف أولًا", "الهدف أولًا"], group = G6, tooltip = "«الوقف أولًا» هو الافتراض المحافظ الذي تستخدمه معظم منصات الاختبار.")
+
+// ── ⑦ الفلاتر ────────────────────────────────────────────────────────────────
+useSessFilter = input.bool(true, "تقييد أوقات الدخول", group = G7)
+tradeSess     = input.session("0700-2000", "أوقات السماح بالدخول", group = G7)
+minAtrPts     = input.float(8, "أدنى ATR مسموح (نقاط)", minval = 0, step = 1, group = G7, tooltip = "يمنع الدخول في سوق ميت.")
+maxAtrPts     = input.float(120, "أقصى ATR مسموح (نقاط)", minval = 1, step = 1, group = G7, tooltip = "يمنع الدخول في لحظات الأخبار والانفجارات.")
+cooldownBars  = input.int(10, "تهدئة بعد كل إشارة (شموع)", minval = 0, group = G7)
+maxPerDay     = input.int(6, "أقصى عدد إشارات في اليوم", minval = 1, group = G7)
+onePos        = input.bool(true, "صفقة واحدة في نفس الوقت", group = G7)
+
+// ── ⑧ العرض والتنبيهات ───────────────────────────────────────────────────────
+showLines  = input.bool(true, "رسم خطوط الدخول والهدف والوقف", group = G8)
+showCard   = input.bool(true, "بطاقة تفاصيل الصفقة", group = G8)
+showZones  = input.bool(true, "إظهار مناطق FVG و OB", group = G8)
+showResult = input.bool(true, "علامة عند تحقق الهدف أو ضرب الوقف", group = G8)
+colLong    = input.color(#20d17a, "لون الشراء", group = G8)
+colShort   = input.color(#ff5968, "لون البيع", group = G8)
+colEntry   = input.color(#ffd45a, "لون خط الدخول", group = G8)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  الحسابات الأساسية — كلها في النطاق العام حتى يبقى تاريخ المؤشرات متّسقًا
+// ═══════════════════════════════════════════════════════════════════════════════
+atr = ta.atr(atrLen)
+
+// ① الترند ────────────────────────────────────────────────────────────────────
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+[stLine, stDir] = ta.supertrend(stFactor, stAtrLen)   // stDir: ‑1 صاعد، +1 هابط
+[diPlus, diMinus, adxVal] = ta.dmi(diLen, adxLen)
+
+htfEma  = request.security(syminfo.tickerid, htfTF, ta.ema(close, htfEmaLen)[1], lookahead = barmerge.lookahead_off)
+htfBull = useHTF and not na(htfEma) and close > htfEma
+htfBear = useHTF and not na(htfEma) and close < htfEma
+
+// ② الارتداد ──────────────────────────────────────────────────────────────────
+rsiVal  = ta.rsi(close, rsiLen)
+bbBasis = ta.sma(close, bbLen)
+bbDev   = bbMult * ta.stdev(close, bbLen)
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+bbRange = bbUpper - bbLower
+pctB    = bbRange > 0 ? (close - bbLower) / bbRange : 0.5
+
+// VWAP مبني يدويًا: يعمل حتى لو لم يوفّر الوسيط أحجامًا (يتحوّل تلقائيًا إلى متوسط زمني)
+volSafe = na(volume) or volume <= 0 ? 1.0 : volume
+newDay  = timeframe.change("1D")
+var float cumPV = 0.0
+var float cumV  = 0.0
+if newDay
+    cumPV := 0.0
+    cumV  := 0.0
+cumPV += hlc3 * volSafe
+cumV  += volSafe
+vwapVal = cumV > 0 ? cumPV / cumV : hlc3
+vwapDev = atr > 0 ? (close - vwapVal) / atr : 0.0
+
+// ③ الاختراق ─────────────────────────────────────────────────────────────────
+donHi = ta.highest(high, donLen)[1]
+donLo = ta.lowest(low, donLen)[1]
+bbw   = bbBasis != 0 ? bbRange / bbBasis : 0.0
+sqzTh = ta.percentile_linear_interpolation(bbw, sqzLen, sqzPct)
+squeezed    = bbw <= sqzTh
+sqzRelease  = squeezed[1] and not squeezed
+
+// نطاق الجلسة
+inRangeSess = useSessBO and not na(time(timeframe.period, rangeSess, tzInput))
+var float rngHi   = na
+var float rngLo   = na
+var bool  rngDone = false
+var bool  rngUsedUp = false
+var bool  rngUsedDn = false
+if inRangeSess and not inRangeSess[1]
+    rngHi     := high
+    rngLo     := low
+    rngDone   := false
+    rngUsedUp := false
+    rngUsedDn := false
+else if inRangeSess
+    rngHi := math.max(nz(rngHi, high), high)
+    rngLo := math.min(nz(rngLo, low), low)
+if not inRangeSess and inRangeSess[1]
+    rngDone := true
+
+sessBreakUp = rngDone and not rngUsedUp and not na(rngHi) and close > rngHi
+sessBreakDn = rngDone and not rngUsedDn and not na(rngLo) and close < rngLo
+if sessBreakUp
+    rngUsedUp := true
+if sessBreakDn
+    rngUsedDn := true
+
+// ④ السيولة SMC ──────────────────────────────────────────────────────────────
+ph = ta.pivothigh(high, swingLen, swingLen)
+pl = ta.pivotlow(low, swingLen, swingLen)
+
+var float lastSwingHigh = na
+var float lastSwingLow  = na
+if not na(ph)
+    lastSwingHigh := ph
+if not na(pl)
+    lastSwingLow := pl
+
+// كسر الهيكل: BOS استمرار، CHoCH انعكاس
+var int structDir = 0
+bosUp = not na(lastSwingHigh) and close > lastSwingHigh and close[1] <= lastSwingHigh
+bosDn = not na(lastSwingLow)  and close < lastSwingLow  and close[1] >= lastSwingLow
+chochUp = bosUp and structDir == -1
+chochDn = bosDn and structDir == 1
+if bosUp
+    structDir := 1
+if bosDn
+    structDir := -1
+
+// صيد السيولة: فتيل يخترق السيولة ثم يغلق داخل النطاق
+sweepBull = useSweep and not na(lastSwingLow)  and low  < lastSwingLow  and close > lastSwingLow
+sweepBear = useSweep and not na(lastSwingHigh) and high > lastSwingHigh and close < lastSwingHigh
+
+// فجوات القيمة FVG (ثلاث شموع)
+fvgUpNew = useFVG and low > high[2] and (low - high[2]) >= fvgMinAtr * atr
+fvgDnNew = useFVG and high < low[2] and (low[2] - high) >= fvgMinAtr * atr
+
+var float bullFvgTop = na
+var float bullFvgBot = na
+var float bearFvgTop = na
+var float bearFvgBot = na
+var box   bullFvgBox = na
+var box   bearFvgBox = na
+
+if fvgUpNew
+    bullFvgBot := high[2]
+    bullFvgTop := low
+    if showZones
+        if not na(bullFvgBox)
+            box.delete(bullFvgBox)
+        bullFvgBox := box.new(bar_index - 2, bullFvgTop, bar_index, bullFvgBot, border_color = color.new(colLong, 55), bgcolor = color.new(colLong, 88))
+if fvgDnNew
+    bearFvgTop := low[2]
+    bearFvgBot := high
+    if showZones
+        if not na(bearFvgBox)
+            box.delete(bearFvgBox)
+        bearFvgBox := box.new(bar_index - 2, bearFvgTop, bar_index, bearFvgBot, border_color = color.new(colShort, 55), bgcolor = color.new(colShort, 88))
+
+// إبطال الفجوة عند اختراقها بالكامل
+if not na(bullFvgBot) and close < bullFvgBot
+    bullFvgTop := na
+    bullFvgBot := na
+if not na(bearFvgTop) and close > bearFvgTop
+    bearFvgTop := na
+    bearFvgBot := na
+
+fvgRetestBull = not na(bullFvgBot) and low <= bullFvgTop and close >= bullFvgBot and close > open
+fvgRetestBear = not na(bearFvgTop) and high >= bearFvgBot and close <= bearFvgTop and close < open
+
+// مناطق الأوامر: آخر شمعة معاكسة قبل الاندفاع الذي كسر الهيكل
+var float bullObTop = na
+var float bullObBot = na
+var float bearObTop = na
+var float bearObBot = na
+var box   bullObBox = na
+var box   bearObBox = na
+
+if useOB and bosUp
+    for i = 1 to obLookback
+        if close[i] < open[i]
+            bullObTop := high[i]
+            bullObBot := low[i]
+            if showZones
+                if not na(bullObBox)
+                    box.delete(bullObBox)
+                bullObBox := box.new(bar_index - i, bullObTop, bar_index, bullObBot, border_color = color.new(colLong, 40), bgcolor = color.new(colLong, 92))
+            break
+if useOB and bosDn
+    for i = 1 to obLookback
+        if close[i] > open[i]
+            bearObTop := high[i]
+            bearObBot := low[i]
+            if showZones
+                if not na(bearObBox)
+                    box.delete(bearObBox)
+                bearObBox := box.new(bar_index - i, bearObTop, bar_index, bearObBot, border_color = color.new(colShort, 40), bgcolor = color.new(colShort, 92))
+            break
+
+if not na(bullObBot) and close < bullObBot
+    bullObTop := na
+    bullObBot := na
+if not na(bearObTop) and close > bearObTop
+    bearObTop := na
+    bearObBot := na
+
+obTouchBull = not na(bullObBot) and low <= bullObTop and close >= bullObBot
+obTouchBear = not na(bearObTop) and high >= bearObBot and close <= bearObTop
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  تصويت المحركات — كل محرك يعطي رقمًا بين -1 و +1
+// ═══════════════════════════════════════════════════════════════════════════════
+float tSum = 0.0
+int   tN   = 0
+if useTrend
+    tSum += close > emaFast and emaFast > emaSlow ? 1.0 : close < emaFast and emaFast < emaSlow ? -1.0 : 0.0
+    tN   += 1
+    tSum += emaSlow > emaSlow[slopeLen] ? 1.0 : emaSlow < emaSlow[slopeLen] ? -1.0 : 0.0
+    tN   += 1
+    tSum += stDir < 0 ? 1.0 : -1.0
+    tN   += 1
+    tSum += diPlus > diMinus ? 1.0 : -1.0
+    tN   += 1
+    if useHTF
+        tSum += htfBull ? 1.0 : htfBear ? -1.0 : 0.0
+        tN   += 1
+trendScore = tN > 0 ? tSum / tN : 0.0
+
+float mSum = 0.0
+int   mN   = 0
+if useMR
+    mSum += rsiVal <= rsiOS ? 1.0 : rsiVal >= rsiOB ? -1.0 : 0.0
+    mN   += 1
+    mSum += pctB <= 0.0 ? 1.0 : pctB >= 1.0 ? -1.0 : 0.0
+    mN   += 1
+    mSum += vwapDev <= -vwapDevMin ? 1.0 : vwapDev >= vwapDevMin ? -1.0 : 0.0
+    mN   += 1
+mrScore = mN > 0 ? mSum / mN : 0.0
+
+float bSum = 0.0
+int   bN   = 0
+if useBO
+    bSum += not na(donHi) and close > donHi ? 1.0 : not na(donLo) and close < donLo ? -1.0 : 0.0
+    bN   += 1
+    bSum += sqzRelease ? (close > bbBasis ? 1.0 : -1.0) : 0.0
+    bN   += 1
+    if useSessBO
+        bSum += sessBreakUp ? 1.0 : sessBreakDn ? -1.0 : 0.0
+        bN   += 1
+boScore = bN > 0 ? bSum / bN : 0.0
+
+float sSum = 0.0
+int   sN   = 0
+if useSMC
+    sSum += bosUp ? 1.0 : bosDn ? -1.0 : 0.0
+    sN   += 1
+    sSum += structDir
+    sN   += 1
+    if useSweep
+        sSum += sweepBull ? 1.0 : sweepBear ? -1.0 : 0.0
+        sN   += 1
+    if useFVG
+        sSum += fvgRetestBull ? 1.0 : fvgRetestBear ? -1.0 : 0.0
+        sN   += 1
+    if useOB
+        sSum += obTouchBull ? 1.0 : obTouchBear ? -1.0 : 0.0
+        sN   += 1
+smcScore = sN > 0 ? sSum / sN : 0.0
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  الأوزان المتكيّفة مع حالة السوق ثم درجة التوافق النهائية
+// ═══════════════════════════════════════════════════════════════════════════════
+float awT = wT
+float awM = wM
+float awB = wB
+float awS = wS
+isTrending = adxVal >= adxTrendTh
+isRanging  = adxVal <= adxRangeTh
+if adaptive
+    if isTrending
+        awT *= 1.25
+        awB *= 1.25
+        awM *= 0.25
+    else if isRanging
+        awT *= 0.40
+        awB *= 0.40
+        awM *= 1.35
+
+float wTotal = 0.0
+float raw    = 0.0
+if useTrend
+    wTotal += awT
+    raw    += awT * trendScore
+if useMR
+    wTotal += awM
+    raw    += awM * mrScore
+if useBO
+    wTotal += awB
+    raw    += awB * boScore
+if useSMC
+    wTotal += awS
+    raw    += awS * smcScore
+scorePct = wTotal > 0 ? 100.0 * raw / wTotal : 0.0
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  مستويات الهدف والوقف — تُحسب على كل شمعة للاتجاهين قبل أي شرط
+// ═══════════════════════════════════════════════════════════════════════════════
+lowestRef  = ta.lowest(low, structLook)
+highestRef = ta.highest(high, structLook)
+structLow  = math.min(nz(lastSwingLow, lowestRef), lowestRef)
+structHigh = math.max(nz(lastSwingHigh, highestRef), highestRef)
+
+float slLong  = na
+float tpLong  = na
+float slShort = na
+float tpShort = na
+
+if exitMode == "نقاط ثابتة"
+    slLong  := close - slPts * pointValue
+    tpLong  := close + tpPts * pointValue
+    slShort := close + slPts * pointValue
+    tpShort := close - tpPts * pointValue
+else if exitMode == "ATR"
+    slLong  := close - slAtrMult * atr
+    tpLong  := close + tpAtrMult * atr
+    slShort := close + slAtrMult * atr
+    tpShort := close - tpAtrMult * atr
+else
+    slLong  := structLow  - structBuf * atr
+    slShort := structHigh + structBuf * atr
+    tpLong  := na
+    tpShort := na
+
+// تقييد مسافة الوقف بين الحد الأدنى والأعلى، ثم اشتقاق الهدف الهيكلي منها
+minRisk = minSLpts * pointValue
+maxRisk = maxSLpts * pointValue
+riskLong  = math.max(minRisk, math.min(maxRisk, close - slLong))
+riskShort = math.max(minRisk, math.min(maxRisk, slShort - close))
+slLong  := close - riskLong
+slShort := close + riskShort
+if exitMode == "هيكلي"
+    tpLong  := close + riskLong  * rrTarget
+    tpShort := close - riskShort * rrTarget
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  الفلاتر وشروط الدخول
+// ═══════════════════════════════════════════════════════════════════════════════
+sessOK = not useSessFilter or not na(time(timeframe.period, tradeSess, tzInput))
+atrPts = pointValue > 0 ? atr / pointValue : 0.0
+volOK  = atrPts >= minAtrPts and atrPts <= maxAtrPts
+barOK  = not confirmBar or barstate.isconfirmed
+
+var int sigToday   = 0
+var int lastSigBar = -100000
+if newDay
+    sigToday := 0
+
+// حالة الصفقة الافتراضية
+var int   posDir    = 0
+var float posEntry  = na
+var float posTP     = na
+var float posSL     = na
+var int   posBarIdx = na
+var line  lnEntry   = na
+var line  lnTP      = na
+var line  lnSL      = na
+
+// ── إغلاق الصفقة المفتوحة أولًا (لا يمكن أن تُغلق في نفس شمعة الدخول) ──────────
+bool tpHit = false
+bool slHit = false
+if posDir != 0 and bar_index > nz(posBarIdx, bar_index)
+    bool reachTP = posDir == 1 ? high >= posTP : low  <= posTP
+    bool reachSL = posDir == 1 ? low  <= posSL : high >= posSL
+    if reachTP and reachSL
+        if tieRule == "الوقف أولًا"
+            slHit := true
+        else
+            tpHit := true
+    else if reachTP
+        tpHit := true
+    else if reachSL
+        slHit := true
+
+if tpHit or slHit
+    if not na(lnEntry)
+        line.set_x2(lnEntry, bar_index)
+    if not na(lnTP)
+        line.set_x2(lnTP, bar_index)
+    if not na(lnSL)
+        line.set_x2(lnSL, bar_index)
+    posDir    := 0
+    posEntry  := na
+    posTP     := na
+    posSL     := na
+    posBarIdx := na
+    lnEntry   := na
+    lnTP      := na
+    lnSL      := na
+
+// ── شروط الدخول ─────────────────────────────────────────────────────────────
+rawLong  = scorePct >= minScore
+rawShort = scorePct <= -minScore
+canEnter = barOK and sessOK and volOK and (bar_index - lastSigBar > cooldownBars) and sigToday < maxPerDay and (not onePos or posDir == 0) and not na(atr)
+
+htfOkLong  = not (strictHTF and useHTF) or htfBull
+htfOkShort = not (strictHTF and useHTF) or htfBear
+
+entryLong  = canEnter and rawLong  and not rawShort and htfOkLong  and tpLong  > close and slLong  < close
+entryShort = canEnter and rawShort and not rawLong  and htfOkShort and tpShort < close and slShort > close
+
+if entryLong or entryShort
+    posDir    := entryLong ? 1 : -1
+    posEntry  := close
+    posTP     := entryLong ? tpLong : tpShort
+    posSL     := entryLong ? slLong : slShort
+    posBarIdx := bar_index
+    lastSigBar := bar_index
+    sigToday  += 1
+    if showLines
+        lnEntry := line.new(bar_index, posEntry, bar_index + 1, posEntry, color = colEntry, width = 1)
+        lnTP    := line.new(bar_index, posTP, bar_index + 1, posTP, color = colLong, width = 1, style = line.style_dashed)
+        lnSL    := line.new(bar_index, posSL, bar_index + 1, posSL, color = colShort, width = 1, style = line.style_dashed)
+    if showCard
+        rPts = math.abs(posEntry - posSL) / pointValue
+        tPts = math.abs(posTP - posEntry) / pointValue
+        txt  = (entryLong ? "شراء" : "بيع") + "  •  توافق " + str.tostring(math.round(math.abs(scorePct))) + "%" + "\nدخول " + str.tostring(posEntry, format.mintick) + "\nهدف  " + str.tostring(posTP, format.mintick) + "  (" + str.tostring(math.round(tPts)) + " نقطة)" + "\nوقف  " + str.tostring(posSL, format.mintick) + "  (" + str.tostring(math.round(rPts)) + " نقطة)"
+        label.new(bar_index, entryLong ? low : high, txt, style = entryLong ? label.style_label_up : label.style_label_down, color = color.new(entryLong ? colLong : colShort, 15), textcolor = color.white, size = size.small, yloc = entryLong ? yloc.belowbar : yloc.abovebar)
+
+// تمديد خطوط الصفقة المفتوحة مع كل شمعة جديدة
+if posDir != 0
+    if not na(lnEntry)
+        line.set_x2(lnEntry, bar_index + 1)
+    if not na(lnTP)
+        line.set_x2(lnTP, bar_index + 1)
+    if not na(lnSL)
+        line.set_x2(lnSL, bar_index + 1)
+
+// تمديد صناديق المناطق النشطة
+if showZones
+    if not na(bullFvgBox) and not na(bullFvgBot)
+        box.set_right(bullFvgBox, bar_index + 1)
+    if not na(bearFvgBox) and not na(bearFvgTop)
+        box.set_right(bearFvgBox, bar_index + 1)
+    if not na(bullObBox) and not na(bullObBot)
+        box.set_right(bullObBox, bar_index + 1)
+    if not na(bearObBox) and not na(bearObTop)
+        box.set_right(bearObBox, bar_index + 1)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  الرسم
+// ═══════════════════════════════════════════════════════════════════════════════
+plot(useTrend ? emaFast : na, "EMA السريع", color = color.new(#46a5ff, 35), linewidth = 1)
+plot(useTrend ? emaSlow : na, "EMA البطيء", color = color.new(#91a1b6, 35), linewidth = 1)
+plot(useMR ? vwapVal : na, "VWAP", color = color.new(#ffd45a, 45), linewidth = 1)
+plot(scorePct, "درجة التوافق %", display = display.data_window)
+plot(adxVal, "ADX", display = display.data_window)
+plot(atrPts, "ATR بالنقاط", display = display.data_window)
+
+plotshape(entryLong,  "إشارة شراء", location = location.belowbar, style = shape.triangleup,   size = size.small, color = colLong)
+plotshape(entryShort, "إشارة بيع",  location = location.abovebar, style = shape.triangledown, size = size.small, color = colShort)
+plotshape(showResult and tpHit, "تحقق الهدف",  location = location.abovebar, style = shape.xcross, size = size.tiny, color = colLong)
+plotshape(showResult and slHit, "ضرب الوقف",   location = location.belowbar, style = shape.xcross, size = size.tiny, color = colShort)
+
+bgcolor(adaptive and isTrending ? color.new(colLong, 96) : adaptive and isRanging ? color.new(#46a5ff, 96) : na, title = "حالة السوق")
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  التنبيهات
+// ═══════════════════════════════════════════════════════════════════════════════
+alertcondition(entryLong,  "KAKASHI — إشارة شراء", "KAKASHI: إشارة شراء على {{ticker}} بسعر {{close}}")
+alertcondition(entryShort, "KAKASHI — إشارة بيع",  "KAKASHI: إشارة بيع على {{ticker}} بسعر {{close}}")
+alertcondition(tpHit,      "KAKASHI — تحقق الهدف", "KAKASHI: تحقق الهدف على {{ticker}}")
+alertcondition(slHit,      "KAKASHI — ضرب الوقف",  "KAKASHI: ضرب وقف الخسارة على {{ticker}}")
+
+if entryLong
+    alert("KAKASHI شراء " + syminfo.ticker + " | دخول " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(tpLong, format.mintick) + " | وقف " + str.tostring(slLong, format.mintick) + " | توافق " + str.tostring(math.round(scorePct)) + "%", alert.freq_once_per_bar_close)
+if entryShort
+    alert("KAKASHI بيع " + syminfo.ticker + " | دخول " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(tpShort, format.mintick) + " | وقف " + str.tostring(slShort, format.mintick) + " | توافق " + str.tostring(math.round(math.abs(scorePct))) + "%", alert.freq_once_per_bar_close)
+if tpHit
+    alert("KAKASHI: تحقق الهدف على " + syminfo.ticker, alert.freq_once_per_bar_close)
+if slHit
+    alert("KAKASHI: ضرب وقف الخسارة على " + syminfo.ticker, alert.freq_once_per_bar_close)
