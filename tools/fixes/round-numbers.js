@@ -18,25 +18,54 @@
  *   starts. So the correct construction is a FIXED GRID, with every member of
  *   the grid watched independently and tested one at a time.
  *
- * WHAT THIS FILE DOES
+ * WHAT WAS FOUND
  *
- *   stage current    measures the old staircase construction, direction-adjusted
- *   stage grid       fixed grid; sweeps step, tolerance, approach, timeframe
- *   stage excursion   measures the MFE/MAE a test actually produces
- *   stage tuned      sizes target/stop to that excursion, both readings
- *   stage final      the chosen configuration plus controls
+ *   1. Round numbers are NOT respected more often than arbitrary prices. The
+ *      68.95% random-respect baseline is matched, to within a point, by grids
+ *      shifted off the round values at every tolerance and every timeframe
+ *      tested. The eye-catching 75–93% respect rates in the tables below are
+ *      artifacts of a wide tolerance, and the shadow grids produce them too.
+ *      This idea is dead and should not be resurrected.
  *
- *   Usage:  node --max-old-space-size=3500 tools/fixes/round-numbers.js <stage>
+ *   2. The BREAK is where the content is. When price closes decisively through
+ *      a multiple of $100, it keeps going, and it does so more than it does
+ *      through any other price. Direction-adjusted alpha +6.35 points/trade
+ *      over 1,019 trades, t = 3.09, and it beats all twelve spacing-matched
+ *      shadow grids (shadow mean -1.18, sd 1.67, z = +4.50).
+ *
+ *   3. It is $100 specifically, not roundness in general. Pure strata:
+ *      multiples of 500 +8.89, of 100 +6.35, of 50-but-not-100 -0.08, of
+ *      25-but-not-50 -0.08, of 10-but-not-50 -0.70. A threshold at the big
+ *      figure, not a gradient.
+ *
+ *   4. The tolerance turned out not to be the lever. Anything from a $0.15 to
+ *      a $1.00 half-width gives the same answer. What mattered was the
+ *      definition (a fixed grid instead of a staircase), the reading (break,
+ *      not bounce) and the target shape (about 2:1 reward to risk).
+ *
+ * STAGES   node --max-old-space-size=3500 tools/fixes/round-numbers.js <stage>
+ *
+ *   probe      data facts: price range, ATR by timeframe, blind baselines
+ *   current    the old staircase construction, direction-adjusted
+ *   grid       fixed grid swept over step, tolerance, approach, timeframe
+ *   excursion  MFE/MAE a test actually produces
+ *   asym       signed travel — the table that killed the bounce reading
+ *   rank       roundness as a dose, cut out of one grid by one detector
+ *   honest     grid minus off-grid control
+ *   z          THE DECISIVE TEST: round grid against twelve shadow grids
+ *   tune100    detector and target tuning for the surviving construction
+ *   verify     causality: grid independence, prefix test, entry timing
+ *   final      the chosen configuration and everything that could falsify it
+ *   robust     bootstrap, walk-forward, parameter neighbourhood, cost
  *
  * CAUSALITY
- *   The grid is a set of constants, so there is no information in it at all —
+ *   The grid is a set of constants, so it carries no information and has
  *   nothing to leak. An event at bar i uses only bars[i], bars[i-1].c and
  *   atr[i]; entry is the close of bar i. When the test is detected on a higher
- *   timeframe, the event is mapped to the LAST 1m bar of that higher-timeframe
- *   candle, i.e. the moment that candle closed. Stage `final` asserts this
- *   explicitly and also runs an off-grid control (levels shifted to non-round
- *   values), which must collapse to the random baseline if the measurement is
- *   honest.
+ *   timeframe the event is mapped to the LAST 1m bar of that candle, i.e. the
+ *   moment it closed. `verify` proves this rather than asserting it: the same
+ *   detector run on only the first K bars reproduces the full-sample events
+ *   inside that prefix exactly, 0 mismatches at K = 40k, 100k and 150k.
  */
 
 const fs = require('fs');
@@ -736,10 +765,367 @@ function stageSession() {
   }
 }
 
-module.exports = { loadBars, roundGrid, roundness, rankOf, constLevelEvents, gridEvents, excursion, asymmetry, score, race, blind, sessionOf, withControl, bounce, brk, flip, pick, bars, atr1, N, PU, COST, TF_NAME };
+// ═════════════════════════════════════════════════════════════════════════════
+//  TUNING THE ONE CONSTRUCTION THAT SURVIVED THE SHADOW TEST
+//  Breaks of $100 levels. Bounces are dead; only the break reading has content.
+// ═════════════════════════════════════════════════════════════════════════════
+function stageTune100() {
+  const SH = OFF_FRACS.slice(0, 8);
+  const shadowAlpha = (step, opts, sel, tp, sl, hold) => {
+    const v = [];
+    for (const fr of SH) {
+      const ev = gridEvents(step, { ...opts, offset: +(step * fr).toFixed(4) }).filter(sel);
+      if (ev.length < 60) continue;
+      v.push(score(ev, tp, sl, hold).alpha);
+    }
+    const mean = v.reduce((a, b) => a + b, 0) / v.length;
+    const sd = Math.sqrt(v.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(1, v.length - 1));
+    return { mean, sd, k: v.length, beat: v };
+  };
+
+  console.log('DETECTOR TUNING — $100 grid, break reading, fixed-dollar zone. hold 240m, 90/90 for now.');
+  line(112);
+  console.log('tf'.padEnd(4) + 'tolUsd'.padEnd(8) + 'apprUsd'.padEnd(9) + 'brkUsd'.padEnd(8) +
+    'n'.padStart(7) + 'alpha'.padStart(8) + 'shadow'.padStart(8) + 'sd'.padStart(6) + 'z'.padStart(6) + 'beat'.padStart(6));
+  line(112);
+  const cands = [];
+  for (const m of [1, 5]) {
+    for (const tolUsd of [0.25, 0.50, 1.00, 2.00]) {
+      for (const approachUsd of [5, 10, 20]) {
+        for (const breakUsd of [0.30, 0.60, 1.20]) {
+          const o = { minutes: m, tolUsd, approachUsd, breakUsd, resetUsd: approachUsd * 0.7 };
+          const ev = gridEvents(100, o).filter(brk);
+          if (ev.length < 150) continue;
+          const g = score(ev, 90, 90, 240);
+          if (g.traded < 150) continue;
+          const sh = shadowAlpha(100, o, brk, 90, 90, 240);
+          const z = sh.sd > 0 ? (g.alpha - sh.mean) / sh.sd : NaN;
+          const beat = sh.beat.filter(x => g.alpha > x).length;
+          cands.push({ o, m, tolUsd, approachUsd, breakUsd, g, sh, z, beat });
+          console.log(TF_NAME[m].padEnd(4) + tolUsd.toFixed(2).padEnd(8) + String(approachUsd).padEnd(9) + breakUsd.toFixed(2).padEnd(8) +
+            String(g.traded).padStart(7) + sgn(g.alpha).padStart(8) + sgn(sh.mean).padStart(8) + f(sh.sd, 1).padStart(6) +
+            sgn(z, 1).padStart(6) + `${beat}/${sh.k}`.padStart(6));
+        }
+      }
+    }
+  }
+  line(112);
+  cands.sort((a, b) => b.z - a.z);
+  console.log('\ntop by z:');
+  for (const c of cands.slice(0, 8)) console.log(`  ${TF_NAME[c.m]} tol $${c.tolUsd} appr $${c.approachUsd} brk $${c.breakUsd}  alpha ${sgn(c.g.alpha)} z ${sgn(c.z, 2)} n ${c.g.traded}`);
+
+  const top = cands.slice(0, 3);
+  console.log('\nEXCURSION of the top configurations (points), and target sizing:');
+  for (const c of top) {
+    const ev = gridEvents(100, c.o).filter(brk);
+    for (const h of [30, 60, 120, 240]) {
+      const x = excursion(ev, h);
+      console.log(`  ${TF_NAME[c.m]} tol$${c.tolUsd} appr$${c.approachUsd} brk$${c.breakUsd}  ${String(h).padStart(3)}m  n ${x.n}  MFE 25/50/75/90 ${f(x.mfe25, 0)}/${f(x.mfe50, 0)}/${f(x.mfe75, 0)}/${f(x.mfe90, 0)}   MAE 50/75/90 ${f(x.mae50, 0)}/${f(x.mae75, 0)}/${f(x.mae90, 0)}   edge@h ${sgn(asymmetry(ev, h).edge, 1)}`);
+    }
+  }
+
+  console.log('\nTARGET / STOP / HOLD sweep on the top configuration, each row against its own blind baseline and its own shadows:');
+  const c0 = top[0];
+  line(112);
+  console.log('tp/sl'.padEnd(10) + 'hold'.padEnd(7) + 'n'.padStart(7) + 'win%'.padStart(8) + 'raw'.padStart(8) +
+    'alpha'.padStart(8) + 'shadow'.padStart(8) + 'sd'.padStart(6) + 'z'.padStart(6) + 'beat'.padStart(6));
+  line(112);
+  const evTop = gridEvents(100, c0.o).filter(brk);
+  const best = [];
+  for (const [tp, sl] of [[20, 20], [30, 30], [45, 45], [60, 60], [90, 90], [120, 120], [45, 90], [60, 120], [90, 45], [120, 60], [60, 30], [150, 150]]) {
+    for (const hold of [120, 240, 720]) {
+      const g = score(evTop, tp, sl, hold);
+      if (g.traded < 150) continue;
+      const sh = shadowAlpha(100, c0.o, brk, tp, sl, hold);
+      const z = sh.sd > 0 ? (g.alpha - sh.mean) / sh.sd : NaN;
+      const beat = sh.beat.filter(x => g.alpha > x).length;
+      best.push({ tp, sl, hold, g, sh, z, beat });
+      console.log(`${tp}/${sl}`.padEnd(10) + String(hold).padEnd(7) + String(g.traded).padStart(7) + f(g.winRate, 1).padStart(8) +
+        sgn(g.raw).padStart(8) + sgn(g.alpha).padStart(8) + sgn(sh.mean).padStart(8) + f(sh.sd, 1).padStart(6) + sgn(z, 1).padStart(6) + `${beat}/${sh.k}`.padStart(6));
+    }
+  }
+  line(112);
+  best.sort((a, b) => b.z - a.z);
+  console.log('\nbest target by z:');
+  for (const b of best.slice(0, 6)) console.log(`  ${b.tp}/${b.sl} hold ${b.hold}  alpha ${sgn(b.g.alpha)} raw ${sgn(b.g.raw)} z ${sgn(b.z, 2)} n ${b.g.traded} win ${f(b.g.winRate, 1)}%`);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  CAUSALITY — proved, not asserted.
+// ═════════════════════════════════════════════════════════════════════════════
+function stageVerify() {
+  console.log('1. GRID INDEPENDENCE — the grid is built from the sample range. Does that leak?');
+  const wide = [];
+  for (let v = 1000; v <= 12000; v += 100) wide.push(v);
+  const opts = { tolUsd: 0.5, approachUsd: 10, breakUsd: 0.6, resetUsd: 7 };
+  const fromSample = [];
+  for (const L of roundGrid(100)) for (const e of constLevelEvents(bars, atr1, L, opts)) fromSample.push(`${e.i}:${e.level}:${e.kind}`);
+  const fromWide = [];
+  for (const L of wide) for (const e of constLevelEvents(bars, atr1, L, opts)) fromWide.push(`${e.i}:${e.level}:${e.kind}`);
+  fromSample.sort(); fromWide.sort();
+  console.log(`   sample-derived grid: ${fromSample.length} events;  fixed 1000–12000 grid: ${fromWide.length} events`);
+  console.log(`   identical: ${fromSample.length === fromWide.length && fromSample.every((v, k) => v === fromWide[k])}`);
+  console.log('   → a level price never reaches produces no events, so the range cannot leak.\n');
+
+  console.log('2. PREFIX TEST — the strongest lookahead check available.');
+  console.log('   Re-run the detector on only the first K bars. If any future information is used,');
+  console.log('   the events found inside the prefix must differ from the full-sample run.');
+  for (const K of [40000, 100000, 150000]) {
+    const pre = bars.slice(0, K);
+    const preAtr = E.atr(pre, 14);
+    let same = 0, diff = 0;
+    for (const L of roundGrid(100)) {
+      const a = constLevelEvents(bars, atr1, L, opts).filter(e => e.i < K - 5).map(e => `${e.i}:${e.kind}:${e.dir}`);
+      const b = constLevelEvents(pre, preAtr, L, opts).filter(e => e.i < K - 5).map(e => `${e.i}:${e.kind}:${e.dir}`);
+      const sa = new Set(a), sb = new Set(b);
+      for (const x of sa) (sb.has(x) ? same++ : diff++);
+      for (const x of sb) if (!sa.has(x)) diff++;
+    }
+    console.log(`   K=${K.toLocaleString().padStart(9)}  matching events ${String(same).padStart(6)}   mismatches ${diff}`);
+  }
+
+  console.log('\n3. ENTRY TIMING — entry is the close of the bar the event fired on, never earlier.');
+  const ev = gridEvents(100, { minutes: 5, ...opts });
+  let bad = 0;
+  for (const e of ev) { const t = tf(5); if (t.index[e.i] !== e.htf) bad++; }
+  console.log(`   5m detection: ${ev.length} events, all mapped to the 1m bar that closed their 5m candle. violations: ${bad}`);
+  const t5 = tf(5);
+  let lateOk = 0;
+  for (const e of ev.slice(0, 200)) if (e.i === t5.lastOf[e.htf]) lateOk++;
+  console.log(`   spot check: ${lateOk}/200 events sit on the final 1m bar of their 5m candle (should be 200/200)`);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  THE FINAL CONSTRUCTION AND EVERYTHING THAT COULD FALSIFY IT
+// ═════════════════════════════════════════════════════════════════════════════
+const FINAL = {
+  step: 100,
+  minutes: 1,
+  // Chosen for sample size, not for the biggest number: the whole neighbourhood
+  // is positive (76 of 80 nearby detectors), so the honest pick is the one with
+  // the most events. Tolerance barely matters here — anything from $0.15 to
+  // $1.00 gives the same answer, which is itself the finding: for the break
+  // reading the zone width is not the lever.
+  tolUsd: 0.25,        // fixed 25 cents (2.5 points), not an ATR fraction
+  approachUsd: 3.00,   // price must have been $3 (30 points) off the level
+  breakUsd: 0.60,      // the close must finish $0.60 (6 points) through it
+  resetUsd: 2.10,
+  reading: 'break',    // trade the continuation, NOT the bounce
+  tp: 90, sl: 45, hold: 240,
+};
+
+/** Per-trade alpha, so the result gets a t-statistic rather than a vibe. */
+function tStat(events, tp, sl, hold) {
+  const BL = blind(1, tp, sl, hold), BS = blind(-1, tp, sl, hold);
+  const v = [];
+  for (const e of events) {
+    const p = race(e.i, e.dir, tp, sl, hold);
+    if (p === null) continue;
+    v.push(p - (e.dir === 1 ? BL : BS));
+  }
+  const m = v.reduce((a, b) => a + b, 0) / v.length;
+  const sd = Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1));
+  return { n: v.length, mean: m, sd, t: m / (sd / Math.sqrt(v.length)) };
+}
+
+function finalEvents(over = {}) {
+  const o = { ...FINAL, ...over };
+  return gridEvents(o.step, {
+    minutes: o.minutes, offset: o.offset ?? 0,
+    tolUsd: o.tolUsd, approachUsd: o.approachUsd, breakUsd: o.breakUsd, resetUsd: o.resetUsd,
+  }).filter(o.reading === 'break' ? brk : bounce);
+}
+
+function stageFinal() {
+  const { tp, sl, hold } = FINAL;
+  console.log('THE CONSTRUCTION');
+  console.log(`  fixed grid of every multiple of $${FINAL.step}, each level watched on its own`);
+  console.log(`  detected on ${TF_NAME[FINAL.minutes]} candles`);
+  console.log(`  zone: a fixed $${FINAL.tolUsd.toFixed(2)} half-width (${(FINAL.tolUsd / PU).toFixed(1)} points), NOT an ATR fraction`);
+  console.log(`  approach: price must have been $${FINAL.approachUsd.toFixed(2)} (${(FINAL.approachUsd / PU).toFixed(0)} points) off the level first`);
+  console.log(`  trigger: the candle that reaches the zone must CLOSE $${FINAL.breakUsd.toFixed(2)} (${(FINAL.breakUsd / PU).toFixed(0)} points) beyond it`);
+  console.log(`  reading: BREAK — trade the continuation through the level. The bounce reading is worthless.`);
+  console.log(`  target ${tp} points, stop ${sl} points, give up after ${hold} minutes\n`);
+
+  const ev = finalEvents();
+  const g = score(ev, tp, sl, hold);
+  const t = tStat(ev, tp, sl, hold);
+  console.log(`events ${ev.length}   traded ${g.traded}   longs ${g.longs} shorts ${g.shorts} (${f(g.shortShare, 1)}% short)`);
+  console.log(`win rate ${f(g.winRate, 1)}%   raw ${sgn(g.raw)} pts/trade   DIRECTION-ADJUSTED ALPHA ${sgn(g.alpha)} pts/trade`);
+  console.log(`blind long ${sgn(blind(1, tp, sl, hold))}  blind short ${sgn(blind(-1, tp, sl, hold))}  at this exact target`);
+  console.log(`per-trade alpha t = ${f(t.t, 2)}  (mean ${sgn(t.mean)}, sd ${f(t.sd, 1)}, n ${t.n})`);
+  console.log(`net over the sample: ${f(g.alpha * g.traded, 0)} points of alpha = ${f(g.alpha * g.traded * PU, 0)} USD per unit\n`);
+
+  console.log('LONG AND SHORT SEPARATELY (an edge that lives in one direction only is a drift bet):');
+  for (const [nm, d] of [['long', 1], ['short', -1]]) {
+    const set = ev.filter(e => e.dir === d);
+    const s = score(set, tp, sl, hold);
+    console.log(`  ${nm.padEnd(6)} n ${String(s.traded).padStart(4)}  raw ${sgn(s.raw)}  baseline ${sgn(blind(d, tp, sl, hold))}  alpha ${sgn(s.alpha)}`);
+  }
+
+  console.log('\nTWELVE SHADOW GRIDS — same $100 spacing, same detector, shifted off the round values:');
+  const shad = [];
+  for (const fr of OFF_FRACS) {
+    const e = finalEvents({ offset: +(100 * fr).toFixed(4) });
+    if (e.length < 100) continue;
+    const s = score(e, tp, sl, hold);
+    shad.push({ off: 100 * fr, n: s.traded, alpha: s.alpha });
+  }
+  for (const s of shad) console.log(`  offset +$${String(s.off.toFixed(0)).padStart(3)}   n ${String(s.n).padStart(4)}   alpha ${sgn(s.alpha)}`);
+  const mean = shad.reduce((a, b) => a + b.alpha, 0) / shad.length;
+  const sd = Math.sqrt(shad.reduce((s, x) => s + (x.alpha - mean) ** 2, 0) / (shad.length - 1));
+  console.log(`  shadows: mean ${sgn(mean)}  sd ${f(sd, 2)}   round grid ${sgn(g.alpha)}   z ${sgn((g.alpha - mean) / sd, 2)}   beat ${shad.filter(s => g.alpha > s.alpha).length}/${shad.length}`);
+
+  console.log('\nROUNDNESS AS A DOSE — the same detector on grids of different roundness:');
+  console.log('  grid'.padEnd(28) + 'n'.padStart(6) + 'raw'.padStart(9) + 'alpha'.padStart(9));
+  for (const [name, over] of [
+    ['$500 levels', { step: 500 }],
+    ['$100 levels  (chosen)', { step: 100 }],
+    ['$50 levels', { step: 50 }],
+    ['$25 levels', { step: 25 }],
+    ['$10 levels', { step: 10 }],
+    ['$100 grid shifted +$50', { step: 100, offset: 50 }],
+    ['$100 grid shifted +$25', { step: 100, offset: 25 }],
+    ['$100 grid shifted +$37', { step: 100, offset: 37 }],
+  ]) {
+    const e = finalEvents(over);
+    if (e.length < 60) { console.log(`  ${name.padEnd(26)}${String(e.length).padStart(6)}   too few`); continue; }
+    const s = score(e, tp, sl, hold);
+    console.log(`  ${name.padEnd(26)}${String(s.traded).padStart(6)}${sgn(s.raw).padStart(9)}${sgn(s.alpha).padStart(9)}`);
+  }
+
+  console.log('\nSTABILITY IN TIME (same construction, no refitting):');
+  const months = new Map();
+  for (const e of ev) {
+    const k = new Date(bars[e.i].t).toISOString().slice(0, 7);
+    if (!months.has(k)) months.set(k, []);
+    months.get(k).push(e);
+  }
+  for (const k of [...months.keys()].sort()) {
+    const s = score(months.get(k), tp, sl, hold);
+    console.log(`  ${k}   n ${String(s.traded).padStart(4)}   raw ${sgn(s.raw).padStart(7)}   alpha ${sgn(s.alpha).padStart(7)}`);
+  }
+  const half = Math.floor(N / 2);
+  for (const [nm, sel] of [['first half ', e => e.i < half], ['second half', e => e.i >= half]]) {
+    const s = score(ev.filter(sel), tp, sl, hold);
+    console.log(`  ${nm}   n ${String(s.traded).padStart(4)}   raw ${sgn(s.raw).padStart(7)}   alpha ${sgn(s.alpha).padStart(7)}`);
+  }
+
+  console.log('\nBY SESSION (UTC):');
+  for (const s of ['asia', 'london', 'overlap', 'ny-pm', 'late']) {
+    const set = ev.filter(e => sessionOf(bars[e.i].t) === s);
+    if (set.length < 30) { console.log(`  ${s.padEnd(9)} n ${set.length} — too few`); continue; }
+    const r = score(set, tp, sl, hold);
+    console.log(`  ${s.padEnd(9)} n ${String(r.traded).padStart(4)}   raw ${sgn(r.raw).padStart(7)}   alpha ${sgn(r.alpha).padStart(7)}`);
+  }
+
+  console.log('\nTARGET SENSITIVITY (is the chosen target a spike or a plateau?):');
+  console.log('  tp/sl'.padEnd(12) + 'n'.padStart(6) + 'win%'.padStart(8) + 'raw'.padStart(9) + 'alpha'.padStart(9) + '   t');
+  for (const [a, b] of [[45, 25], [60, 30], [75, 40], [90, 45], [105, 55], [120, 60], [150, 75], [90, 60], [90, 90], [60, 60]]) {
+    const s = score(ev, a, b, hold);
+    const tt = tStat(ev, a, b, hold);
+    console.log(`  ${a}/${b}`.padEnd(12) + String(s.traded).padStart(6) + f(s.winRate, 1).padStart(8) + sgn(s.raw).padStart(9) + sgn(s.alpha).padStart(9) + `   ${f(tt.t, 2)}`);
+  }
+
+  console.log('\nTHE BOUNCE READING AT THE SAME DETECTOR (for the record):');
+  const bo = finalEvents({ reading: 'bounce' });
+  const bs = score(bo, tp, sl, hold);
+  console.log(`  n ${bs.traded}   raw ${sgn(bs.raw)}   alpha ${sgn(bs.alpha)}   — trading round-number rejections is not a business.`);
+
+  console.log('\nAND THE STARTING POINT, FOR COMPARISON:');
+  const old = score(levelTestEvents(bars, LV.roundNumberLevels(bars, { step: 10 }).line, atr1), 90, 90, MAX_HOLD);
+  console.log(`  levels.js roundNumberLevels step $10, 90/90:  n ${old.traded}  respect ${f(old.respect, 2)}%  alpha ${sgn(old.alpha)}`);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  HOW MUCH OF THIS IS THE SEARCH ITSELF?
+//  The parameters were chosen by looking at the whole sample, so the honest
+//  question is not "is the number big" but "does it survive being chosen
+//  blind". Three checks: a bootstrap interval, a walk-forward where the target
+//  is picked on the first half and spent on the second, and the whole parameter
+//  neighbourhood printed so a spike cannot hide as a plateau.
+// ═════════════════════════════════════════════════════════════════════════════
+function stageRobust() {
+  const { tp, sl, hold } = FINAL;
+  const ev = finalEvents();
+  const BL = blind(1, tp, sl, hold), BS = blind(-1, tp, sl, hold);
+  const a = [];
+  for (const e of ev) { const p = race(e.i, e.dir, tp, sl, hold); if (p !== null) a.push(p - (e.dir === 1 ? BL : BS)); }
+
+  console.log('1. BOOTSTRAP — 5,000 resamples of the per-trade alpha.');
+  const r = rng(20260808);
+  const ms = [];
+  for (let k = 0; k < 5000; k++) {
+    let s = 0;
+    for (let j = 0; j < a.length; j++) s += a[(r() * a.length) | 0];
+    ms.push(s / a.length);
+  }
+  ms.sort((x, y) => x - y);
+  console.log(`   n ${a.length}   alpha ${sgn(a.reduce((x, y) => x + y, 0) / a.length)}`);
+  console.log(`   90% interval [${sgn(ms[250])}, ${sgn(ms[4750])}]   5% tail ${sgn(ms[250])}   share of resamples above zero ${f(100 * ms.filter(v => v > 0).length / ms.length, 1)}%`);
+
+  console.log('\n2. WALK FORWARD — detector and target chosen on the first half only, then spent on the second.');
+  const half = Math.floor(N / 2);
+  let bestCfg = null, bestA = -Infinity;
+  for (const tolUsd of [0.25, 0.50, 1.00]) {
+    for (const approachUsd of [5, 10]) {
+      for (const breakUsd of [0.30, 0.60]) {
+        for (const [a2, b2] of [[45, 25], [60, 30], [90, 45], [120, 60], [60, 60], [90, 90]]) {
+          const set = finalEvents({ tolUsd, approachUsd, breakUsd, resetUsd: approachUsd * 0.7 }).filter(e => e.i < half);
+          if (set.length < 120) continue;
+          const s = score(set, a2, b2, hold);
+          if (s.alpha > bestA) { bestA = s.alpha; bestCfg = { tolUsd, approachUsd, breakUsd, tp: a2, sl: b2, inN: s.traded }; }
+        }
+      }
+    }
+  }
+  console.log(`   picked in-sample: tol $${bestCfg.tolUsd}  appr $${bestCfg.approachUsd}  brk $${bestCfg.breakUsd}  target ${bestCfg.tp}/${bestCfg.sl}   (in-sample alpha ${sgn(bestA)}, n ${bestCfg.inN})`);
+  const oos = finalEvents({ tolUsd: bestCfg.tolUsd, approachUsd: bestCfg.approachUsd, breakUsd: bestCfg.breakUsd, resetUsd: bestCfg.approachUsd * 0.7 }).filter(e => e.i >= half);
+  const so = score(oos, bestCfg.tp, bestCfg.sl, hold);
+  console.log(`   OUT OF SAMPLE (second half):  n ${so.traded}   raw ${sgn(so.raw)}   alpha ${sgn(so.alpha)}`);
+  const oosShadow = [];
+  for (const fr of OFF_FRACS) {
+    const e = finalEvents({ offset: +(100 * fr).toFixed(4), tolUsd: bestCfg.tolUsd, approachUsd: bestCfg.approachUsd, breakUsd: bestCfg.breakUsd, resetUsd: bestCfg.approachUsd * 0.7 }).filter(x => x.i >= half);
+    if (e.length >= 60) oosShadow.push(score(e, bestCfg.tp, bestCfg.sl, hold).alpha);
+  }
+  const om = oosShadow.reduce((x, y) => x + y, 0) / oosShadow.length;
+  console.log(`   out-of-sample shadows: mean ${sgn(om)}   beat ${oosShadow.filter(v => so.alpha > v).length}/${oosShadow.length}`);
+
+  console.log('\n3. THE NEIGHBOURHOOD — every nearby detector at the chosen target, so a spike cannot pass as a plateau.');
+  line(88);
+  console.log('  tolUsd'.padEnd(10) + 'apprUsd'.padEnd(10) + 'brkUsd'.padEnd(10) + 'n'.padStart(7) + 'raw'.padStart(9) + 'alpha'.padStart(9) + '   t');
+  line(88);
+  let pos = 0, tot = 0;
+  for (const tolUsd of [0.15, 0.25, 0.40, 0.60, 1.00]) {
+    for (const approachUsd of [3, 5, 8, 12]) {
+      for (const breakUsd of [0.30, 0.45, 0.60, 0.90]) {
+        const set = finalEvents({ tolUsd, approachUsd, breakUsd, resetUsd: approachUsd * 0.7 });
+        if (set.length < 150) continue;
+        const s = score(set, tp, sl, hold);
+        const t = tStat(set, tp, sl, hold);
+        tot++; if (s.alpha > 0) pos++;
+        console.log(`  ${tolUsd.toFixed(2)}`.padEnd(10) + String(approachUsd).padEnd(10) + breakUsd.toFixed(2).padEnd(10) +
+          String(s.traded).padStart(7) + sgn(s.raw).padStart(9) + sgn(s.alpha).padStart(9) + `   ${f(t.t, 2)}`);
+      }
+    }
+  }
+  line(88);
+  console.log(`  positive in ${pos} of ${tot} nearby detectors`);
+
+  console.log('\n4. COST — alpha is a difference of two costed numbers, so it does not move with the spread.');
+  console.log(`   raw at cost 0.5 pts = ${sgn(score(ev, tp, sl, hold).raw)};  at a realistic 3.0 pt round trip = ${sgn(score(ev, tp, sl, hold).raw - 2.5)}.`);
+
+  console.log('\n5. THE SAME CONSTRUCTION DETECTED ON 5m INSTEAD OF 1m (an independent look at the same idea):');
+  const e5 = finalEvents({ minutes: 5, approachUsd: 10, resetUsd: 7 });
+  const s5 = score(e5, tp, sl, hold);
+  const sh5 = OFF_FRACS.map(fr => finalEvents({ minutes: 5, approachUsd: 10, resetUsd: 7, offset: +(100 * fr).toFixed(4) })).filter(x => x.length >= 60).map(x => score(x, tp, sl, hold).alpha);
+  console.log(`   n ${s5.traded}   raw ${sgn(s5.raw)}   alpha ${sgn(s5.alpha)}   shadows mean ${sgn(sh5.reduce((x, y) => x + y, 0) / sh5.length)}  beat ${sh5.filter(v => s5.alpha > v).length}/${sh5.length}`);
+}
+
+module.exports = { FINAL, finalEvents, tStat, loadBars, roundGrid, roundness, rankOf, constLevelEvents, gridEvents, excursion, asymmetry, score, race, blind, sessionOf, withControl, bounce, brk, flip, pick, bars, atr1, N, PU, COST, TF_NAME };
 
 if (require.main === module) {
-  const stage = process.argv[2] || 'probe';
-  const S = { probe: stageProbe, current: stageCurrent, grid: stageGrid, excursion: stageExcursion, tuned: stageTuned, asym: stageAsym, honest: stageHonest, rank: stageRank, z: stageZ, session: stageSession };
+  const stage = process.argv[2] || 'final';
+  const S = { probe: stageProbe, current: stageCurrent, grid: stageGrid, excursion: stageExcursion, tuned: stageTuned, asym: stageAsym, honest: stageHonest, rank: stageRank, z: stageZ, session: stageSession, tune100: stageTune100, verify: stageVerify, final: stageFinal, robust: stageRobust };
   (S[stage] || stageProbe)();
 }
