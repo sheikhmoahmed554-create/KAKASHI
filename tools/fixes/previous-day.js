@@ -23,24 +23,54 @@
  *   three different meanings and they must be watched separately, each as a
  *   fixed number, each tested one at a time.
  *
- * WHAT WAS FOUND
+ * WHAT WAS FOUND — including the part that does not flatter the idea
  *
- *   The stages below print the evidence; `final` prints the chosen build. In
- *   summary:
+ *   1. THE THREE ARE NOT RESPECTED. Separated, fixed, and tested one at a
+ *      time, yesterday's high is respected 65.1% of the time, the low 67.6%
+ *      and the close 65.5%, against a random-price baseline of 68.95%. That
+ *      holds at every timeframe from 5m to weekly and at every tolerance from
+ *      $0.20 to $1.50. Widening the tolerance raises respect, but it raises it
+ *      for shadow levels just as much. As a place where price turns, these
+ *      three carry nothing.
  *
- *   1. Separating the three is worth a lot on its own, but the separation that
- *      actually matters is not high-vs-low-vs-close, it is WHICH SIDE price
- *      arrives from. Yesterday's high approached from below is a different
- *      trade from yesterday's high approached from above; the second one is a
- *      support retest of a broken level and behaves like the low does.
+ *   2. THE AXIS THAT MATTERS IS WHICH SIDE PRICE ARRIVES FROM, not which of
+ *      the three it is. Yesterday's high approached from BELOW (price still
+ *      inside yesterday's range) loses; approached from ABOVE (price has left
+ *      the range and comes back down to it) wins, and yesterday's low mirrors
+ *      it. Pooling those two — the broken extreme retested from the far side —
+ *      is the only cell in the whole grid that pays.
  *
- *   2. The daily period is the right period. The same construction on 1H and
- *      4H is noise; on the week there are too few instances to believe.
+ *   3. 90/90 IS NOT TOO WIDE HERE, IT IS FAR TOO NARROW. Gold's median daily
+ *      range over this sample is 1,112 points. A test of a DAILY level
+ *      produces median favourable travel of 180-350 points and median adverse
+ *      travel of 130-500 within four hours. A 90 point bracket is $9 in a
+ *      market that moves $111 a day, so it is resolved by noise within
+ *      minutes. Every 90/90 number in the older tables is a coin toss, which
+ *      is exactly why they all sit on their blind baselines. Sized to the
+ *      travel, at 250/250 over 960 minutes, the same events give +51.4.
  *
- *   3. 90/90 is far too wide for what this level produces. Measure the travel
- *      and the target follows from it.
+ *   4. AND THE UNCOMFORTABLE PART. `matched` shifts the entry away from the
+ *      moment of the retest, holding the day and the direction fixed. If the
+ *      level were doing the work, alpha would peak at the retest and fall away
+ *      on both sides. It does not: entering two hours EARLIER scores +77.3
+ *      against the retest's +51.4, and a random minute of the same day in the
+ *      same direction averages +38.3 (z of the retest over it = +1.0). The
+ *      retest moment is worth little. What pays is being positioned on those
+ *      days in that direction — and the direction comes from which side of
+ *      yesterday's range price is on.
  *
- *   4. Bounce vs break is decided by the data, per cell, in `asym`.
+ *      So the previous day's high and low are not a level. They are a
+ *      BOUNDARY: while price is beyond one of them, leaning that way pays.
+ *      `state` measures that directly and it is positive (+21.8 over 1,075
+ *      hourly observations, t 2.89) — but it is not specific to yesterday.
+ *      The range from three days ago scores +17.6 and from five days ago
+ *      +30.7. The mechanism is a multi-day breakout state, and yesterday's
+ *      range is one instance of it rather than the source of it.
+ *
+ *   The number reported for this level is therefore the number the chosen
+ *   construction earned, with the attribution stated plainly: it is trend
+ *   state, not level respect, and the level-specific increment over a
+ *   same-day, same-direction random entry is not statistically significant.
  *
  * STAGES   node --max-old-space-size=3500 tools/fixes/previous-day.js <stage>
  *
@@ -49,6 +79,9 @@
  *   split      the three levels separated, at the sweep's own settings
  *   tfsweep    previous-bar H/L/C across 1m 5m 15m 1H 4H D W
  *   detect     detector geometry: tolerance / approach / break width
+ *   matched    THE DECIDING TEST: is it the level, or just the day + direction?
+ *   state      the range read as a boundary rather than as a level
+ *   stats      overlap, block bootstrap, and the shadow null distribution
  *   excursion  the travel a test actually produces (this sizes the target)
  *   asym       signed travel by cell — decides bounce vs break
  *   target     target/stop/hold grid on the surviving cells
@@ -128,6 +161,39 @@ function race(i, dir, tp, sl, maxHold) {
     if (hs) return -sl - COST;
   }
   return (bars[end].c - e) * dir / PU - COST;
+}
+
+/** Same race, but it also says when the position closed. */
+function raceExit(i, dir, tp, sl, maxHold) {
+  const e = bars[i].c;
+  const t = e + dir * tp * PU, s = e - dir * sl * PU;
+  const end = Math.min(N - 1, i + maxHold);
+  for (let j = i + 1; j <= end; j++) {
+    const b = bars[j];
+    const ht = dir === 1 ? b.h >= t : b.l <= t;
+    const hs = dir === 1 ? b.l <= s : b.h >= s;
+    if (ht && hs) return { pnl: null, exit: j };
+    if (ht) return { pnl: tp - COST, exit: j };
+    if (hs) return { pnl: -sl - COST, exit: j };
+  }
+  return { pnl: (bars[end].c - e) * dir / PU - COST, exit: end };
+}
+
+/**
+ * One position at a time. A 960-minute hold means events overlap heavily, and
+ * 166 overlapping trades are nothing like 166 independent observations. This is
+ * the sequence a single account could actually have traded.
+ */
+function serialise(events, tp, sl, hold) {
+  const out = [];
+  let free = -1;
+  for (const e of events.slice().sort((a, b) => a.i - b.i)) {
+    if (e.i <= free) continue;
+    const r = raceExit(e.i, e.dir, tp, sl, hold);
+    free = r.exit;
+    out.push(e);
+  }
+  return out;
 }
 
 function rng(seed) {
@@ -598,7 +664,7 @@ function stageDetect() {
   console.log('  Judge on alpha, and check the shadow controls in `control` before believing any of it.');
 }
 
-const DET = { tolUsd: 0.80, approachUsd: 10, breakUsd: 0.60, resetUsd: 7 };
+const DET = { tolUsd: 0.80, approachUsd: 5, breakUsd: 0.60, resetUsd: 3.5 };
 
 /** The named cells: level, arrival side, reading. */
 function cellEvents(which, fromAbove, kind, o = DET) {
@@ -727,18 +793,36 @@ function stageTarget() {
   }
 }
 
+/**
+ * Which arrival side a given level wants.
+ *
+ *   inside   price is still inside yesterday's range and comes out to the edge
+ *            — PDH approached from below, PDL approached from above.
+ *   outside  price has already left yesterday's range and comes back to the
+ *            edge from the far side — PDH approached from above, PDL from
+ *            below. This is the broken level being retested as the opposite
+ *            kind of level, and it is a completely different trade.
+ */
+function wantSide(side, which) {
+  if (side === 'inside') return which === 'l';
+  if (side === 'outside') return which === 'h';
+  if (side === 'above') return true;
+  if (side === 'below') return false;
+  return null;                      // both
+}
+
 /** Everything the final build depends on, in one place. */
 const FINAL = {
   minutes: 1440,
   offsetHours: 0,
   which: ['h', 'l'],
-  side: 'inside',          // PDH approached from below, PDL approached from above
-  kind: 'break',
+  side: 'outside',         // PDH approached from above, PDL approached from below
+  kind: 'reject',
   tolUsd: 0.80,
-  approachUsd: 10,
+  approachUsd: 5,
   breakUsd: 0.60,
-  resetUsd: 7,
-  tp: 45, sl: 25, hold: 720,
+  resetUsd: 3.5,
+  tp: 250, sl: 250, hold: 960,
 };
 
 /** Build the final event set, with any field overridden for a robustness probe. */
@@ -752,7 +836,7 @@ function finalEvents(over = {}) {
   const parts = [];
   for (const w of c.which) {
     const ev = levelEvents(c.minutes, w, o);
-    const wantAbove = c.side === 'inside' ? (w === 'l') : c.side === 'above' ? true : c.side === 'below' ? false : null;
+    const wantAbove = wantSide(c.side, w);
     parts.push(ev.filter(e => (wantAbove === null || e.fromAbove === wantAbove) && (c.kind === 'any' || e.kind === c.kind)));
   }
   let ev = dedupe([].concat(...parts));
@@ -867,13 +951,13 @@ function stageControl() {
  * Use the high/low of day k-1-LAG instead of k-1. Still strictly causal (it is
  * older information), same construction, but no longer "yesterday".
  */
-function permutedControl(cfg) {
+function permutedControl(cfg, lags = [0, 1, 2, 3, 4, 5, 7, 10]) {
   const out = [];
   const bk = buckets(1440, 0);
-  for (const lag of [1, 2, 3, 5, 10]) {
+  for (const lag of lags) {
     const parts = [];
     for (const w of cfg.which) {
-      const wantAbove = w === 'l';
+      const wantAbove = wantSide(cfg.side, w);
       const ev = [];
       for (let k = lag + 1; k < bk.length; k++) {
         const src = bk[k - 1 - lag];
@@ -888,9 +972,373 @@ function permutedControl(cfg) {
       parts.push(ev);
     }
     const ev = dedupe([].concat(...parts));
-    out.push([lag === 1 ? 'yesterday (real)' : `${lag} days back`, score(ev, cfg.tp, cfg.sl, cfg.hold)]);
+    out.push([lag === 0 ? 'yesterday (real)' : `${lag + 1} days back`, score(ev, cfg.tp, cfg.sl, cfg.hold), ev]);
   }
   return out;
+}
+
+/**
+ * The honest statistics for a set of overlapping trades on a large target.
+ *
+ * Three things inflate a naive t here and all three are dealt with:
+ *   - trades overlap, so they are not independent  → block bootstrap over days
+ *   - a 250 point target has a 244 point sd, so a handful of trades can carry
+ *     the mean                                     → top-trade contribution
+ *   - the configuration was chosen from a grid      → a shadow ensemble large
+ *     enough to say what alpha looks like when the level is not the level
+ */
+function stageStats() {
+  const { tp, sl, hold } = FINAL;
+  const ev = finalEvents();
+  const s = score(ev, tp, sl, hold);
+  const BL = blind(1, tp, sl, hold), BS = blind(-1, tp, sl, hold);
+  const adjOf = e => { const p = race(e.i, e.dir, tp, sl, hold); return p === null ? null : p - (e.dir === 1 ? BL : BS); };
+
+  console.log(`HOW MUCH OF alpha ${sgn(s.alpha)} SURVIVES AN HONEST STANDARD ERROR?`);
+  console.log(`(reading: ${FINAL.which.join('+')} ${FINAL.side}, ${FINAL.kind}, ${tp}/${sl}/${hold})\n`);
+
+  console.log('1. OVERLAP. Trades held for 960 minutes on a market that produces a handful of events a');
+  console.log('   week are not independent draws.');
+  const ser = serialise(ev, tp, sl, hold);
+  const ss = score(ser, tp, sl, hold);
+  console.log(`   all events                 n ${rp(s.traded, 4)}   alpha ${sgn(s.alpha)}   naive t ${f(s.t)}`);
+  console.log(`   one position at a time     n ${rp(ss.traded, 4)}   alpha ${sgn(ss.alpha)}   naive t ${f(ss.t)}`);
+  const days = new Set(ev.map(e => new Date(bars[e.i].t).toISOString().slice(0, 10)));
+  console.log(`   the ${s.traded} events fall on ${days.size} distinct days — that is closer to the real sample size.`);
+
+  console.log('\n2. BLOCK BOOTSTRAP over calendar days (5,000 resamples, whole days drawn with replacement).');
+  for (const [nm, set] of [['all events', ev], ['one at a time', ser]]) {
+    const byDay = new Map();
+    for (const e of set) {
+      const d = new Date(bars[e.i].t).toISOString().slice(0, 10);
+      const a = adjOf(e);
+      if (a === null) continue;
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(a);
+    }
+    const blocks = [...byDay.values()];
+    const r = rng(20260808);
+    const means = [];
+    for (let b = 0; b < 5000; b++) {
+      let sum = 0, n = 0;
+      for (let k = 0; k < blocks.length; k++) {
+        const blk = blocks[Math.floor(r() * blocks.length)];
+        for (const x of blk) { sum += x; n++; }
+      }
+      means.push(sum / n);
+    }
+    means.sort((a, b) => a - b);
+    console.log(`   ${pad(nm, 16)} blocks ${rp(blocks.length, 4)}   95% CI [${sgn(means[125])}, ${sgn(means[4874])}]   above zero ${f(100 * means.filter(x => x > 0).length / 5000, 1)}%`);
+  }
+
+  console.log('\n3. IS IT A FEW TRADES? Contribution of the extremes.');
+  const adj = ev.map(adjOf).filter(x => x !== null).sort((a, b) => b - a);
+  const total = adj.reduce((a, b) => a + b, 0);
+  const mean = total / adj.length;
+  for (const k of [1, 3, 5, 10]) {
+    const top = adj.slice(0, k).reduce((a, b) => a + b, 0);
+    console.log(`   top ${rp(k, 2)} trades carry ${rp(f(100 * top / total, 0), 4)}% of the total`);
+  }
+  const trim = adj.slice(Math.floor(adj.length * 0.05), Math.ceil(adj.length * 0.95));
+  console.log(`   mean ${sgn(mean)}   median ${sgn(adj[adj.length >> 1])}   5% trimmed mean ${sgn(trim.reduce((a, b) => a + b, 0) / trim.length)}`);
+
+  console.log('\n4. THE NULL DISTRIBUTION. The same construction, same detector, same target, but the level');
+  console.log('   is not yesterday\'s extreme. 40 shadows: 20 shifts off the extreme and 20 fractions of');
+  console.log('   the previous range, plus the older-day set. What does alpha look like when nothing is there?');
+  const shadows = [];
+  for (let k = 1; k <= 10; k++) {
+    for (const sgnv of [-1, 1]) {
+      const a = score(finalEvents({ shiftR: sgnv * k * 0.05 }), tp, sl, hold);
+      if (a.traded >= 60) shadows.push({ nm: `extreme ${sgn(sgnv * k * 0.05, 2)}R`, a: a.alpha, n: a.traded });
+    }
+  }
+  const o = { tolUsd: FINAL.tolUsd, approachUsd: FINAL.approachUsd, breakUsd: FINAL.breakUsd, resetUsd: FINAL.resetUsd };
+  for (let k = 1; k <= 19; k++) {
+    const fr = k / 20;
+    const set = dedupe(levelEvents(1440, fr, o).filter(e => e.kind === FINAL.kind));
+    if (set.length < 60) continue;
+    const a = score(set, tp, sl, hold);
+    shadows.push({ nm: `low+${f(fr, 2)}R`, a: a.alpha, n: a.traded });
+  }
+  for (const [nm, q] of permutedControl(FINAL, [1, 2, 3, 4, 5, 6, 7, 8, 10, 12])) {
+    if (q.traded >= 50) shadows.push({ nm, a: q.alpha, n: q.traded });
+  }
+  const vals = shadows.map(x => x.a);
+  const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+  let v = 0; for (const x of vals) v += (x - m) * (x - m);
+  const sd = Math.sqrt(v / (vals.length - 1));
+  vals.sort((a, b) => a - b);
+  console.log(`   ${vals.length} shadows: mean ${sgn(m)}   sd ${f(sd, 1)}   p5 ${sgn(vals[Math.floor(vals.length * 0.05)], 1)}   p95 ${sgn(vals[Math.floor(vals.length * 0.95)], 1)}   max ${sgn(vals[vals.length - 1], 1)}`);
+  console.log(`   REAL ${sgn(s.alpha)} beats ${vals.filter(x => s.alpha > x).length}/${vals.length}   z = ${sgn((s.alpha - m) / sd)}`);
+  console.log('   The spread of the shadows IS the standard error of this measurement. Compare against it,');
+  console.log('   not against zero, and not against the naive t.');
+
+  console.log('\n5. THE SAME QUESTION AT A SMALLER TARGET, where a trade resolves and the sd is smaller.');
+  line(78);
+  console.log(pad('  tp/sl/hold', 18) + rp('n', 6) + rp('nOverlapFree', 14) + rp('alpha', 9) + rp('t', 7) + rp('shadow sd', 11) + rp('z', 7));
+  line(78);
+  for (const [a, b, h] of [[60, 60, 240], [90, 90, 480], [120, 120, 480], [150, 150, 480], [200, 200, 720], [250, 250, 960], [350, 350, 960]]) {
+    const q = score(ev, a, b, h);
+    const nser = serialise(ev, a, b, h).length;
+    const sh = [];
+    for (let k = 1; k <= 8; k++) for (const g of [-1, 1]) {
+      const z = score(finalEvents({ shiftR: g * k * 0.05 }), a, b, h);
+      if (z.traded >= 60) sh.push(z.alpha);
+    }
+    const mm = sh.reduce((x, y) => x + y, 0) / sh.length;
+    let vv = 0; for (const x of sh) vv += (x - mm) * (x - mm);
+    const ssd = Math.sqrt(vv / (sh.length - 1));
+    console.log(pad(`  ${a}/${b}/${h}`, 18) + rp(q.traded, 6) + rp(nser, 14) + rp(sgn(q.alpha), 9) + rp(f(q.t), 7) + rp(f(ssd, 1), 11) + rp(sgn((q.alpha - mm) / ssd), 7));
+  }
+  line(78);
+}
+
+/**
+ * THE TEST THAT DECIDES WHETHER THIS IS A LEVEL AT ALL.
+ *
+ * The chosen reading says: on a day where price has left yesterday's range,
+ * wait for it to come back to the broken extreme and trade the rejection. Two
+ * cheaper things could produce the same number:
+ *
+ *   (a) the DAY and the DIRECTION are what pay, and the moment of entry is
+ *       irrelevant — in which case entering two hours early or two hours late
+ *       scores the same;
+ *   (b) the BREAKOUT is what pays and the retest is decoration — in which case
+ *       entering the moment price leaves the range, with no retest at all,
+ *       scores the same or better.
+ *
+ * Both are measured here against the same target on the same days.
+ */
+function stageMatched() {
+  const { tp, sl, hold } = FINAL;
+  const ev = finalEvents();
+  const base = score(ev, tp, sl, hold);
+  console.log(`IS IT THE LEVEL, OR JUST THE DAY AND THE DIRECTION?   (${tp}/${sl}/${hold})\n`);
+  console.log(`  the reading under test: n ${base.traded}   alpha ${sgn(base.alpha)}   t ${f(base.t)}\n`);
+
+  console.log('1. SHIFT THE ENTRY IN TIME. Same day, same direction, entry moved by N minutes.');
+  console.log('   If the level matters, alpha must peak at 0 and fall away on both sides.');
+  line(70);
+  console.log(pad('  shift', 14) + rp('n', 6) + rp('raw', 10) + rp('ALPHA', 10) + rp('t', 8));
+  line(70);
+  const bk = buckets(1440, 0);
+  const dayEnd = new Array(N).fill(-1);
+  for (const d of bk) for (let i = d.a; i <= d.b; i++) dayEnd[i] = d.b;
+  const dayStart = new Array(N).fill(-1);
+  for (const d of bk) for (let i = d.a; i <= d.b; i++) dayStart[i] = d.a;
+  for (const delta of [-480, -240, -120, -60, -30, 0, 30, 60, 120, 240, 480]) {
+    const moved = [];
+    for (const e of ev) {
+      const j = e.i + delta;
+      if (j < 1 || j >= N - 2) continue;
+      if (j < dayStart[e.i] || j > dayEnd[e.i]) continue;   // must stay inside the same session
+      moved.push({ ...e, i: j });
+    }
+    if (moved.length < 40) continue;
+    const q = score(moved, tp, sl, hold);
+    console.log(pad(`  ${delta >= 0 ? '+' : ''}${delta}m`, 14) + rp(q.traded, 6) + rp(sgn(q.raw), 10) + rp(sgn(q.alpha), 10) + rp(f(q.t), 8));
+  }
+  line(70);
+
+  console.log('\n2. RANDOM MINUTE ON THE SAME DAY, SAME DIRECTION (300 draws of the whole set).');
+  const r = rng(88121);
+  const rand = [];
+  for (let k = 0; k < 300; k++) {
+    const set = ev.map(e => {
+      const a = dayStart[e.i], b = dayEnd[e.i];
+      return { ...e, i: Math.max(1, Math.min(N - 3, a + Math.floor(r() * (b - a + 1)))) };
+    });
+    rand.push(score(set, tp, sl, hold).alpha);
+  }
+  rand.sort((a, b) => a - b);
+  const rm = rand.reduce((a, b) => a + b, 0) / rand.length;
+  let rv = 0; for (const x of rand) rv += (x - rm) * (x - rm);
+  const rsd = Math.sqrt(rv / (rand.length - 1));
+  console.log(`   same-day random entry: mean alpha ${sgn(rm)}   sd ${f(rsd, 1)}   p95 ${sgn(rand[284], 1)}`);
+  console.log(`   the level's own entry ${sgn(base.alpha)}  →  z vs same-day random timing = ${sgn((base.alpha - rm) / rsd)}`);
+  console.log('   This is the sharpest control available: it holds the day, the direction and the count');
+  console.log('   fixed and varies only WHEN you enter. Whatever it leaves is what the level itself buys.');
+
+  console.log('\n3. NO RETEST AT ALL. Enter the first time price closes 10 USD beyond yesterday\'s extreme,');
+  console.log('   long above the high, short below the low, once per day per side.');
+  const brko = [];
+  for (let k = 1; k < bk.length; k++) {
+    const src = bk[k - 1];
+    for (const [w, dir] of [['h', 1], ['l', -1]]) {
+      const L = bucketValue(src, w);
+      for (let i = bk[k].a; i <= bk[k].b; i++) {
+        const past = dir === 1 ? bars[i].c > L + 10 : bars[i].c < L - 10;
+        if (past) { if (i < N - 2) brko.push({ i, dir, kind: 'reject', level: L, which: w }); break; }
+      }
+    }
+  }
+  const sb = score(dedupe(brko), tp, sl, hold);
+  console.log(`   breakout entry, no retest:  n ${sb.traded}   raw ${sgn(sb.raw)}   ALPHA ${sgn(sb.alpha)}   t ${f(sb.t)}`);
+  console.log(`   retest entry:               n ${base.traded}   raw ${sgn(base.raw)}   ALPHA ${sgn(base.alpha)}   t ${f(base.t)}`);
+
+  console.log('\n4. THE SAME DAYS ONLY. Restrict the breakout entries to days that also produced a retest,');
+  console.log('   so the two are measured over an identical set of sessions.');
+  const retestDays = new Set(ev.map(e => new Date(bars[e.i].t).toISOString().slice(0, 10) + '|' + e.which));
+  const matchedBrk = dedupe(brko.filter(e => retestDays.has(new Date(bars[e.i].t).toISOString().slice(0, 10) + '|' + e.which)));
+  const smb = score(matchedBrk, tp, sl, hold);
+  console.log(`   breakout on retest days:    n ${smb.traded}   raw ${sgn(smb.raw)}   ALPHA ${sgn(smb.alpha)}   t ${f(smb.t)}`);
+
+  console.log('\n5. EACH LEG ON ITS OWN, against the same-day random-timing control.');
+  line(78);
+  console.log(pad('  leg', 26) + rp('n', 6) + rp('alpha', 10) + rp('rand mean', 12) + rp('rand sd', 10) + rp('z', 8));
+  line(78);
+  for (const [nm, sub] of [['PDH from above (long)', ev.filter(e => e.which === 'h')], ['PDL from below (short)', ev.filter(e => e.which === 'l')]]) {
+    if (sub.length < 30) continue;
+    const q = score(sub, tp, sl, hold);
+    const r2 = rng(5150);
+    const rs = [];
+    for (let k = 0; k < 300; k++) {
+      const set = sub.map(e => { const a = dayStart[e.i], b = dayEnd[e.i]; return { ...e, i: Math.max(1, Math.min(N - 3, a + Math.floor(r2() * (b - a + 1)))) }; });
+      rs.push(score(set, tp, sl, hold).alpha);
+    }
+    const mm = rs.reduce((a, b) => a + b, 0) / rs.length;
+    let vv = 0; for (const x of rs) vv += (x - mm) * (x - mm);
+    const ssd = Math.sqrt(vv / (rs.length - 1));
+    console.log(pad('  ' + nm, 26) + rp(q.traded, 6) + rp(sgn(q.alpha), 10) + rp(sgn(mm), 12) + rp(f(ssd, 1), 10) + rp(sgn((q.alpha - mm) / ssd), 8));
+  }
+  line(78);
+}
+
+/**
+ * WHERE THE INFORMATION ACTUALLY IS.
+ *
+ * `matched` shows that entering at the retest is worth almost nothing over
+ * entering at a random minute of the same day in the same direction. But the
+ * direction in that control was not free — it came from which side of
+ * yesterday's range price was on. So the previous day's high and low are not
+ * behaving like a level that price turns at. They are behaving like a BOUNDARY
+ * that says which way to lean while price is beyond it.
+ *
+ * That is a much better-powered thing to measure, because every bar carries the
+ * state rather than only the handful of bars that happen to be a test. Here it
+ * is measured directly, with the level's own value swapped out for controls of
+ * the same shape.
+ */
+function stateEvents(opts = {}) {
+  const every = opts.every ?? 60;          // sample the state this often, in minutes
+  const marginUsd = opts.marginUsd ?? 0;   // how far beyond the edge counts as "beyond"
+  const lag = opts.lag ?? 0;               // 0 = yesterday, 1 = the day before, ...
+  const mode = opts.mode ?? 'range';       // range | closeBand | momentum | midBand
+  const widthR = opts.widthR ?? 1;         // band width as a multiple of the previous range
+  const bk = buckets(1440, 0);
+  const out = [];
+  for (let k = lag + 1; k < bk.length; k++) {
+    const src = bk[k - 1 - lag];
+    const R = src.h - src.l;
+    let hi, lo;
+    if (mode === 'range') { hi = src.h; lo = src.l; }
+    else if (mode === 'closeBand') { hi = src.c + R * widthR / 2; lo = src.c - R * widthR / 2; }
+    // NOTE: mid ± half the range IS the range, so widthR must differ from 1 for
+    // midBand to be a control at all. `shiftR` slides the whole band instead.
+    else if (mode === 'midBand') { const m = (src.h + src.l) / 2; hi = m + R * widthR / 2; lo = m - R * widthR / 2; }
+    else if (mode === 'slid') { const d = R * (opts.shiftR ?? 0); hi = src.h + d; lo = src.l + d; }
+    for (let i = bk[k].a; i <= bk[k].b; i += every) {
+      if (i < 1 || i >= N - 2) continue;
+      let dir = 0;
+      if (mode === 'momentum') {
+        // the cheapest possible substitute: is price above where it was 24h ago?
+        const j = i - 1380;
+        if (j < 1) continue;
+        const d = bars[i].c - bars[j].c;
+        if (Math.abs(d) < marginUsd) continue;
+        dir = Math.sign(d);
+      } else {
+        if (bars[i].c > hi + marginUsd) dir = 1;
+        else if (bars[i].c < lo - marginUsd) dir = -1;
+        else continue;
+      }
+      out.push({ i, dir, kind: 'reject', level: dir === 1 ? hi : lo, which: dir === 1 ? 'h' : 'l', mins: i - bk[k].a });
+    }
+  }
+  return out;
+}
+
+function stageState() {
+  console.log('THE PREVIOUS DAY\'S RANGE AS A BOUNDARY, NOT AS A LEVEL');
+  console.log('At every sampled bar: long if price is beyond yesterday\'s high, short if beyond yesterday\'s low,');
+  console.log('nothing while inside. Direction-adjusted as always. Sampled hourly so the state, not one');
+  console.log('lucky minute, is what is measured.\n');
+
+  const TARGETS = [[90, 90, 240], [150, 150, 480], [250, 250, 960], [400, 400, 1440]];
+  const ev = stateEvents({ every: 60, marginUsd: 0 });
+  console.log(`  ${ev.length} hourly observations beyond the range  (${ev.filter(e => e.dir === 1).length} above the high, ${ev.filter(e => e.dir === -1).length} below the low)`);
+  console.log(`  as a share of all hourly bars in the sample: ${f(100 * ev.length / (N / 60), 0)}%\n`);
+
+  line(96);
+  console.log(pad('  target', 18) + rp('n', 7) + rp('win%', 7) + rp('raw', 9) + rp('ALPHA', 9) + rp('naive t', 9) + rp('serial n', 10) + rp('serial a', 10));
+  line(96);
+  for (const [tp, sl, h] of TARGETS) {
+    const s = score(ev, tp, sl, h);
+    const ser = serialise(ev, tp, sl, h);
+    const ss = score(ser, tp, sl, h);
+    console.log(pad(`  ${tp}/${sl}/${h}`, 18) + rp(s.traded, 7) + rp(f(s.winRate, 0), 7) + rp(sgn(s.raw), 9) + rp(sgn(s.alpha), 9) +
+      rp(f(s.t), 9) + rp(ss.traded, 10) + rp(sgn(ss.alpha), 10));
+  }
+  line(96);
+
+  console.log('\nCONTROLS OF THE SAME SHAPE — a band of the same width, in the wrong place, and plain momentum.');
+  console.log('All at 250/250/960, all hourly, all direction-adjusted.');
+  line(88);
+  console.log(pad('  boundary', 34) + rp('n', 8) + rp('raw', 10) + rp('ALPHA', 10) + rp('t', 8));
+  line(88);
+  const rows = [
+    ['yesterday\'s range (the real thing)', { mode: 'range', lag: 0 }],
+    ['the range 2 days ago', { mode: 'range', lag: 1 }],
+    ['the range 3 days ago', { mode: 'range', lag: 2 }],
+    ['the range 5 days ago', { mode: 'range', lag: 4 }],
+    ['the range 10 days ago', { mode: 'range', lag: 9 }],
+    ['yesterday\'s close ± half its range', { mode: 'closeBand', widthR: 1 }],
+    ['yesterday\'s mid ± 0.35 range (tighter)', { mode: 'midBand', widthR: 0.7 }],
+    ['yesterday\'s mid ± 0.75 range (wider)', { mode: 'midBand', widthR: 1.5 }],
+    ['the whole range slid up 0.5·range', { mode: 'slid', shiftR: 0.5 }],
+    ['the whole range slid down 0.5·range', { mode: 'slid', shiftR: -0.5 }],
+    ['above / below the price 24h ago', { mode: 'momentum', marginUsd: 0 }],
+  ];
+  for (const [nm, o] of rows) {
+    const set = stateEvents(Object.assign({ every: 60 }, o));
+    if (set.length < 100) continue;
+    const s = score(set, 250, 250, 960);
+    console.log(pad('  ' + nm, 34) + rp(s.traded, 8) + rp(sgn(s.raw), 10) + rp(sgn(s.alpha), 10) + rp(f(s.t), 8));
+  }
+  line(88);
+
+  console.log('\nHOW FAR BEYOND THE EDGE? (yesterday\'s range, 250/250/960, hourly)');
+  line(70);
+  console.log(pad('  margin', 14) + rp('n', 8) + rp('raw', 10) + rp('ALPHA', 10) + rp('t', 8));
+  line(70);
+  for (const marginUsd of [0, 2, 5, 10, 20, 40]) {
+    const set = stateEvents({ every: 60, marginUsd });
+    if (set.length < 100) continue;
+    const s = score(set, 250, 250, 960);
+    console.log(pad(`  ${marginUsd} USD`, 14) + rp(s.traded, 8) + rp(sgn(s.raw), 10) + rp(sgn(s.alpha), 10) + rp(f(s.t), 8));
+  }
+  line(70);
+
+  console.log('\nBLOCK BOOTSTRAP over days for the real boundary at 250/250/960:');
+  const BL = blind(1, 250, 250, 960), BS = blind(-1, 250, 250, 960);
+  const byDay = new Map();
+  for (const e of ev) {
+    const p = race(e.i, e.dir, 250, 250, 960);
+    if (p === null) continue;
+    const d = new Date(bars[e.i].t).toISOString().slice(0, 10);
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d).push(p - (e.dir === 1 ? BL : BS));
+  }
+  const blocks = [...byDay.values()];
+  const r = rng(777);
+  const means = [];
+  for (let b = 0; b < 5000; b++) {
+    let sum = 0, n = 0;
+    for (let k = 0; k < blocks.length; k++) { const blk = blocks[Math.floor(r() * blocks.length)]; for (const x of blk) { sum += x; n++; } }
+    means.push(sum / n);
+  }
+  means.sort((a, b) => a - b);
+  console.log(`  ${blocks.length} day blocks   95% CI [${sgn(means[125])}, ${sgn(means[4874])}]   above zero ${f(100 * means.filter(x => x > 0).length / 5000, 1)}%`);
 }
 
 function stageVerify() {
@@ -951,7 +1399,7 @@ function prefixEvents(K, cfg) {
 
   const parts = [];
   for (const w of cfg.which) {
-    const wantAbove = w === 'l';
+    const wantAbove = wantSide(cfg.side, w);
     const ev = [];
     for (let k = 1; k < bk.length; k++) {
       const L = bucketValue(bk[k - 1], w);
@@ -1023,6 +1471,25 @@ function stageFinal() {
   const before = score(levelTestEvents(bars, LV.previousDayLevels(bars).line, atr1));
   console.log(`   old nearest-of-three, 90/90/1440 : alpha ${sgn(before.alpha)}  over ${before.traded} trades`);
   console.log(`   this build                       : alpha ${sgn(s.alpha)}  over ${s.traded} trades`);
+
+  console.log('\n\n  WHAT THIS NUMBER IS AND IS NOT — read this before trading it.');
+  line(90);
+  console.log('  It holds up internally: positive in 48 of 48 nearby detectors, in 6 of 7 months, in');
+  console.log('  both halves of the sample, on both the long and the short leg, and at every target');
+  console.log('  from 200/200 upward. Causality is verified in `verify` with zero prefix mismatches.');
+  console.log();
+  console.log('  It does NOT hold up as evidence that price respects yesterday\'s high or low:');
+  const ser = serialise(ev, FINAL.tp, FINAL.sl, FINAL.hold);
+  const ss = score(ser, FINAL.tp, FINAL.sl, FINAL.hold);
+  console.log(`   - respect is ${f(score(levelEvents(1440, 'h')).respect, 1)}% for the high and ${f(score(levelEvents(1440, 'l')).respect, 1)}% for the low, against ${RANDOM_RESPECT}% for a random price;`);
+  console.log(`   - 960-minute holds overlap, and one position at a time gives alpha ${sgn(ss.alpha)} over ${ss.traded} trades (t ${f(ss.t)});`);
+  console.log('   - against 49 shadow levels of the same construction, z is only +1.6;');
+  console.log('   - and `matched` shows a random minute of the same day in the same direction earns');
+  console.log('     +38.3, so the retest moment itself buys about +13 with a z near 1.0.');
+  console.log();
+  console.log('  The honest reading: this is a multi-day breakout/trend state that yesterday\'s range');
+  console.log('  happens to mark, not a level that price turns at. Size it as a trend trade.');
+  line(90);
 }
 
 function stageRobust() {
@@ -1105,9 +1572,9 @@ function stageRobust() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
-  FINAL, finalEvents, prefixEvents, permutedControl,
+  FINAL, finalEvents, prefixEvents, permutedControl, wantSide,
   loadBars, buckets, bucketValue, bucketKey, windowEvents, levelEvents, dedupe,
-  excursion, asymmetry, score, race, blind, bounce, brk, flip, cellEvents,
+  excursion, asymmetry, score, race, raceExit, serialise, blind, bounce, brk, flip, cellEvents,
   bars, atr1, N, PU, COST, TF_NAME,
 };
 
@@ -1116,7 +1583,8 @@ if (require.main === module) {
   const S = {
     probe: stageProbe, current: stageCurrent, split: stageSplit, tfsweep: stageTfsweep,
     detect: stageDetect, excursion: stageExcursion, asym: stageAsym, target: stageTarget,
-    decay: stageDecay, control: stageControl, verify: stageVerify, final: stageFinal, robust: stageRobust,
+    decay: stageDecay, control: stageControl, stats: stageStats, matched: stageMatched, state: stageState,
+    verify: stageVerify, final: stageFinal, robust: stageRobust,
   };
   (S[stage] || stageProbe)();
 }

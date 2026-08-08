@@ -41,15 +41,38 @@
  *   move again. Each one is watched on its own, one level at a time, with the
  *   same approach/react/lock semantics as tools/level_events.js.
  *
- *   stage probe      data sanity: sessions, volume, price grid
+ *   stage probe      data sanity; does the volume column carry information at all
  *   stage current    the old rolling-POC construction, direction-adjusted
  *   stage profile    the fixed session profile; sweeps window/bucket/kind/hold
- *   stage tf         detection timeframe sweep on the best definitions
+ *   stage tf         detection timeframe, approach and tolerance sweeps
+ *   stage compare    every definition against its own matched control
+ *   stage decisive   is it the volume, or just the place? nudged + geometry controls
+ *   stage robust     the whole nuisance grid, sign counts rather than sweep maxima
  *   stage excursion  the MFE/MAE a test of this level actually produces
  *   stage tuned      target and stop sized to that excursion; both readings
+ *   stage naked      levels held until first touch, and held for many sessions
+ *   stage confirm    the chosen target re-run over every nuisance parameter
  *   stage final      the chosen configuration, controls, causality assertions
+ *   stage summary    before and after, with the improvement decomposed
  *
  *   Usage: node --max-old-space-size=3500 tools/fixes/volume-node.js <stage>
+ *   Headline: node --max-old-space-size=3500 tools/fixes/volume-node.js summary
+ *
+ * WHAT THE ANSWER TURNED OUT TO BE
+ *
+ *   The edges of the value area, not the peak. The point of control is negative
+ *   in 90 of 144 nuisance cells and the low volume node in 132 of 144; the two
+ *   value-area edges are positive in 91 of 144 at the tuned target. Every test
+ *   is traded INWARD, back toward the point of control, regardless of whether
+ *   the engine called it a rejection or a break — the auction reading, not the
+ *   support/resistance reading.
+ *
+ *   And the respect rate never moves: 69.1% against a 68.95% random baseline
+ *   and a 69.5% matched control. This level does not turn price more often than
+ *   chance. The entire result is in the size of the move after the test, which
+ *   is why the target had to be sized to the excursion (150/150 over 240 bars,
+ *   from a median favourable excursion of 191 points and adverse of 158) rather
+ *   than left at 90/90.
  *
  * CAUSALITY
  *   A level derived from bars [a, b) is stamped with knownAt = b and is only
