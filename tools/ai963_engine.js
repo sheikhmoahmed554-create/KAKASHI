@@ -339,6 +339,11 @@ function runBacktest(bars, sources, opts = {}) {
   const pointUnit = opts.pointUnit ?? 0.10;
   const sameCandleRule = opts.sameCandleRule ?? 'Skip';
   const costPoints = opts.costPoints ?? 0;
+  // Bar-level veto on new entries, matching where the Pine build applies it.
+  // Filtering the finished trade list instead would give a different answer:
+  // a blocked entry leaves its slot free for a later signal, so the veto
+  // reshapes what gets taken rather than just deleting rows.
+  const entryAllowed = opts.entryAllowed ?? null;
   const N = sources.length;
 
   const active = new Array(N).fill(false);
@@ -381,7 +386,8 @@ function runBacktest(bars, sources, opts = {}) {
     }
 
     // ── entries, highest timeframe first so it wins a contested slot ──
-    for (let off = 0; off < N; off++) {
+    const barOpen = entryAllowed === null || entryAllowed[i] === 1;
+    for (let off = 0; barOpen && off < N; off++) {
       const s = N - 1 - off;
       const src = sources[s];
       const buy = src.buy[i] === 1;
