@@ -175,7 +175,18 @@ function onlineFib(minutes, o = {}) {
 // ═════════════════════════════════════════════════════════════════════════════
 //  Scoring — my own, not imported.
 // ═════════════════════════════════════════════════════════════════════════════
+const RACE_CACHE = new Map();
 function race(i, dir, tp, sl, hold) {
+  const k = `${tp}|${sl}|${hold}`;
+  let m = RACE_CACHE.get(k);
+  if (!m) { m = new Map(); RACE_CACHE.set(k, m); }
+  const kk = i * 2 + (dir > 0 ? 1 : 0);
+  if (m.has(kk)) return m.get(kk);
+  const v = race0(i, dir, tp, sl, hold);
+  if (m.size < 3000000) m.set(kk, v);
+  return v;
+}
+function race0(i, dir, tp, sl, hold) {
   const e = bars[i].c, tpx = e + dir * tp * PU, slx = e - dir * sl * PU;
   const end = Math.min(N - 1, i + hold);
   for (let j = i + 1; j <= end; j++) {
@@ -297,10 +308,6 @@ const fp = (x, d = 1) => Number.isFinite(x) ? x.toFixed(d) : '—';
 // ═════════════════════════════════════════════════════════════════════════════
 //  Stage: online rebuild vs the claimant's projected series
 // ═════════════════════════════════════════════════════════════════════════════
-function stageOnline() {
-  const claim = require('./fibonacci_lib_shim');   // never used; placeholder guard
-}
-
 function claimantSeries(cfg) {
   // Rebuild the claimant's path exactly: resample -> fibLines -> projectConfirmed.
   const { bars: hb, index } = E.resample(bars, cfg.minutes);
@@ -548,10 +555,10 @@ function stageMatched() {
 // ═════════════════════════════════════════════════════════════════════════════
 function stageHoldout() {
   const MINUTES = [15, 60, 240];
-  const RATIOSETS = [[0.236], [0.382], [0.5], [0.618], [0.786], [0.5, 0.618], [0.382, 0.5, 0.618], [0.618, 0.786]];
+  const RATIOSETS = [[0.382], [0.5], [0.618], [0.786], [0.5, 0.618], [0.618, 0.786]];
   const READINGS = ['hold', 'holdFade', 'lose', 'reject'];
-  const TPS = [30, 40, 60, 80, 100];
-  const SLS = [40, 60, 100, 130, 200];
+  const TPS = [30, 60, 100];
+  const SLS = [60, 100, 200];
   const HOLDS = [60, 240];
   const LR = [3, 5, 8];
   const MLA = [1.5, 2.0, 3.0];
@@ -770,6 +777,244 @@ function stageControl() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+//  Stage: is it the minute, the zone, or the leg?
+// ═════════════════════════════════════════════════════════════════════════════
+/*
+ * Three ways the same ten points could arise.
+ *
+ *   the MINUTE  the rejection candle itself carries the information, and the
+ *               edge decays as the entry is pushed later
+ *   the ZONE    simply being at the golden zone in a leg is enough, no
+ *               reaction needed
+ *   the LEG     the leg direction is all that matters and the level is scenery
+ *
+ * The leg case is already answered by the controls (+1.35). These two separate
+ * the other two.
+ */
+function stageDecay() {
+  const cfg = BEST;
+  const { tp, sl, hold } = cfg;
+  const list = pick(eventsFor(cfg), cfg.reading);
+  console.log('\nENTRY DELAY — same events, entry pushed later (edge that lives in the candle decays)');
+  console.log('  delay      n     alpha');
+  for (const d of [0, 5, 15, 30, 60, 120, 240]) {
+    const shifted = list.map(e => ({ ...e, i: e.i + d })).filter(e => e.i < N - hold - 2);
+    const s = score(shifted, tp, sl, hold, 40000);
+    console.log(`  ${String(d).padStart(4)}m ${String(s.traded).padStart(6)}  ${f(s.alpha).padStart(8)}`);
+  }
+
+  // The zone with no reaction asked for: every minute price sits within the
+  // detector's tolerance of the level, traded along the leg, one entry per visit.
+  const p = build(cfg);
+  console.log('\n  ZONE WITHOUT A REACTION — price merely inside the golden zone, traded along the leg');
+  for (const tolAtr of [0.20, 0.5]) {
+    const ev = [];
+    let lock = -1;
+    for (let i = 1; i < N - hold - 2; i++) {
+      if (i <= lock) continue;
+      const d = p.legDir[i];
+      if (!d) continue;
+      let inZone = false;
+      for (const r of cfg.ratios) {
+        const L = p.lines[r][i];
+        if (Number.isFinite(L) && Math.abs(bars[i].c - L) <= atr1[i] * tolAtr) inZone = true;
+      }
+      if (!inZone) continue;
+      ev.push({ i, dir: d, kind: 'reject' });
+      lock = i + 60;
+    }
+    const s = score(ev, tp, sl, hold, 40000);
+    console.log(`    tol ${tolAtr} ATR   n ${String(s.traded).padStart(5)}   alpha ${f(s.alpha)}`);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Stage: is the number 0.618 doing anything, or is it "about half way back"?
+// ═════════════════════════════════════════════════════════════════════════════
+function stageRatios() {
+  const cfg = BEST;
+  const { tp, sl, hold } = cfg;
+  const scan = [];
+  for (let r = 0.10; r <= 1.30001; r += 0.04) scan.push(Math.round(r * 1000) / 1000);
+  const p = onlineFib(cfg.minutes, { ...cfg, ratios: scan });
+  console.log('\nRATIO SCAN on my own build — hold reading, ' + tp + '/' + sl + ', ' + hold + 'm');
+  console.log('  ratio      n     alpha    Jan-Apr    May-Jul');
+  for (const r of scan) {
+    const ev = tagEvents(levelTestEvents(bars, p.lines[r], atr1), p.legDir);
+    const l = pick(ev, 'hold');
+    if (l.length < 60) { console.log(`  ${String(r).padStart(5)} ${String(l.length).padStart(6)}   (thin)`); continue; }
+    const s = score(l, tp, sl, hold, 20000);
+    const a = score(l.filter(e => e.i < MAY1), tp, sl, hold, 20000, 100, MAY1 - hold - 2);
+    const b = score(l.filter(e => e.i >= MAY1), tp, sl, hold, 20000, MAY1, N - hold - 2);
+    const star = [0.236, 0.382, 0.5, 0.618, 0.786].some(x => Math.abs(x - r) < 0.021) ? '*' : ' ';
+    console.log(`${star} ${String(r).padStart(5)} ${String(s.traded).padStart(6)} ${f(s.alpha).padStart(9)} ` +
+      `${f(a.alpha).padStart(10)} ${f(b.alpha).padStart(10)}`);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Stage: anchored walk-forward — would the discovery procedure have paid?
+// ═════════════════════════════════════════════════════════════════════════════
+/*
+ * Splitting once is generous: the claimant saw both halves. This asks the
+ * stricter question. Stand at the start of each month, pick the best
+ * configuration using only the months before it, trade that month, move on.
+ * Nothing about the traded month is ever used to choose anything.
+ */
+const GRID = (() => {
+  const out = [];
+  for (const minutes of [15, 60, 240])
+    for (const lr of [3, 5, 8])
+      for (const mla of [1.5, 2.0, 3.0])
+        for (const ratios of [[0.382], [0.5], [0.618], [0.786], [0.5, 0.618], [0.618, 0.786]])
+          for (const reading of ['hold', 'holdFade', 'lose', 'reject'])
+            for (const tp of [30, 60, 100])
+              for (const sl of [60, 100, 200])
+                for (const hold of [60, 240])
+                  out.push({ minutes, left: lr, right: lr, minLegAtr: mla, maxAge: 400,
+                             killBeyond: true, ratios, reading, tp, sl, hold });
+  return out;
+})();
+
+function stageWalkForward() {
+  const monthStart = [];
+  for (const m of ['2026-03', '2026-04', '2026-05', '2026-06', '2026-07']) {
+    monthStart.push({ m, lo: bars.findIndex(b => b.t >= Date.parse(m + '-01T00:00:00Z')) });
+  }
+  monthStart.push({ m: 'end', lo: N });
+
+  console.log('\nANCHORED WALK-FORWARD — configuration chosen only from the past, traded forward');
+  console.log('  month     picked configuration                                    n    alpha      claimed-config n / alpha');
+  let wfN = 0, wfSum = 0, clN = 0, clSum = 0;
+  for (let k = 0; k < monthStart.length - 1; k++) {
+    const { m, lo } = monthStart[k], hi = monthStart[k + 1].lo;
+    let best = null;
+    for (const cfg of GRID) {
+      const l = pick(eventsFor(cfg), cfg.reading).filter(e => e.i < lo);
+      if (l.length < 100) continue;
+      const s = score(l, cfg.tp, cfg.sl, cfg.hold, 6000, 100, Math.max(200, lo - cfg.hold - 2));
+      if (s.traded < 100) continue;
+      if (!best || s.alpha > best.a) best = { cfg, a: s.alpha, n: s.traded };
+    }
+    if (!best) { console.log(`  ${m}   (no configuration with 100 prior trades)`); continue; }
+    const c = best.cfg;
+    const out = pick(eventsFor(c), c.reading).filter(e => e.i >= lo && e.i < hi);
+    const so = score(out, c.tp, c.sl, c.hold, 12000, lo, Math.max(lo + 100, hi - c.hold - 2));
+    const cl = pick(eventsFor(BEST), BEST.reading).filter(e => e.i >= lo && e.i < hi);
+    const sc = score(cl, BEST.tp, BEST.sl, BEST.hold, 12000, lo, Math.max(lo + 100, hi - BEST.hold - 2));
+    const label = `${c.minutes}m lr${c.left} mla${c.minLegAtr} ${c.ratios.join('+')} ${c.reading} ${c.tp}/${c.sl} h${c.hold}`;
+    console.log(`  ${m}   ${label.padEnd(48)} ${String(so.traded).padStart(4)} ${f(so.alpha).padStart(8)}` +
+      `        ${String(sc.traded).padStart(4)} ${f(sc.alpha).padStart(8)}`);
+    if (Number.isFinite(so.alpha)) { wfN += so.traded; wfSum += so.alpha * so.traded; }
+    if (Number.isFinite(sc.alpha)) { clN += sc.traded; clSum += sc.alpha * sc.traded; }
+  }
+  console.log(`  ─ pooled walk-forward: chosen-each-month ${wfN} trades  alpha ${f(wfSum / wfN)}   |   ` +
+    `claimed config held fixed ${clN} trades  alpha ${f(clSum / clN)}`);
+
+  // How the whole grid behaves out of sample, so the headline can be placed in
+  // its own distribution rather than admired alone.
+  const inS = e => e.i < MAY1, outS = e => e.i >= MAY1;
+  let nAll = 0, posOut = 0, sumOut = 0, holdN = 0, holdPos = 0, holdSum = 0;
+  for (const cfg of GRID) {
+    const l = pick(eventsFor(cfg), cfg.reading);
+    const li = l.filter(inS), lo2 = l.filter(outS);
+    if (li.length < 100 || lo2.length < 60) continue;
+    const b = score(lo2, cfg.tp, cfg.sl, cfg.hold, 6000, MAY1, N - cfg.hold - 2);
+    nAll++; sumOut += b.alpha; if (b.alpha > 0) posOut++;
+    if (cfg.reading === 'hold') { holdN++; holdSum += b.alpha; if (b.alpha > 0) holdPos++; }
+  }
+  console.log(`\n  whole grid on May-Jul: ${posOut}/${nAll} positive, mean ${f(sumOut / nAll)}`);
+  console.log(`  'hold' reading only:   ${holdPos}/${holdN} positive, mean ${f(holdSum / holdN)}`);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Stage: how much does the headline depend on the exact ratio pair and cost?
+// ═════════════════════════════════════════════════════════════════════════════
+function stageRobust() {
+  const cfg = BEST;
+  const { tp, sl, hold } = cfg;
+  console.log('\nPOOLING THE WHOLE PLATEAU instead of the two Fibonacci numbers');
+  for (const rs of [[0.5], [0.618], [0.5, 0.618], [0.46, 0.5, 0.54], [0.46, 0.54, 0.62, 0.70],
+                    [0.5, 0.58, 0.66], [0.54, 0.62, 0.70]]) {
+    const l = pick(eventsFor({ ...cfg, ratios: rs, ratiosBuild: rs.concat(RATIOS_ALL) }), cfg.reading);
+    const s = score(l, tp, sl, hold, 40000);
+    const a = score(l.filter(e => e.i < MAY1), tp, sl, hold, 20000, 100, MAY1 - hold - 2);
+    const b = score(l.filter(e => e.i >= MAY1), tp, sl, hold, 20000, MAY1, N - hold - 2);
+    console.log(`  ${rs.join('+').padEnd(24)} n ${String(s.traded).padStart(4)}  alpha ${f(s.alpha).padStart(8)}` +
+      `   Jan-Apr ${f(a.alpha).padStart(8)} (${a.traded})   May-Jul ${f(b.alpha).padStart(8)} (${b.traded})`);
+  }
+
+  console.log('\nCOST SENSITIVITY (the study assumes 0.5 points round trip)');
+  const list = pick(eventsFor(cfg), cfg.reading);
+  const base = score(list, tp, sl, hold).alpha;
+  for (const extra of [0, 1, 2, 3, 5]) {
+    console.log(`  + ${extra} points of slippage:  alpha ${f(base - extra)}`);
+  }
+
+  console.log('\nTARGET SURFACE around the chosen 60/100 (out-of-sample half only)');
+  const l2 = list.filter(e => e.i >= MAY1);
+  console.log('   tp\\sl' + [40, 60, 100, 130, 200].map(x => String(x).padStart(9)).join(''));
+  for (const t of [30, 40, 60, 80, 100]) {
+    let row = String(t).padStart(6);
+    for (const s2 of [40, 60, 100, 130, 200]) {
+      const x = score(l2, t, s2, hold, 12000, MAY1, N - hold - 2);
+      row += f(x.alpha, 1).padStart(9);
+    }
+    console.log(row);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Stage: how much of the headline is the tuning inside this construction?
+// ═════════════════════════════════════════════════════════════════════════════
+/*
+ * The grid-wide out-of-sample mean mixes in timeframes and ratios the claim
+ * never proposed. The fair question is narrower: hold the CONSTRUCTION fixed
+ * (1H, golden zone, hold reading) and vary only the knobs a person would have
+ * fiddled with. If every knob setting pays out of sample, the headline is the
+ * lucky end of a real distribution rather than the whole of it.
+ */
+function stageFamily() {
+  const outS = e => e.i >= MAY1, inS = e => e.i < MAY1;
+  const rows = [];
+  for (const lr of [3, 5, 8])
+    for (const mla of [1.0, 1.5, 2.0, 3.0])
+      for (const age of [200, 400, 800])
+        for (const kb of [true, false])
+          for (const tp of [40, 60, 80, 100])
+            for (const sl of [60, 100, 130, 200])
+              for (const hold of [60, 120, 240]) {
+                const cfg = { minutes: 60, left: lr, right: lr, minLegAtr: mla, maxAge: age,
+                              killBeyond: kb, ratios: [0.5, 0.618], reading: 'hold', tp, sl, hold };
+                const l = pick(eventsFor(cfg), 'hold');
+                const li = l.filter(inS), lo = l.filter(outS);
+                if (li.length < 100 || lo.length < 80) continue;
+                const a = score(li, tp, sl, hold, 6000, 100, MAY1 - hold - 2).alpha;
+                const b = score(lo, tp, sl, hold, 6000, MAY1, N - hold - 2).alpha;
+                const f2 = score(l, tp, sl, hold, 6000).alpha;
+                rows.push({ a, b, f2, n: l.length, tag: `lr${lr} mla${mla} age${age} kb${kb ? 1 : 0} ${tp}/${sl} h${hold}` });
+              }
+  const stat = arr => {
+    const s = arr.slice().sort((x, y) => x - y);
+    const mean = s.reduce((x, y) => x + y, 0) / s.length;
+    return { n: s.length, pos: s.filter(v => v > 0).length, mean,
+             p10: s[Math.floor(0.10 * s.length)], med: s[Math.floor(0.5 * s.length)],
+             p90: s[Math.floor(0.90 * s.length)], min: s[0], max: s[s.length - 1] };
+  };
+  const A = stat(rows.map(r => r.a)), B = stat(rows.map(r => r.b)), F = stat(rows.map(r => r.f2));
+  console.log(`\nKNOB FAMILY — 1H, ratios 0.5+0.618, hold reading, ${rows.length} knob settings`);
+  const line = (nm, s) => console.log(`  ${nm.padEnd(10)} ${s.pos}/${s.n} positive   mean ${f(s.mean)}   ` +
+    `p10 ${f(s.p10)}  median ${f(s.med)}  p90 ${f(s.p90)}   worst ${f(s.min)}  best ${f(s.max)}`);
+  line('Jan-Apr', A); line('May-Jul', B); line('full', F);
+  const hl = rows.find(r => r.tag === 'lr5 mla2 age400 kb1 60/100 h60');
+  if (hl) {
+    const rank = rows.filter(r => r.f2 >= hl.f2).length;
+    console.log(`  the headline setting ranks ${rank} of ${rows.length} on the full sample ` +
+      `(full ${f(hl.f2)}, Jan-Apr ${f(hl.a)}, May-Jul ${f(hl.b)})`);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 const stage = process.argv[2] || 'all';
 const STAGES = {
   online: () => cmpOnline(),
@@ -779,7 +1024,97 @@ const STAGES = {
   holdout: stageHoldout,
   sig: stageSig,
   control: stageControl,
+  decay: stageDecay,
+  ratios: stageRatios,
+  wf: stageWalkForward,
+  robust: stageRobust,
+  family: stageFamily,
+  close: stageClose,
+  hygiene: stageHygiene,
 };
 if (stage === 'all') {
   cmpOnline(); stagePrefix(); stageMeasure(); stageMatched(); stageSig(); stageControl(); stageHoldout();
 } else (STAGES[stage] || stageMeasure)();
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Stage: the last few ways this could still be wrong
+// ═════════════════════════════════════════════════════════════════════════════
+function stageClose() {
+  const cfg = BEST, { tp, sl, hold } = cfg;
+  const list = pick(eventsFor(cfg), cfg.reading);
+
+  // 1. Exhaustive blind baseline — every bar in the sample, both directions,
+  //    so the direction adjustment cannot be a sampling artefact.
+  let lN = 0, lS = 0, sN = 0, sS = 0;
+  for (let i = 100; i < N - hold - 2; i++) {
+    const a = race0(i, 1, tp, sl, hold); if (a !== null) { lN++; lS += a; }
+    const b = race0(i, -1, tp, sl, hold); if (b !== null) { sN++; sS += b; }
+  }
+  const BL = lS / lN, BS = sS / sN;
+  let ln = 0, lnet = 0, sn = 0, snet = 0;
+  for (const e of list) {
+    const p = race(e.i, e.dir, tp, sl, hold);
+    if (p === null) continue;
+    if (e.dir === 1) { ln++; lnet += p; } else { sn++; snet += p; }
+  }
+  const alpha = ((lnet / ln - BL) * ln + (snet / sn - BS) * sn) / (ln + sn);
+  console.log('\nEXHAUSTIVE BLIND BASELINE (every one of the ' + lN.toLocaleString() + ' eligible bars, both ways)');
+  console.log(`  blind long ${f(BL)}   blind short ${f(BS)}   at ${tp}/${sl}, ${hold}m`);
+  console.log(`  ALPHA recomputed against it: ${f(alpha)}   (sampled version said +10.37)`);
+
+  // 2. Leave one month out — is the headline one month wearing a costume?
+  console.log('\nLEAVE ONE MONTH OUT (non-overlapping trades)');
+  const ser = serial(list, hold);
+  for (const m of ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07']) {
+    const sub = ser.filter(e => !new Date(bars[e.i].t).toISOString().startsWith(m));
+    let a = 0, n = 0;
+    for (const e of sub) {
+      const p = race(e.i, e.dir, tp, sl, hold);
+      if (p === null) continue;
+      n++; a += p - (e.dir === 1 ? BL : BS);
+    }
+    console.log(`  without ${m}:  n ${String(n).padStart(4)}   alpha ${f(a / n)}`);
+  }
+
+  // 3. Shape of the per-trade outcome, so a fat tail cannot be hiding.
+  const outs = list.map(e => race(e.i, e.dir, tp, sl, hold)).filter(v => v !== null);
+  const wins = outs.filter(v => v > 55).length, losses = outs.filter(v => v < -95).length;
+  console.log(`\n  outcomes: ${wins} target hits, ${losses} stop-outs, ${outs.length - wins - losses} timed out`);
+  console.log(`  implied by hits alone: ${f((wins * (tp - COST) + losses * (-sl - COST)) / outs.length)} before timeouts`);
+}
+
+function stageHygiene() {
+  const cfg = BEST;
+  const p = build(cfg);
+  const ev = eventsFor(cfg);
+  const list = pick(ev, cfg.reading);
+  let zero = 0, finiteNoDir = 0;
+  for (let i = 0; i < N; i++) {
+    const anyFinite = cfg.ratios.some(r => Number.isFinite(p.lines[r][i]));
+    if (anyFinite && p.legDir[i] === 0) finiteNoDir++;
+  }
+  for (const e of ev) if (e.legDir === 0) zero++;
+  console.log(`\nHYGIENE`);
+  console.log(`  bars with a level but no leg direction: ${finiteNoDir}   events with legDir 0: ${zero}`);
+  // is the level ever published on the same 1m bar the defining pivot closed?
+  const { index } = E.resample(bars, cfg.minutes);
+  let sameCandle = 0;
+  for (const e of list) { if (index[e.i] === index[Math.max(0, e.i - 1)] - 1) sameCandle++; }
+  // hour-of-day spread of the traded events versus all bars
+  const hEv = new Array(24).fill(0), hAll = new Array(24).fill(0);
+  for (const e of list) hEv[new Date(bars[e.i].t).getUTCHours()]++;
+  for (const b of bars) hAll[new Date(b.t).getUTCHours()]++;
+  console.log('  hour(UTC) share of trades vs share of minutes:');
+  let row1 = '   ', row2 = '   ';
+  for (let h = 0; h < 24; h++) {
+    row1 += String(Math.round(1000 * hEv[h] / list.length) / 10).padStart(6);
+    row2 += String(Math.round(1000 * hAll[h] / N) / 10).padStart(6);
+  }
+  console.log('   trades%' + row1);
+  console.log('   tape% ' + row2);
+  // long/short balance per half
+  for (const [nm, fil] of [['Jan-Apr', e => e.i < MAY1], ['May-Jul', e => e.i >= MAY1]]) {
+    const l = list.filter(fil);
+    console.log(`  ${nm}: ${l.length} trades, ${l.filter(e => e.dir === 1).length}L / ${l.filter(e => e.dir === -1).length}S`);
+  }
+}
