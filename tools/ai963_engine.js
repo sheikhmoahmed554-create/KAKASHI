@@ -72,8 +72,17 @@ function wma(src, len) {
   return out;
 }
 
+/*
+ * ta.hma(src, len) = ta.wma(2*ta.wma(src, len/2) - ta.wma(src, len),
+ *                           math.round(math.sqrt(len)))
+ *
+ * The two window sizes round differently and it matters. `len / 2` is int
+ * division in Pine, so 5/2 is 2, not 3 — rounding it up instead moved the
+ * six-month result by nearly ten thousand points. The sqrt window really does
+ * use math.round.
+ */
 function hma(src, len) {
-  const half = Math.max(1, Math.round(len / 2));
+  const half = Math.max(1, Math.trunc(len / 2));
   const sqrtLen = Math.max(1, Math.round(Math.sqrt(len)));
   const a = wma(src, half);
   const b = wma(src, len);
