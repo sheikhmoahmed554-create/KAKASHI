@@ -177,6 +177,14 @@ function main() {
   const argv = process.argv.slice(2);
   const costArg = argv.indexOf('--cost');
   const jsonArg = argv.indexOf('--json');
+  const fromArg = argv.indexOf('--from');
+  const untilArg = argv.indexOf('--until');
+
+  // A window trims which trades are counted, never which candles are loaded:
+  // the lines still warm up on the full history, so a restricted report is not
+  // a differently-warmed indicator.
+  const from = fromArg >= 0 ? Date.parse(argv[fromArg + 1] + 'T00:00:00Z') : -Infinity;
+  const until = untilArg >= 0 ? Date.parse(argv[untilArg + 1] + 'T00:00:00Z') : Infinity;
 
   console.log('Loading XAUUSD 1m history from the data vault...');
   const bars = loadBars();
@@ -207,9 +215,14 @@ function main() {
   ]));
   console.log();
 
-  const { trades, openAtEnd } = E.runBacktest(bars, sources, {
+  const run = E.runBacktest(bars, sources, {
     pointUnit: POINT_UNIT, sameCandleRule: 'Skip', costPoints: cost,
   });
+  const openAtEnd = run.openAtEnd;
+  const trades = run.trades.filter(t => t.entryTime >= from && t.entryTime < until);
+  if (Number.isFinite(from) || Number.isFinite(until)) {
+    console.log(`counting window : ${Number.isFinite(from) ? new Date(from).toISOString().slice(0, 10) : 'start'} → ${Number.isFinite(until) ? new Date(until).toISOString().slice(0, 10) : 'end'}  (${trades.length} of ${run.trades.length} trades)\n`);
+  }
 
   const all = E.summarize(trades);
   console.log('═'.repeat(72));
