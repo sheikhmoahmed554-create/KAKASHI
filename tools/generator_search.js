@@ -312,15 +312,28 @@ console.log(`مساحة البحث: بلا شروط ${(groups.size * 2 * 4 * 2 *
             `   شرطان ${(groups.size * 2 * 4 * 2 * CONDSETS_BY_DEPTH[2].length).toLocaleString('en')}`);
 console.log(`الاختبار الأمامي: ${MONTHS.slice(FIRST_TEST).join(', ')}   ضبط عشوائي ${SHUFFLES} خلطة لكل إعداد\n`);
 
-if (has('--sweep')) {
+if (has('--sweep') || has('--sweep2')) {
   const SWEEP = [];
-  for (const minTrain of [20, 50, 100, 200]) SWEEP.push({ minTrain, maxCond: 2, rule: 'wilson', topN: 40 });
-  for (const maxCond of [0, 1]) SWEEP.push({ minTrain: 100, maxCond, rule: 'wilson', topN: 40 });
-  for (const rule of ['raw', 'stable']) SWEEP.push({ minTrain: 100, maxCond: 2, rule, topN: 40 });
-  for (const topN of [10, 60]) SWEEP.push({ minTrain: 100, maxCond: 2, rule: 'wilson', topN });
+  if (has('--sweep2')) {
+    // The first sweep showed the result improving monotonically with the
+    // minimum training count, right up to the edge of the grid. Push past it —
+    // an effect that keeps growing as the eligibility bar rises is an effect
+    // that was being buried by small-sample noise, and one that stops growing
+    // has been found.
+    for (const minTrain of [200, 400, 800, 1600, 3200]) SWEEP.push({ minTrain, maxCond: 2, rule: 'wilson', topN: 40 });
+    for (const topN of [10, 20, 80]) SWEEP.push({ minTrain: 800, maxCond: 2, rule: 'wilson', topN });
+    for (const maxCond of [0, 1]) SWEEP.push({ minTrain: 800, maxCond, rule: 'wilson', topN: 40 });
+    SWEEP.push({ minTrain: 800, maxCond: 2, rule: 'raw', topN: 40 });
+    SWEEP.push({ minTrain: 800, maxCond: 2, rule: 'stable', topN: 40 });
+  } else {
+    for (const minTrain of [20, 50, 100, 200]) SWEEP.push({ minTrain, maxCond: 2, rule: 'wilson', topN: 40 });
+    for (const maxCond of [0, 1]) SWEEP.push({ minTrain: 100, maxCond, rule: 'wilson', topN: 40 });
+    for (const rule of ['raw', 'stable']) SWEEP.push({ minTrain: 100, maxCond: 2, rule, topN: 40 });
+    for (const topN of [10, 60]) SWEEP.push({ minTrain: 100, maxCond: 2, rule: 'wilson', topN });
+  }
 
-  console.log('حد أدنى  شروط  قاعدة   عدد   |  تدريب   خارج العيّنة        صافي  |  العشوائي        الفارق   خلطات تفوّقت');
-  console.log('─'.repeat(112));
+  console.log('حد أدنى  شروط  قاعدة   عدد   |  تدريب   خارج العيّنة        صافي  ص/يوم  |  العشوائي        الفارق   خلطات تفوّقت');
+  console.log('─'.repeat(120));
   const out = [];
   for (const cfg of SWEEP) {
     const r = runConfig(cfg, SHUFFLES);
@@ -328,7 +341,7 @@ if (has('--sweep')) {
     const sd = Number.isFinite(r.nsd) && r.nsd > 0 ? (r.realWR - r.nm) / r.nsd : NaN;
     console.log(
       `${String(cfg.minTrain).padStart(7)}  ${String(cfg.maxCond).padStart(5)}  ${cfg.rule.padEnd(6)} ${String(cfg.topN).padStart(4)}   |` +
-      ` ${f(r.trainWR, 1).padStart(5)}%  ${f(r.realWR, 1).padStart(5)}% (${String(r.n).padStart(4)})  ${((r.net > 0 ? '+' : '') + f(r.net, 0)).padStart(7)}  |` +
+      ` ${f(r.trainWR, 1).padStart(5)}%  ${f(r.realWR, 1).padStart(5)}% (${String(r.n).padStart(5)})  ${((r.net > 0 ? '+' : '') + f(r.net, 0)).padStart(7)} ${f(r.n / DAYS, 0).padStart(5)}  |` +
       ` ${f(r.nm, 1).padStart(5)}%±${f(r.nsd, 1)}  ${f(r.realWR - r.nm, 2).padStart(6)}pp ${f(sd, 2).padStart(6)}σ  ${r.beat}/${SHUFFLES}`);
   }
   console.log('\nالعمود الأخير هو الحكم: كم خلطة عشوائية بلغت النتيجة الحقيقية أو تجاوزتها.');
