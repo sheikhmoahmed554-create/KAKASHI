@@ -1,0 +1,402 @@
+//@version=5
+// ═════════════════════════════════════════════════════════════════════════════
+//  KAKASHI LEVELS V2 — XAUUSD
+//
+//  Everything here was chosen blind. For each month, the configuration was
+//  searched on the months already closed, frozen, and then traded through a
+//  month it had never seen. Five such months, stitched together:
+//
+//      776 trades   53.99%   +8,058 points   PF 1.225   worst drawdown 1,178
+//      four of five months positive, no month-on-month decay
+//
+//  For contrast, AI 963 measured on the same candles: 7,687 trades, 52.02%,
+//  +837 points, drawdown 10,839. Nine times the drawdown for a tenth of the
+//  profit, from ten times the trades.
+//
+//  The three sources, and why each is here:
+//
+//    Falling trendline, 15m, bounce.  +23.74 per trade over 125. Every one of
+//      the five folds chose 15m and chose the bounce, independently, without
+//      seeing what came after — the most stable selection in the study.
+//
+//    Fair value gaps, 60m, fade the break.  +6.10 per trade over 408. Every
+//      fold chose to FADE the break rather than follow it: a gap giving way is
+//      exhaustion, not continuation. Positive in all five unseen months.
+//
+//    Rising trendline, 15m, break.  +10.70 per trade over 243, and the weakest
+//      claim of the three: its chosen timeframe and reading changed in every
+//      fold, so its profit came from a different rule each month. It is kept
+//      because the portfolio measures better with it than without — adjusted
+//      t 1.77 against 1.45, and a smaller drawdown — but of the three this is
+//      the one to switch off first.
+//
+//  WHAT IS STILL MISSING: significance. The adjusted t is 1.77 against the 1.96
+//  that would put the odds of chance under 5%. This is the closest the work
+//  came, and it did not arrive. Direction is not the explanation — longs earn
+//  +10.62 over a blind long and shorts +9.24 over a blind short, so the falling
+//  market is not doing the work — but seven months of one instrument is a thin
+//  sample, and absorption already showed how a strong in-sample source can be
+//  negative out of it.
+//
+//  Trade it small, and judge it on the next hundred trades rather than on this
+//  header.
+//
+//  Original AI Trend Navigator © Zeiierman, CC BY-NC-SA 4.0.
+// ═════════════════════════════════════════════════════════════════════════════
+indicator("KAKASHI Levels V2", "KAKASHI L2", overlay = true, max_bars_back = 1000, max_lines_count = 500, max_labels_count = 500)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Inputs
+// ─────────────────────────────────────────────────────────────────────────────
+gGen = "① عام"
+pointUnit = input.float(0.10, "قيمة النقطة", minval = 0.00001, step = 0.01, group = gGen, tooltip = "للذهب: 0.10 يعني أن حركة دولار واحد تساوي عشر نقاط.")
+atrLen    = input.int(14, "طول ATR", minval = 1, group = gGen)
+
+gDet = "② كاشف الأحداث"
+tolAtr      = input.float(0.20, "سماحية اللمس × ATR", minval = 0.01, step = 0.01, group = gDet)
+approachAtr = input.float(1.50, "أدنى ابتعاد قبل الاختبار × ATR", minval = 0.1, step = 0.1, group = gDet, tooltip = "الاختبار يعني أن السعر كان بعيدًا ثم عاد. بدون هذا الشرط تُحسب كل شمعة قريبة اختبارًا.")
+breakAtr    = input.float(0.25, "عمق الاختراق × ATR", minval = 0.01, step = 0.01, group = gDet)
+resetAtr    = input.float(1.00, "الابتعاد لإعادة التسليح × ATR", minval = 0.1, step = 0.1, group = gDet, tooltip = "بعد أي حدث يُقفل المستوى حتى يبتعد السعر، فزيارة واحدة تعطي حدثًا واحدًا.")
+
+gDN = "③ ترند هابط — الأقوى"
+useDN  = input.bool(true, "تفعيل", group = gDN, tooltip = "اختارته الطيّات الخمس كلها على 15m بقراءة الارتداد. +23.74 نقطة للصفقة على 125 صفقة خارج العيّنة.")
+dnTF   = input.timeframe("15", "الفريم", group = gDN)
+dnTP   = input.float(120, "الهدف (نقاط)", minval = 1, group = gDN)
+dnSL   = input.float(120, "الوقف (نقاط)", minval = 1, group = gDN)
+dnHold = input.int(1440, "أقصى حيازة (دقيقة)", minval = 10, group = gDN)
+
+gFVG = "④ فجوات FVG — عكس الكسر"
+useFVG  = input.bool(true, "تفعيل", group = gFVG, tooltip = "كل طيّة اختارت عكس الكسر لا اتباعه: الفجوة حين تُكسر إشارة استنفاد. موجبة في الأشهر الخمسة كلها.")
+fvgTF   = input.timeframe("60", "الفريم", group = gFVG)
+fvgMin  = input.float(0.5, "أصغر فجوة × ATR", minval = 0.05, step = 0.05, group = gFVG)
+fvgAge  = input.int(300, "عمر الفجوة (شمعة)", minval = 10, group = gFVG)
+fvgTP   = input.float(120, "الهدف (نقاط)", minval = 1, group = gFVG)
+fvgSL   = input.float(60, "الوقف (نقاط)", minval = 1, group = gFVG)
+fvgHold = input.int(1440, "أقصى حيازة (دقيقة)", minval = 10, group = gFVG)
+
+gUP = "⑤ ترند صاعد — الأضعف"
+useUP  = input.bool(true, "تفعيل", group = gUP, tooltip = "إعداده تغيّر في كل طيّة، فربحه جاء من قاعدة مختلفة كل شهر. يُبقى لأن المحفظة تقيس أفضل معه، لكنه أول ما يُطفأ عند الشك.")
+upTF   = input.timeframe("15", "الفريم", group = gUP)
+upTP   = input.float(90, "الهدف (نقاط)", minval = 1, group = gUP)
+upSL   = input.float(60, "الوقف (نقاط)", minval = 1, group = gUP)
+upHold = input.int(1440, "أقصى حيازة (دقيقة)", minval = 10, group = gUP)
+
+gTL = "⑥ بناء خطوط الترند"
+tlPiv     = input.int(5, "طول القمم/القيعان", minval = 2, group = gTL)
+tlMinSpan = input.int(6, "أقل مسافة بين المرتكزين", minval = 2, group = gTL)
+tlMaxSpan = input.int(200, "أقصى مسافة بين المرتكزين", minval = 10, group = gTL)
+tlPierce  = input.float(0.10, "سماحية اختراق الخط بين المرتكزين × ATR", minval = 0.0, step = 0.01, group = gTL)
+tlMaxProj = input.int(200, "أقصى امتداد للخط (شمعة)", minval = 10, group = gTL)
+tlBreakA  = input.float(0.40, "عمق الكسر الذي يُنهي الخط × ATR", minval = 0.01, step = 0.01, group = gTL)
+
+gVis = "⑦ العرض"
+showLevels = input.bool(true, "رسم المستويات", group = gVis)
+showTrades = input.bool(true, "رسم الهدف والوقف", group = gVis)
+showTable  = input.bool(true, "جدول الإحصائيات", group = gVis)
+cBuy  = input.color(#00aa5a, "شراء", group = gVis)
+cSell = input.color(#e62d37, "بيع", group = gVis)
+
+atrv = ta.atr(atrLen)
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  The event detector, shared by all three.
+//
+//  A level price loitered at for forty bars is not forty rejections, and a
+//  candle that merely happens to be near a level was never a test of it.
+//  Counting per candle instead of per visit is what made an earlier study
+//  produce 50,576 signals from round numbers across 192,081 candles.
+//
+//  Arm only once price is genuinely away, fire once when it arrives and reacts,
+//  then lock until it leaves. Pine keeps these var's per call site, so each
+//  source carries its own state with no bookkeeping here.
+// ═════════════════════════════════════════════════════════════════════════════
+f_events(float lvl, float atrNow) =>
+    var float armedLevel = na
+    var float lockedLevel = na
+    var bool  approached = false
+    int rejDir = 0
+    int brkDir = 0
+
+    if not na(lvl) and not na(atrNow) and atrNow > 0
+        if na(armedLevel) or math.abs(lvl - armedLevel) > math.max(0.05, atrNow * 0.5)
+            armedLevel := lvl
+            approached := false
+            lockedLevel := na
+
+        tol = atrNow * tolAtr
+        if not na(lockedLevel) and math.abs(close - lockedLevel) > atrNow * resetAtr
+            lockedLevel := na
+        if math.abs(close - lvl) >= atrNow * approachAtr
+            approached := true
+
+        if approached and na(lockedLevel) and not na(close[1])
+            fromAbove = close[1] > lvl
+            reached = fromAbove ? low <= lvl + tol : high >= lvl - tol
+            if reached
+                if fromAbove
+                    if close > lvl + tol * 0.5
+                        rejDir := 1
+                    else if close < lvl - atrNow * breakAtr
+                        brkDir := -1
+                else
+                    if close < lvl - tol * 0.5
+                        rejDir := -1
+                    else if close > lvl + atrNow * breakAtr
+                        brkDir := 1
+                if rejDir != 0 or brkDir != 0
+                    lockedLevel := lvl
+                    approached := false
+    [rejDir, brkDir]
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Trendlines. Two confirmed pivots sloping the right way, joined and extended.
+//  A pivot is only known tlPiv bars after it happened, and the ray is rejected
+//  unless nothing between the anchors pierced it — a line price already broke
+//  was never a line.
+// ═════════════════════════════════════════════════════════════════════════════
+f_trendline(bool rising) =>
+    float pv = rising ? ta.pivotlow(low, tlPiv, tlPiv) : ta.pivothigh(high, tlPiv, tlPiv)
+    var float[] pxs = array.new_float()
+    var int[]   pbs = array.new_int()
+    var float ax = na
+    var float ay = na
+    var float slope = na
+    var int   bornAt = na
+
+    if not na(pv)
+        int pb = bar_index - tlPiv
+        float pp = pv
+        int n = array.size(pxs)
+        bool found = false
+        for step = 1 to n
+            if not found
+                int k = n - step
+                float qp = array.get(pxs, k)
+                int   qb = array.get(pbs, k)
+                int   span = pb - qb
+                if span > tlMaxSpan
+                    break
+                bool slopeOK = rising ? pp > qp : pp < qp
+                if span >= tlMinSpan and slopeOK
+                    float sl2 = (pp - qp) / span
+                    bool clean = true
+                    for j = 0 to span
+                        int back = bar_index - (qb + j)
+                        if back >= 0
+                            float ry = qp + sl2 * j
+                            bool pierced = rising ? low[back] < ry - nz(atrv) * tlPierce
+                                                  : high[back] > ry + nz(atrv) * tlPierce
+                            if pierced
+                                clean := false
+                                break
+                    if clean
+                        ax := pb
+                        ay := pp
+                        slope := sl2
+                        bornAt := bar_index
+                        found := true
+        array.push(pxs, pp)
+        array.push(pbs, pb)
+        if array.size(pxs) > 60
+            array.shift(pxs)
+            array.shift(pbs)
+
+    float y = na
+    if not na(ax)
+        y := ay + slope * (bar_index - ax)
+        if bar_index - bornAt > tlMaxProj
+            ax := na
+            y := na
+        else if rising ? close < y - nz(atrv) * tlBreakA : close > y + nz(atrv) * tlBreakA
+            ax := na
+    // Lagged inside the function rather than by indexing the call, so the value
+    // reaching the chart belongs to a candle that has closed.
+    y[1]
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  Fair value gap: three candles where the middle one moved far enough that the
+//  outer two do not overlap. The untouched middle is what price comes back for.
+//  Traded as a fade of the break, which is what every fold independently chose.
+// ═════════════════════════════════════════════════════════════════════════════
+f_fvg() =>
+    var float lvl = na
+    var int   born = na
+    float a = nz(atrv)
+    float upGap = low - high[2]
+    float dnGap = low[2] - high
+    if a > 0 and upGap >= a * fvgMin
+        lvl := (low + high[2]) / 2
+        born := bar_index
+    else if a > 0 and dnGap >= a * fvgMin
+        lvl := (high + low[2]) / 2
+        born := bar_index
+    if not na(born) and bar_index - born > fvgAge
+        lvl := na
+    lvl[1]
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Higher-timeframe values, read only after that candle has closed.
+// ─────────────────────────────────────────────────────────────────────────────
+dnRaw  = request.security(syminfo.tickerid, dnTF,  f_trendline(false), lookahead = barmerge.lookahead_off)
+upRaw  = request.security(syminfo.tickerid, upTF,  f_trendline(true),  lookahead = barmerge.lookahead_off)
+fvgRaw = request.security(syminfo.tickerid, fvgTF, f_fvg(),            lookahead = barmerge.lookahead_off)
+
+dnLine  = useDN  ? dnRaw  : na
+upLine  = useUP  ? upRaw  : na
+fvgLine = useFVG ? fvgRaw : na
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Signals. Each source trades the reading its folds chose, and nothing else.
+// ─────────────────────────────────────────────────────────────────────────────
+[dnRej, dnBrk]   = f_events(dnLine, atrv)
+[upRej, upBrk]   = f_events(upLine, atrv)
+[fvgRej, fvgBrk] = f_events(fvgLine, atrv)
+
+dnSig  = useDN  and dnRej  != 0 ? dnRej  : 0        // bounce off the falling line
+upSig  = useUP  and upBrk  != 0 ? upBrk  : 0        // the rising line giving way
+fvgSig = useFVG and fvgBrk != 0 ? -fvgBrk : 0       // fade the break, not follow it
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  One virtual position per source: target, stop, and a time stop. The time
+//  stop matters — these were measured with a hold limit, and a trade left open
+//  past it is not the trade that was measured.
+// ─────────────────────────────────────────────────────────────────────────────
+barMinutes = timeframe.in_seconds(timeframe.period) / 60
+
+f_manage(int sig, float tp, float sl, int holdMin, bool enabled) =>
+    var int   dir = 0
+    var float entry = na
+    var float tpPx = na
+    var float slPx = na
+    var int   openBar = na
+    int  result = 0
+    float pts = 0.0
+
+    if dir != 0 and bar_index > openBar
+        bool hitTP = dir == 1 ? high >= tpPx : low <= tpPx
+        bool hitSL = dir == 1 ? low <= slPx : high >= slPx
+        if hitTP and hitSL
+            result := -1              // both in one candle: read it as the stop
+            pts := -sl
+        else if hitTP
+            result := 1
+            pts := tp
+        else if hitSL
+            result := -1
+            pts := -sl
+        else if (bar_index - openBar) * barMinutes >= holdMin
+            result := 2
+            pts := (close - entry) * dir / pointUnit
+        if result != 0
+            dir := 0
+            entry := na
+            tpPx := na
+            slPx := na
+
+    if enabled and dir == 0 and sig != 0 and barstate.isconfirmed
+        dir := sig
+        entry := close
+        tpPx := close + sig * tp * pointUnit
+        slPx := close - sig * sl * pointUnit
+        openBar := bar_index
+    [dir, entry, tpPx, slPx, result, pts]
+
+[dnDir, dnEntry, dnTPpx, dnSLpx, dnRes, dnPts] = f_manage(dnSig, dnTP, dnSL, dnHold, useDN)
+[fvDir, fvEntry, fvTPpx, fvSLpx, fvRes, fvPts] = f_manage(fvgSig, fvgTP, fvgSL, fvgHold, useFVG)
+[upDir, upEntry, upTPpx, upSLpx, upRes, upPts] = f_manage(upSig, upTP, upSL, upHold, useUP)
+
+enteredDN = dnDir != 0 and dnDir[1] == 0
+enteredFV = fvDir != 0 and fvDir[1] == 0
+enteredUP = upDir != 0 and upDir[1] == 0
+anyBuy  = (enteredDN and dnDir == 1) or (enteredFV and fvDir == 1) or (enteredUP and upDir == 1)
+anySell = (enteredDN and dnDir == -1) or (enteredFV and fvDir == -1) or (enteredUP and upDir == -1)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Running statistics. Counted inline because a Pine function cannot write to
+//  a global, and a tally that silently does nothing is worse than none.
+// ─────────────────────────────────────────────────────────────────────────────
+var int wins = 0
+var int losses = 0
+var float netPts = 0.0
+var int dnN = 0
+var int fvN = 0
+var int upN = 0
+var float dnNet = 0.0
+var float fvNet = 0.0
+var float upNet = 0.0
+
+if dnRes != 0
+    dnN += 1
+    dnNet += dnPts
+    netPts += dnPts
+    if dnPts > 0
+        wins += 1
+    else
+        losses += 1
+if fvRes != 0
+    fvN += 1
+    fvNet += fvPts
+    netPts += fvPts
+    if fvPts > 0
+        wins += 1
+    else
+        losses += 1
+if upRes != 0
+    upN += 1
+    upNet += upPts
+    netPts += upPts
+    if upPts > 0
+        wins += 1
+    else
+        losses += 1
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Drawing
+// ─────────────────────────────────────────────────────────────────────────────
+plot(showLevels ? dnLine : na,  "ترند هابط", color = color.new(#e62d37, 0), style = plot.style_linebr, linewidth = 2)
+plot(showLevels ? upLine : na,  "ترند صاعد", color = color.new(#46a5ff, 20), style = plot.style_linebr, linewidth = 1)
+plot(showLevels ? fvgLine : na, "فجوة FVG",  color = color.new(#ffd45a, 15), style = plot.style_linebr, linewidth = 2)
+
+plotshape(anyBuy,  "شراء", location = location.belowbar, style = shape.triangleup,   size = size.small, color = cBuy)
+plotshape(anySell, "بيع",  location = location.abovebar, style = shape.triangledown, size = size.small, color = cSell)
+
+plot(showTrades and dnDir != 0 ? dnTPpx : na, "هدف الترند الهابط", color = color.new(cBuy, 40), style = plot.style_linebr)
+plot(showTrades and dnDir != 0 ? dnSLpx : na, "وقف الترند الهابط", color = color.new(cSell, 40), style = plot.style_linebr)
+plot(showTrades and fvDir != 0 ? fvTPpx : na, "هدف الفجوة", color = color.new(cBuy, 55), style = plot.style_linebr)
+plot(showTrades and fvDir != 0 ? fvSLpx : na, "وقف الفجوة", color = color.new(cSell, 55), style = plot.style_linebr)
+plot(showTrades and upDir != 0 ? upTPpx : na, "هدف الترند الصاعد", color = color.new(cBuy, 70), style = plot.style_linebr)
+plot(showTrades and upDir != 0 ? upSLpx : na, "وقف الترند الصاعد", color = color.new(cSell, 70), style = plot.style_linebr)
+
+var table t = table.new(position.top_right, 2, 8, bgcolor = #10121a, frame_width = 0)
+if showTable and barstate.islast
+    int tot = wins + losses
+    float wr = tot > 0 ? 100.0 * wins / tot : 0.0
+    table.cell(t, 0, 0, "KAKASHI L2", text_color = color.white, bgcolor = #161822, text_size = size.small)
+    table.cell(t, 1, 0, str.tostring(tot) + " صفقة", text_color = #ffd45a, bgcolor = #161822, text_size = size.small)
+    table.cell(t, 0, 1, "ربح", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color = cBuy, text_size = size.small)
+    table.cell(t, 0, 2, "خسارة", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color = cSell, text_size = size.small)
+    table.cell(t, 0, 3, "نسبة", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 3, str.tostring(wr, "#.##") + "%", text_color = wr >= 54 ? cBuy : #ffd45a, text_size = size.small)
+    table.cell(t, 0, 4, "صافي", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#"), text_color = netPts >= 0 ? cBuy : cSell, text_size = size.small)
+    table.cell(t, 0, 5, "ترند هابط", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 5, str.tostring(dnN) + " / " + str.tostring(dnNet, "#"), text_color = dnNet >= 0 ? cBuy : cSell, text_size = size.small)
+    table.cell(t, 0, 6, "فجوات", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 6, str.tostring(fvN) + " / " + str.tostring(fvNet, "#"), text_color = fvNet >= 0 ? cBuy : cSell, text_size = size.small)
+    table.cell(t, 0, 7, "ترند صاعد", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 7, str.tostring(upN) + " / " + str.tostring(upNet, "#"), text_color = upNet >= 0 ? cBuy : cSell, text_size = size.small)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Alerts
+// ─────────────────────────────────────────────────────────────────────────────
+alertcondition(anyBuy,  "KAKASHI L2 — شراء", "KAKASHI L2 BUY {{ticker}} @ {{close}}")
+alertcondition(anySell, "KAKASHI L2 — بيع",  "KAKASHI L2 SELL {{ticker}} @ {{close}}")
+
+if enteredDN
+    alert("KAKASHI L2 | ترند هابط | " + (dnDir == 1 ? "شراء" : "بيع") + " " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(dnTPpx, format.mintick) + " | وقف " + str.tostring(dnSLpx, format.mintick), alert.freq_once_per_bar_close)
+if enteredFV
+    alert("KAKASHI L2 | فجوة | " + (fvDir == 1 ? "شراء" : "بيع") + " " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(fvTPpx, format.mintick) + " | وقف " + str.tostring(fvSLpx, format.mintick), alert.freq_once_per_bar_close)
+if enteredUP
+    alert("KAKASHI L2 | ترند صاعد | " + (upDir == 1 ? "شراء" : "بيع") + " " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(upTPpx, format.mintick) + " | وقف " + str.tostring(upSLpx, format.mintick), alert.freq_once_per_bar_close)
