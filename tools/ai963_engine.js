@@ -101,6 +101,55 @@ function atr(bars, len) {
   return rma(tr, len);
 }
 
+/**
+ * Wilder's DMI, matching ta.dmi(diLength, adxSmoothing) -> [+DI, -DI, ADX].
+ * ADX answers "is price going somewhere" without saying which way, which is
+ * what a regime filter needs.
+ */
+function dmi(bars, diLen, adxLen) {
+  const n = bars.length;
+  const tr = new Array(n).fill(NaN);
+  const plusDM = new Array(n).fill(NaN);
+  const minusDM = new Array(n).fill(NaN);
+  for (let i = 0; i < n; i++) {
+    if (i === 0) { tr[0] = bars[0].h - bars[0].l; plusDM[0] = 0; minusDM[0] = 0; continue; }
+    const p = bars[i - 1], b = bars[i];
+    tr[i] = Math.max(b.h - b.l, Math.abs(b.h - p.c), Math.abs(b.l - p.c));
+    const up = b.h - p.h, dn = p.l - b.l;
+    plusDM[i] = up > dn && up > 0 ? up : 0;
+    minusDM[i] = dn > up && dn > 0 ? dn : 0;
+  }
+  const trR = rma(tr, diLen), pR = rma(plusDM, diLen), mR = rma(minusDM, diLen);
+  const plusDI = new Array(n).fill(NaN);
+  const minusDI = new Array(n).fill(NaN);
+  const dx = new Array(n).fill(NaN);
+  for (let i = 0; i < n; i++) {
+    if (!Number.isFinite(trR[i]) || trR[i] === 0) continue;
+    plusDI[i] = (100 * pR[i]) / trR[i];
+    minusDI[i] = (100 * mR[i]) / trR[i];
+    const sum = plusDI[i] + minusDI[i];
+    dx[i] = sum === 0 ? 0 : (100 * Math.abs(plusDI[i] - minusDI[i])) / sum;
+  }
+  return { plusDI, minusDI, adx: rma(dx, adxLen) };
+}
+
+/**
+ * Kaufman efficiency ratio: net travel divided by total travel over `len` bars.
+ * Near 1 the market is going somewhere in a straight line; near 0 it is
+ * covering the same ground repeatedly. ADX measures the same idea differently,
+ * and having both lets one confirm the other.
+ */
+function efficiencyRatio(src, len) {
+  const out = new Array(src.length).fill(NaN);
+  let churn = 0;
+  for (let i = 1; i < src.length; i++) {
+    churn += Math.abs(src[i] - src[i - 1]);
+    if (i > len) churn -= Math.abs(src[i - len] - src[i - len - 1]);
+    if (i >= len) out[i] = churn > 0 ? Math.abs(src[i] - src[i - len]) / churn : 0;
+  }
+  return out;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Line types offered by f_smooth. Only the ones reachable from the preset are
 //  ported; asking for anything else is an error rather than a silent fallback.
@@ -434,7 +483,7 @@ function summarize(trades) {
 }
 
 module.exports = {
-  sma, ema, rma, wma, hma, atr,
+  sma, ema, rma, wma, hma, atr, dmi, efficiencyRatio,
   smoothLine, knnSeries, knnLine,
   resample, projectConfirmed,
   signalSet, runBacktest, summarize,
