@@ -168,34 +168,38 @@ f_risingTrendline() =>
         float pp = pl
         int n = array.size(pxs)
         bool found = false
-        // Walk earlier pivots newest-first and take the first that makes a
-        // clean rising line with this one. Stop once the span is too wide;
-        // everything further back is wider still.
-        for step = 1 to n
-            if not found
-                int k = n - step
-                float qp = array.get(pxs, k)
-                int   qb = array.get(pbs, k)
-                int   span = pb - qb
-                if span > tlMaxSpan
-                    break
-                if span >= tlMinSpan and pp > qp
-                    float sl2 = (pp - qp) / span
-                    bool clean = true
-                    // A line price already dipped through was never a line.
-                    for j = 0 to span
-                        int back = bar_index - (qb + j)
-                        if back >= 0
-                            float ry = qp + sl2 * j
-                            if low[back] < ry - nz(atrv) * tlPierce
-                                clean := false
-                                break
-                    if clean
-                        ax := pb
-                        ay := pp
-                        slope := sl2
-                        bornAt := bar_index
-                        found := true
+        // Pine's for-loop counts DOWN when `to` is below `from`, so with an
+        // empty pool `for step = 1 to 0` still runs once and reads index -1.
+        // The first pivot of the chart hits exactly that.
+        if n > 0
+            // Walk earlier pivots newest-first and take the first that makes a
+            // clean rising line with this one. Stop once the span is too wide;
+            // everything further back is wider still.
+            for step = 1 to n
+                if not found
+                    int k = n - step
+                    float qp = array.get(pxs, k)
+                    int   qb = array.get(pbs, k)
+                    int   span = pb - qb
+                    if span > tlMaxSpan
+                        break
+                    if span >= tlMinSpan and pp > qp
+                        float sl2 = (pp - qp) / span
+                        bool clean = true
+                        // A line price already dipped through was never a line.
+                        for j = 0 to span
+                            int back = bar_index - (qb + j)
+                            if back >= 0
+                                float ry = qp + sl2 * j
+                                if low[back] < ry - nz(atrv) * tlPierce
+                                    clean := false
+                                    break
+                        if clean
+                            ax := pb
+                            ay := pp
+                            slope := sl2
+                            bornAt := bar_index
+                            found := true
         array.push(pxs, pp)
         array.push(pbs, pb)
         if array.size(pxs) > 60
