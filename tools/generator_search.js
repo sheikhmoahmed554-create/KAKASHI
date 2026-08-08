@@ -351,6 +351,71 @@ if (has('--sweep') || has('--sweep2')) {
   console.log(`\nأفضل إعداد بالفارق عن العشوائي: حد ${best.cfg.minTrain}، شروط ${best.cfg.maxCond}، ${best.cfg.rule}، ${best.cfg.topN} مولّد` +
               `  →  ${f(best.realWR, 1)}% مقابل ${f(best.nm, 1)}%   ${best.beat}/${SHUFFLES} خلطة تفوّقت`);
   module.exports = { sweep: out };
+} else if (has('--confirm')) {
+  /*
+   * The sweep has a best-of-N problem of its own, and it has to be paid.
+   *
+   * Twenty-two configurations were tried at eight shuffles each. A cell that
+   * beats all eight has, under the null, about a one-in-nine chance of doing
+   * so — so among twenty-two cells you EXPECT roughly two clean ones from
+   * nothing. Two came back clean. That is the null's prediction exactly, and
+   * reporting those two as survivors without saying so would be the same
+   * mistake the whole file exists to avoid.
+   *
+   * The fix is not more configurations. It is more shuffles on the two that
+   * survived, so the question stops being "did it beat eight draws" and starts
+   * being "where does it sit in the null distribution".
+   */
+  const CELLS = [
+    { minTrain: 200, maxCond: 2, rule: 'wilson', topN: 40 },
+    { minTrain: 400, maxCond: 2, rule: 'wilson', topN: 40 },
+  ];
+  const NSH = +argOf('--shuffles', 100);
+  for (const cfg of CELLS) {
+    const r = runConfig(cfg, NSH);
+    console.log('═'.repeat(78));
+    console.log(`حد ${cfg.minTrain} صفقة تدريب، ${cfg.maxCond} شرط، ${cfg.rule}، ${cfg.topN} مولّد   —   ${NSH} خلطة`);
+    console.log('═'.repeat(78));
+
+    // per-month, direction, and the distribution of the day's contribution
+    let lw = 0, ln = 0, sw = 0, sn = 0, lnet = 0, snet = 0;
+    const byDay = new Map();
+    const allPts = [];
+    for (let mi = 0; mi < r.folds.length; mi++) {
+      const fo = r.folds[mi];
+      console.log(`  ${MONTHS[FIRST_TEST + mi]}   ${String(fo.n).padStart(5)} صفقة   ${f(100 * fo.wr, 1).padStart(5)}%   صافي ${((fo.net > 0 ? '+' : '') + f(fo.net, 0)).padStart(8)}`);
+      for (const { c } of fo.perGen) {
+        const P = rawPts[c.r][c.h], V = valid[c.r][c.h];
+        for (const k of c.rowIdx) {
+          const m = monthIdx[k];
+          if (m !== FIRST_TEST + mi || !V[k]) continue;
+          const d = ROWS[k].dir * c.dirSign;
+          if (((d === 1 ? maskPos[k] : maskNeg[k]) & c.bits) !== c.bits) continue;
+          const p = P[k] * d - COST;
+          allPts.push(p);
+          const day = new Date(ROWS[k].t).toISOString().slice(0, 10);
+          byDay.set(day, (byDay.get(day) || 0) + p);
+          if (d === 1) { ln++; lnet += p; if (p > 0) lw++; } else { sn++; snet += p; if (p > 0) sw++; }
+        }
+      }
+    }
+    const per = r.net / r.n;
+    const sd = Math.sqrt(allPts.reduce((a, x) => a + (x - per) ** 2, 0) / Math.max(1, allPts.length - 1));
+    const t = per / (sd / Math.sqrt(r.n));
+    const te = per / (sd / Math.sqrt(r.n / 2.2));
+    const days = [...byDay.values()].sort((a, b) => b - a);
+    const drop5 = r.net - days.slice(0, 5).reduce((a, x) => a + x, 0);
+    const drop10 = r.net - days.slice(0, 10).reduce((a, x) => a + x, 0);
+
+    console.log(`\n  خارج العيّنة: ${r.n} صفقة   ${f(r.realWR, 2)}%   صافي ${(r.net > 0 ? '+' : '') + f(r.net, 0)}   لكل صفقة ${f(per)}   ${f(r.n / DAYS, 0)} صفقة/يوم`);
+    console.log(`  شراء ${ln} (${f(100 * lw / Math.max(1, ln), 1)}%، ${f(lnet, 0)})   بيع ${sn} (${f(100 * sw / Math.max(1, sn), 1)}%، ${f(snet, 0)})`);
+    console.log(`  الانحراف للصفقة ${f(sd, 1)} نقطة   t = ${f(t)}   بعد خصم التداخل ${f(te)}   ${Math.abs(te) >= 1.96 ? '★ دال' : 'غير دال'}`);
+    console.log(`  بحذف أفضل 5 أيام ${(drop5 > 0 ? '+' : '') + f(drop5, 0)}   أفضل 10 أيام ${(drop10 > 0 ? '+' : '') + f(drop10, 0)}   (من ${byDay.size} يوم)`);
+    const above = r.nulls.filter(x => x >= r.realWR).length;
+    console.log(`\n  توزيع العشوائي: متوسط ${f(r.nm, 2)}%   انحراف ${f(r.nsd, 2)}   المدى ${f(r.nulls[0], 2)}–${f(r.nulls[r.nulls.length - 1], 2)}%`);
+    console.log(`  الحقيقي ${f(r.realWR, 2)}%   الفارق ${f(r.realWR - r.nm, 2)}pp = ${f((r.realWR - r.nm) / r.nsd, 2)}σ`);
+    console.log(`  ${above} من ${NSH} خلطة بلغت الحقيقي   p ≈ ${f((above + 1) / (NSH + 1), 3)}\n`);
+  }
 } else {
   const cfg = { minTrain: +argOf('--min', 100), maxCond: +argOf('--cond', 2), rule: argOf('--rule', 'wilson'), topN: +argOf('--top', 40) };
   const r = runConfig(cfg, SHUFFLES);
