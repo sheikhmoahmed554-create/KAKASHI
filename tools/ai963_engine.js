@@ -371,7 +371,17 @@ function runBacktest(bars, sources, opts = {}) {
       const long = side[s] === 1;
       const hitTP = long ? bar.h >= tpPx[s] : bar.l <= tpPx[s];
       const hitSL = long ? bar.l <= slPx[s] : bar.h >= slPx[s];
-      if (!hitTP && !hitSL) continue;
+
+      // A time stop, when the source declares one. A level's edge decays: the
+      // constructions were scored with holds from 60 minutes to a day, and
+      // leaving a trade open past that is not the trade that was measured.
+      const maxHold = sources[s].maxHold;
+      if (!hitTP && !hitSL) {
+        if (maxHold && i - entryBar[s] >= maxHold) {
+          pending.push({ s, reason: 'TIME', gross: (bar.c - entryPx[s]) * side[s] / pointUnit });
+        }
+        continue;
+      }
 
       let reason;
       if (hitTP && hitSL) {
