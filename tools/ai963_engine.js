@@ -250,7 +250,7 @@ function knnLine(bars, cfg) {
 //  boundaries, the same buckets TradingView uses.
 // ─────────────────────────────────────────────────────────────────────────────
 function resample(bars, minutes) {
-  if (minutes === 1) return { bars: bars.slice(), index: bars.map((_, i) => i) };
+  if (minutes === 1) return { bars: bars.slice(), index: bars.map((_, i) => i) };  // volume already per-bar
   const span = minutes * 60000;
   const out = [];
   const index = new Array(bars.length).fill(-1);
@@ -260,12 +260,13 @@ function resample(bars, minutes) {
     const bucket = Math.floor(b.t / span) * span;
     if (cur === null || bucket !== curStart) {
       if (cur !== null) out.push(cur);
-      cur = { t: bucket, o: b.o, h: b.h, l: b.l, c: b.c };
+      cur = { t: bucket, o: b.o, h: b.h, l: b.l, c: b.c, v: Number.isFinite(b.v) ? b.v : 0 };
       curStart = bucket;
     } else {
       cur.h = Math.max(cur.h, b.h);
       cur.l = Math.min(cur.l, b.l);
       cur.c = b.c;
+      cur.v += Number.isFinite(b.v) ? b.v : 0;
     }
     // Index of the higher-timeframe candle this 1m bar belongs to.
     index[i] = out.length;
