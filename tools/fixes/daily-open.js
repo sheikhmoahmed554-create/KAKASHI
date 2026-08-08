@@ -348,19 +348,90 @@ const READINGS = [
   ['all     (inverted)', null, true],
 ];
 
+// ─────────────────── event sets: real levels and placebos ───────────────────
+const ANCHORS = [];
+for (let m = 60; m <= 1380; m += 60) ANCHORS.push(m);
+for (const m of [750, 930, 980, 990, 1230]) if (!ANCHORS.includes(m)) ANCHORS.push(m);
+ANCHORS.sort((a, b) => a - b);
+
+// The openings a gold desk actually marks from, as opposed to the clearing
+// house's bookkeeping boundary at 01:00.
+const SESSION_SET = [600, 930, 980, 990, 1020];   // London, US data, COMEX pit, NYSE, LBMA PM
+
+const EV = new Map();
+function eventsFor(m, tf, opts) {
+  const k = `${m}|${tf}|${opts ? JSON.stringify(opts) : ''}`;
+  if (EV.has(k)) return EV.get(k);
+  const { line } = sessionOpenLine(bars, m, opts);
+  const ev = attach(levelTestEvents(bars, line, ATR_TF.get(tf)));
+  for (const e of ev) e.anchor = m;
+  EV.set(k, ev);
+  return ev;
+}
+function pooled(ms, tf, opts) {
+  const out = [];
+  for (const m of ms) out.push(...eventsFor(m, tf, opts));
+  return out.sort((a, b) => a.i - b.i);
+}
+
+/**
+ * THE PLACEBO.
+ *
+ * Two things in this study inflate results for reasons that have nothing to do
+ * with the daily open, and both are silent unless controlled:
+ *
+ *   - Respect rises mechanically with the ATR scale. The published 68.95%
+ *     control was measured with 1m ATR; at 15m ATR *any* level looks respected
+ *     because the approach and tolerance bands are five times wider.
+ *   - levelTestEvents enters at the close of the reaction bar. If this market
+ *     has any one-bar mean reversion, "fade the bounce" earns money at every
+ *     level, real or invented.
+ *
+ * The placebo is the same construction with the price replaced: same anchors,
+ * same one-bar publication lag, same lifetime, same ATR scale, same event
+ * detector — but the level is the anchor bar's open displaced by a random
+ * multiple of ATR. It therefore lives in the same neighbourhood as price and
+ * inherits every property of the machinery, and differs only in not being the
+ * open. Anything the real level scores that the placebo also scores is not the
+ * level.
+ */
+function placeboLine(anchorMin, tf, seed, opts = {}) {
+  const lag = opts.lag ?? 1;
+  const lifeMin = opts.lifeMin ?? 1440;
+  const r = rng(seed);
+  const { anchors } = sessionOpenLine(bars, anchorMin, opts);
+  const A = ATR_TF.get(tf);
+  const out = new Array(N).fill(NaN);
+  for (let a = 0; a < anchors.length; a++) {
+    const k = anchors[a];
+    const at = Number.isFinite(A[k]) ? A[k] : atr1[k];
+    if (!Number.isFinite(at) || at <= 0) continue;
+    let u = (r() * 2 - 1) * 3;                  // ±3 ATR of the true open
+    if (Math.abs(u) < 0.6) u += u >= 0 ? 0.6 : -0.6;   // never accidentally be the open
+    const px = bars[k].o + u * at;
+    const stop = a + 1 < anchors.length ? anchors[a + 1] : N;
+    const tCut = bars[k].t + lifeMin * 60000;
+    for (let i = k + lag; i < stop; i++) { if (bars[i].t > tCut) break; out[i] = px; }
+  }
+  return out;
+}
+function placeboEvents(anchorMin, tf, seed, opts) {
+  return attach(levelTestEvents(bars, placeboLine(anchorMin, tf, seed, opts), ATR_TF.get(tf)));
+}
+
 // ───────────────────────── stages ─────────────────────────
 const argv = process.argv.slice(2);
 const want = argv.length ? new Set(argv) : new Set(['0', '1', '2', '3', '4', '5', '6']);
 const on = s => want.has(String(s));
-const hr = t => `\n${'═'.repeat(80)}\n${t}\n${'═'.repeat(80)}`;
+const hr = t => `\n${'═'.repeat(84)}\n${t}\n${'═'.repeat(84)}`;
 
 function stage0() {
   console.log(hr("0.  THE FEED'S CLOCK"));
   const byH = new Array(24).fill(0), rngH = new Array(24).fill(0);
   for (const b of bars) { const h = new Date(b.t).getUTCHours(); byH[h]++; rngH[h] += b.h - b.l; }
   console.log(`  ${N.toLocaleString()} bars  ${new Date(bars[0].t).toISOString().slice(0, 10)} → ${new Date(bars[N - 1].t).toISOString().slice(0, 10)}   Mon–Fri only`);
-  console.log(`  hour 00 holds ${byH[0]} bars: the nightly break is 00:00→01:00, so midnight is not a tradeable anchor —`);
-  console.log('  floor(t/86400000) resolves to the 01:00 bar, the CME Globex open.');
+  console.log(`  hour 00 holds ${byH[0]} bars: the nightly break is 00:00→01:00, so midnight is not a tradeable`);
+  console.log('  anchor — floor(t/86400000) resolves to the 01:00 bar, i.e. the CME Globex open.');
   const q = [];
   for (let h = 0; h < 24; h++) if (byH[h]) q.push([h, rngH[h] / byH[h] / PU]);
   q.sort((a, b) => b[1] - a[1]);
@@ -371,107 +442,112 @@ function stage0() {
   console.log('  median ATR by timeframe (pts): ' + TFS.map(tf => `${TF_NAME[tf]}=${(median(ATR_TF.get(tf).filter(Number.isFinite)) / PU).toFixed(0)}`).join('  '));
 }
 
-// ---- stage 1: the current construction -------------------------------------
+// ---- stage 1 ---------------------------------------------------------------
 let ALPHA_BEFORE = NaN;
 function stage1() {
-  console.log(hr('1.  THE CURRENT CONSTRUCTION   levels.js:dailyOpenLevels, 90 / 90 / 1440'));
+  console.log(hr('1.  THE CURRENT CONSTRUCTION   levels.js:dailyOpenLevels, 90 / 90 / 1440, 1m ATR'));
   const ti = TP_GRID.indexOf(90), si = SL_GRID.indexOf(90), hi = HOLD_GRID.indexOf(1440);
-  console.log(`  blind long ${f(BLIND[1][bIdx(ti, si, hi)])}   blind short ${f(BLIND[-1][bIdx(ti, si, hi)])}   (matches tools/sweep_timeframes.js)`);
-  const line = LV.dailyOpenLevels(bars).line;
-  const ev = attach(levelTestEvents(bars, line, atr1));
+  console.log(`  blind long ${f(BLIND[1][bIdx(ti, si, hi)])}   blind short ${f(BLIND[-1][bIdx(ti, si, hi)])}   (reproduces tools/sweep_timeframes.js)`);
+  const ev = attach(levelTestEvents(bars, LV.dailyOpenLevels(bars).line, atr1));
   const r = respectRate(ev);
   const s = scoreAt(ev, ti, si, hi, false);
   ALPHA_BEFORE = s.alpha;
-  console.log(`  tests ${r.tests}   respect ${fp(r.respect)}%  (random ${RANDOM_RESPECT} — so the edge is ${f(r.respect - RANDOM_RESPECT)} points of respect)`);
-  console.log(`  raw ${f(s.raw)}   longs ${s.longs}  shorts ${s.shorts}  win ${fp(s.win)}%   →  ALPHA ${f(s.alpha)} pts/trade`);
+  console.log(`  tests ${r.tests}   respect ${fp(r.respect)}%   random control 68.95%   →  edge ${f(r.respect - RANDOM_RESPECT)} pts of respect`);
+  console.log(`  raw ${f(s.raw)}   longs ${s.longs}  shorts ${s.shorts}  win ${fp(s.win)}%   →   ALPHA ${f(s.alpha)} pts/trade`);
   for (const [name, kind, flip] of READINGS) {
     const set = kind ? ev.filter(e => e.kind === kind) : ev;
     if (set.length < 40) continue;
     const x = scoreAt(set, ti, si, hi, flip);
     console.log(`     ${name.padEnd(32)} n=${String(x.n).padStart(4)}   alpha ${f(x.alpha).padStart(7)}`);
   }
-  console.log('\n  Note the symmetry: every reading is the exact negative of its inverse, because');
-  console.log('  the direction adjustment has already removed the drift. That is the point — it');
-  console.log('  means these numbers are about the level, not about the market falling.');
+  console.log('\n  Each reading is the exact negative of its inverse: the direction adjustment has');
+  console.log('  already removed the drift, so these numbers describe the level, not the market.');
+  console.log('  The headline is the "all, as signalled" line: ' + f(ALPHA_BEFORE) + ' pts/trade.');
+  return ALPHA_BEFORE;
 }
 
-// ---- stage 2: which open, and at what scale? -------------------------------
-const ANCHORS = [];
-for (let m = 60; m <= 1380; m += 60) ANCHORS.push(m);
-for (const m of [750, 930, 980, 990, 1230]) if (!ANCHORS.includes(m)) ANCHORS.push(m);
-ANCHORS.sort((a, b) => a - b);
-
-const EV = new Map();      // `${anchor}|${atrTf}` -> attached events
-const keyOf = (m, tf) => `${m}|${tf}`;
-
-function eventsFor(m, tf, opts) {
-  const k = keyOf(m, tf) + (opts ? '|' + JSON.stringify(opts) : '');
-  if (EV.has(k)) return EV.get(k);
-  const { line } = sessionOpenLine(bars, m, opts);
-  const ev = attach(levelTestEvents(bars, line, ATR_TF.get(tf)));
-  EV.set(k, ev);
-  return ev;
-}
-
+// ---- stage 2: which open, at what scale, against a MATCHED control ----------
+const CTRL = new Map();   // tf -> matched placebo respect
 function stage2() {
-  console.log(hr('2.  WHICH OPEN, AND AT WHAT SCALE?   selection on respect and count only'));
-  console.log('  Respect is trade-agnostic, so choosing the level with it does not peek at P&L.');
-  console.log('  Random control = 68.95%. Cell shows respect% (n events).\n');
-  const useTf = [1, 5, 15, 60, 240];
-  console.log('  anchor  ' + useTf.map(t => (TF_NAME[t] + ' ATR').padStart(15)).join('') + '   session');
-  console.log('  ' + '─'.repeat(8 + 15 * useTf.length + 26));
+  console.log(hr('2.  WHICH OPEN, AND AT WHAT SCALE?'));
+  console.log('  Chosen on respect and event count only — both trade-agnostic, so the level is');
+  console.log('  not picked by peeking at P&L. The control is NOT 68.95% except at 1m: respect');
+  console.log('  rises mechanically as the ATR scale widens, so a matched placebo is measured at');
+  console.log('  every scale (same anchors, same lag, same detector, level displaced ±3 ATR).\n');
+  const useTf = [1, 5, 15, 60];
+
+  process.stdout.write('  measuring matched placebo controls …\r');
+  for (const tf of useTf) {
+    const ev = [];
+    for (let s = 0; s < 6; s++) for (const m of ANCHORS) ev.push(...placeboEvents(m, tf, 91711 + s * 7717 + m));
+    const r = respectRate(ev);
+    CTRL.set(tf, r);
+  }
+  console.log('  matched placebo control (a fake fixed daily level in the same place):        ');
+  for (const tf of useTf) console.log(`     ${TF_NAME[tf].padStart(4)} ATR   respect ${fp(CTRL.get(tf).respect)}%   (${CTRL.get(tf).tests.toLocaleString()} placebo events)`);
+  console.log(`     the published 1m random-level control is ${RANDOM_RESPECT}% — the placebo reproduces it, which`);
+  console.log('     is the check that this control is measuring the same thing.\n');
+
+  console.log('  Cell = respect% and, in brackets, the EDGE over the matched control at that scale.');
+  console.log('  anchor  ' + useTf.map(t => (TF_NAME[t] + ' ATR').padStart(18)).join('') + '  session');
+  console.log('  ' + '─'.repeat(9 + 18 * useTf.length + 28));
   const table = [];
   for (const m of ANCHORS) {
     const cells = [];
     for (const tf of useTf) {
-      const ev = eventsFor(m, tf);
-      const r = respectRate(ev);
-      cells.push({ tf, ...r });
+      const r = respectRate(eventsFor(m, tf));
+      cells.push({ tf, ...r, edge: r.respect - CTRL.get(tf).respect });
     }
     table.push({ m, cells });
-    console.log('  ' + hhmm(m) + '   ' + cells.map(c => (c.tests >= 60 ? `${fp(c.respect)}% (${c.tests})` : `—     (${c.tests})`).padStart(15)).join('') + '   ' + (NAMED[m] || ''));
+    console.log('  ' + hhmm(m) + '  ' + cells.map(c => (c.tests >= 60 ? `${fp(c.respect)} [${f(c.edge, 1)}] ${c.tests}` : `— (${c.tests})`).padStart(18)).join('') + '  ' + (NAMED[m] || ''));
   }
-  console.log('\n  Column means (how much each scale helps, all anchors pooled):');
+
+  console.log('\n  Pooled by scale, and the pooled real-vs-placebo edge:');
   for (const tf of useTf) {
-    const rs = table.map(r => r.cells.find(c => c.tf === tf)).filter(c => c.tests >= 60);
+    const rs = table.map(r => r.cells.find(c => c.tf === tf));
     const tot = rs.reduce((a, c) => a + c.tests, 0), rej = rs.reduce((a, c) => a + c.rejects, 0);
-    console.log(`    ${TF_NAME[tf].padStart(4)} ATR   pooled respect ${fp(100 * rej / tot)}%   ${(tot / ANCHORS.length).toFixed(0)} events per anchor   (${(tot / ANCHORS.length / 140).toFixed(1)} per day)`);
+    console.log(`     ${TF_NAME[tf].padStart(4)} ATR   real ${fp(100 * rej / tot)}%   placebo ${fp(CTRL.get(tf).respect)}%   edge ${f(100 * rej / tot - CTRL.get(tf).respect, 2)}   ${(tot / ANCHORS.length / 140).toFixed(1)} events per anchor per day`);
   }
+  console.log('\n  Read that carefully: once the control is matched to the scale, the respect edge of');
+  console.log('  the open over an invented level is small at every scale. Respect is not where');
+  console.log('  this level earns its living — so the rest of the study goes after the excursion.');
   return table;
 }
 
 // ---- stage 3: excursion ----------------------------------------------------
 function stage3(picks) {
   console.log(hr('3.  EXCURSION — how far does price really travel after a test of the open?'));
-  console.log('  Points from the entry close, whole 1440-bar horizon. "sig" = the direction the');
-  console.log('  event signals, "inv" = the opposite. The target has to fit inside medMFE and');
-  console.log('  the stop has to sit outside medMAE, or the trade is not measuring the level.\n');
-  console.log('  anchor atrTF kind      n    sig:medMFE medMAE  p25MFE   inv:medMFE medMAE');
-  console.log('  ' + '─'.repeat(80));
-  for (const [m, tf] of picks) {
-    const ev = eventsFor(m, tf);
+  console.log('  Points from the entry close over the whole 1440-bar horizon. "sig" is the');
+  console.log('  direction the event signals, "inv" the opposite. A target must fit inside medMFE');
+  console.log('  and a stop must sit outside medMAE or the trade is not measuring the level.\n');
+  console.log('  set                       atrTF kind      n     sig:medMFE medMAE  p25MFE    inv:medMFE medMAE');
+  console.log('  ' + '─'.repeat(97));
+  for (const p of picks) {
     for (const kind of ['reject', 'break']) {
-      const sub = ev.filter(e => e.kind === kind);
+      const sub = p.ev.filter(e => e.kind === kind);
       if (sub.length < 40) continue;
-      console.log(`  ${hhmm(m)}  ${TF_NAME[tf].padStart(4)} ${kind.padEnd(7)} ${String(sub.length).padStart(4)}    ${fp(median(sub.map(e => e._w[0].mfe))).padStart(7)} ${fp(median(sub.map(e => e._w[0].mae))).padStart(6)} ${fp(quant(sub.map(e => e._w[0].mfe), .25)).padStart(7)}      ${fp(median(sub.map(e => e._w[1].mfe))).padStart(6)} ${fp(median(sub.map(e => e._w[1].mae))).padStart(6)}`);
+      console.log(`  ${p.label.padEnd(25)} ${TF_NAME[p.tf].padStart(4)} ${kind.padEnd(7)} ${String(sub.length).padStart(4)}     ${fp(median(sub.map(e => e._w[0].mfe))).padStart(7)} ${fp(median(sub.map(e => e._w[0].mae))).padStart(6)} ${fp(quant(sub.map(e => e._w[0].mfe), .25)).padStart(7)}      ${fp(median(sub.map(e => e._w[1].mfe))).padStart(7)} ${fp(median(sub.map(e => e._w[1].mae))).padStart(6)}`);
     }
   }
+  console.log('\n  Compare with the 90/90 everything was forced onto. Median daily range here is');
+  console.log('  1095 pts, so 90/90 is not "too wide" — it is simply unrelated to what a test of');
+  console.log('  the open produces, which is what makes sizing the single biggest lever.');
 }
 
-// ---- stage 4: size the trade to the level ----------------------------------
+// ---- stage 4: size the trade -----------------------------------------------
 function stage4(picks, minN) {
-  console.log(hr('4.  TARGET AND STOP SIZED TO THE LEVEL   baseline recomputed at every config'));
-  console.log(`  Best (target / stop / hold) per reading, full sample, minimum ${minN} events.\n`);
+  console.log(hr('4.  TARGET AND STOP SIZED TO THE LEVEL   blind baseline recomputed at every cell'));
+  console.log(`  Best (target / stop / hold) per reading, full sample, minimum ${minN} events.`);
+  console.log(`  Grid searched: ${NT} targets × ${NS} stops × ${NH} holds = ${NT * NS * NH} cells per reading.\n`);
   const all = [];
-  for (const [m, tf] of picks) {
-    const ev = eventsFor(m, tf);
-    console.log(`  ── ${hhmm(m)}  ${TF_NAME[tf]} ATR   ${NAMED[m] || ''}`);
+  for (const p of picks) {
+    console.log(`  ── ${p.label}   ${TF_NAME[p.tf]} ATR   (${p.ev.length} events)`);
     for (const [name, kind, flip] of READINGS) {
-      const set = kind ? ev.filter(e => e.kind === kind) : ev;
+      const set = kind ? p.ev.filter(e => e.kind === kind) : p.ev;
       const b = bestConfig(set, flip, minN);
-      if (!b) { continue; }
+      if (!b) continue;
       console.log(`     ${name.padEnd(32)} n=${String(b.s.n).padStart(4)}  TP ${String(TP_GRID[b.ti]).padStart(3)} / SL ${String(SL_GRID[b.si]).padStart(3)} / hold ${String(HOLD_GRID[b.hi]).padStart(4)}   raw ${f(b.s.raw).padStart(7)}  win ${fp(b.s.win).padStart(5)}%  ALPHA ${f(b.s.alpha).padStart(7)}`);
-      all.push({ m, tf, name, kind, flip, ...b });
+      all.push({ ...p, name, kind, flip, ...b });
     }
   }
   all.sort((a, b) => b.s.alpha - a.s.alpha);
@@ -479,42 +555,55 @@ function stage4(picks, minN) {
 }
 
 // ---- stage 5: in-sample / out-of-sample ------------------------------------
-function stage5(cands, minN) {
-  console.log(hr('5.  HONEST SPLIT — choose on Jan–Apr, report on May–Jul'));
+function stage5(cands, minIS, minOOS) {
+  console.log(hr('5.  HONEST SPLIT — choose the target/stop on Jan–Apr, report it on May–Jul'));
   const cut = bars[SPLIT_I].t;
   console.log(`  split at ${new Date(cut).toISOString().slice(0, 16).replace('T', ' ')}   (${SPLIT_I.toLocaleString()} bars each side)`);
   console.log('  Baselines are recomputed per half, so each half is scored against its own drift.\n');
-  console.log('  anchor atrTF reading                          IS n   IS α    OOS n  OOS α    full α   TP/SL/hold');
-  console.log('  ' + '─'.repeat(104));
+  console.log('  set                     atrTF reading                        IS n  IS α    OOS n OOS α   full α  TP/SL/hold');
+  console.log('  ' + '─'.repeat(112));
   const out = [];
   for (const c of cands) {
-    const ev = eventsFor(c.m, c.tf);
-    const set = (c.kind ? ev.filter(e => e.kind === c.kind) : ev);
-    const isSet = set.filter(e => e.i < SPLIT_I), oos = set.filter(e => e.i >= SPLIT_I);
-    const b = bestConfig(isSet, c.flip, Math.max(40, minN / 2), 0);
+    const set = c.kind ? c.ev.filter(e => e.kind === c.kind) : c.ev;
+    const isSet = set.filter(e => e.i < SPLIT_I), oosSet = set.filter(e => e.i >= SPLIT_I);
+    const b = bestConfig(isSet, c.flip, minIS, 0);
     if (!b) continue;
-    const o = scoreAt(oos, b.ti, b.si, b.hi, c.flip, 1);
+    const o = scoreAt(oosSet, b.ti, b.si, b.hi, c.flip, 1);
+    if (o.n < minOOS) continue;
     const full = scoreAt(set, b.ti, b.si, b.hi, c.flip);
-    if (o.n < 40) continue;
     out.push({ ...c, ti: b.ti, si: b.si, hi: b.hi, is: b.s, oos: o, full });
-    console.log(`  ${hhmm(c.m)}  ${TF_NAME[c.tf].padStart(4)} ${c.name.padEnd(32)} ${String(b.s.n).padStart(4)} ${f(b.s.alpha).padStart(7)}   ${String(o.n).padStart(4)} ${f(o.alpha).padStart(7)}  ${f(full.alpha).padStart(7)}   ${TP_GRID[b.ti]}/${SL_GRID[b.si]}/${HOLD_GRID[b.hi]}`);
+    console.log(`  ${c.label.padEnd(23)} ${TF_NAME[c.tf].padStart(4)} ${c.name.padEnd(32)} ${String(b.s.n).padStart(4)} ${f(b.s.alpha).padStart(7)}  ${String(o.n).padStart(4)} ${f(o.alpha).padStart(7)} ${f(full.alpha).padStart(7)}  ${TP_GRID[b.ti]}/${SL_GRID[b.si]}/${HOLD_GRID[b.hi]}`);
   }
   console.log('\n  A configuration that only works in the half it was chosen on is a fitted number.');
   return out;
 }
 
-// ---- stage 6: robustness ---------------------------------------------------
+// ---- stage 6: robustness and placebo ---------------------------------------
 function stage6(win) {
   console.log(hr('6.  ROBUSTNESS OF THE CHOSEN CONSTRUCTION'));
-  const { m, tf, kind, flip, ti, si, hi } = win;
-  const label = `${hhmm(m)} open, ${TF_NAME[tf]} ATR, ${win.name.trim()}, TP ${TP_GRID[ti]} / SL ${SL_GRID[si]} / hold ${HOLD_GRID[hi]}`;
-  console.log(`  ${label}\n`);
+  const { tf, kind, flip, ti, si, hi } = win;
+  console.log(`  ${win.label}, ${TF_NAME[tf]} ATR, ${win.name.trim()}, TP ${TP_GRID[ti]} / SL ${SL_GRID[si]} / hold ${HOLD_GRID[hi]}\n`);
+  const set = kind ? win.ev.filter(e => e.kind === kind) : win.ev;
+  const full = scoreAt(set, ti, si, hi, flip);
+  console.log(`  full sample: n=${full.n}  raw ${f(full.raw)}  win ${fp(full.win)}%  longs ${full.longs} shorts ${full.shorts}  ALPHA ${f(full.alpha)}`);
 
-  const ev = eventsFor(m, tf);
-  const set = kind ? ev.filter(e => e.kind === kind) : ev;
+  // THE PLACEBO — the number that decides whether any of this is the level.
+  console.log('\n  PLACEBO: the identical pipeline on invented levels in the same neighbourhood');
+  const pa = [];
+  for (let s = 0; s < 12; s++) {
+    const pev = [];
+    for (const m of win.anchors) pev.push(...placeboEvents(m, tf, 55001 + s * 9173 + m));
+    const pset = kind ? pev.filter(e => e.kind === kind) : pev;
+    const ps = scoreAt(pset, ti, si, hi, flip);
+    if (ps.n >= 50) pa.push(ps.alpha);
+  }
+  const pm = pa.reduce((a, b) => a + b, 0) / pa.length;
+  const psd = Math.sqrt(pa.reduce((a, v) => a + (v - pm) ** 2, 0) / (pa.length - 1));
+  console.log(`    ${pa.length} placebo runs   mean alpha ${f(pm)}   sd ${fp(psd, 2)}   range ${f(Math.min(...pa))} … ${f(Math.max(...pa))}`);
+  console.log(`    the real level sits ${f((full.alpha - pm) / psd, 2)} placebo standard deviations away from the placebo mean.`);
 
   // month by month
-  console.log('  month by month (alpha vs the full-sample baseline):');
+  console.log('\n  month by month:');
   const byMonth = new Map();
   for (const e of set) { const k = new Date(bars[e.i].t).toISOString().slice(0, 7); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(e); }
   let pos = 0, tot = 0;
@@ -525,17 +614,17 @@ function stage6(win) {
   }
   console.log(`    → positive in ${pos} of ${tot} months`);
 
-  // anchor jitter: is the anchor special or is any nearby minute as good?
-  console.log('\n  anchor jitter (same everything, anchor moved):');
-  for (const d of [-90, -60, -30, -15, 0, 15, 30, 60, 90]) {
-    const mm = ((m + d) % 1440 + 1440) % 1440;
-    const e2 = eventsFor(mm, tf);
+  // anchor jitter
+  console.log('\n  anchor jitter — is the session special, or is any hour of the day as good?');
+  for (const d of [-120, -60, -30, 0, 30, 60, 120]) {
+    const ms = win.anchors.map(m => ((m + d) % 1440 + 1440) % 1440);
+    const e2 = pooled(ms, tf);
     const s2 = kind ? e2.filter(e => e.kind === kind) : e2;
     const sc = scoreAt(s2, ti, si, hi, flip);
-    console.log(`    ${(d >= 0 ? '+' : '') + d} min → ${hhmm(mm)}   n=${String(sc.n).padStart(4)}   alpha ${f(sc.alpha).padStart(7)}`);
+    console.log(`    ${(d >= 0 ? '+' : '') + String(d).padStart(4)} min   n=${String(sc.n).padStart(4)}   alpha ${f(sc.alpha).padStart(7)}`);
   }
 
-  // target/stop neighbourhood: a peak on a cliff edge is a fitted peak
+  // target/stop neighbourhood
   console.log('\n  target/stop neighbourhood (alpha; the chosen cell is bracketed):');
   const th = [Math.max(0, ti - 2), Math.min(NT - 1, ti + 2)], sh = [Math.max(0, si - 2), Math.min(NS - 1, si + 2)];
   let head = '      SL→ ';
@@ -558,62 +647,72 @@ function stage6(win) {
     console.log(`    hold ${String(HOLD_GRID[h2]).padStart(4)}   n=${String(sc.n).padStart(4)}   alpha ${f(sc.alpha).padStart(7)}   win ${fp(sc.win).padStart(5)}%`);
   }
 
-  // level life
+  // level lifetime
   console.log('\n  how long should the level stay on the chart?');
-  for (const life of [120, 240, 360, 480, 720, 1440]) {
-    const e2 = eventsFor(m, tf, { lifeMin: life });
+  for (const life of [120, 240, 480, 720, 1440]) {
+    const e2 = pooled(win.anchors, tf, { lifeMin: life });
     const s2 = kind ? e2.filter(e => e.kind === kind) : e2;
     const sc = scoreAt(s2, ti, si, hi, flip);
-    const r = respectRate(s2);
-    console.log(`    life ${String(life).padStart(4)} min   n=${String(sc.n).padStart(4)}   respect ${fp(r.respect).padStart(5)}%   alpha ${f(sc.alpha).padStart(7)}`);
+    console.log(`    life ${String(life).padStart(4)} min   n=${String(sc.n).padStart(4)}   respect ${fp(respectRate(s2).respect).padStart(5)}%   alpha ${f(sc.alpha).padStart(7)}`);
   }
 
-  // significance
+  // per-anchor breakdown, so a pooled result is not one anchor carrying four
+  if (win.anchors.length > 1) {
+    console.log('\n  contribution of each anchor in the pool:');
+    for (const m of win.anchors) {
+      const e2 = eventsFor(m, tf);
+      const s2 = kind ? e2.filter(e => e.kind === kind) : e2;
+      const sc = scoreAt(s2, ti, si, hi, flip);
+      console.log(`    ${hhmm(m)} ${(NAMED[m] || '').padEnd(22)} n=${String(sc.n).padStart(4)}   alpha ${f(sc.alpha).padStart(7)}`);
+    }
+  }
+
+  // significance on the raw series
   const vals = [];
   for (const e of set) { const v = pnl(e._w[flip ? 1 : 0], ti, si, hi); if (v !== null) vals.push(v); }
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
   const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (vals.length - 1));
   const se = sd / Math.sqrt(vals.length);
-  console.log(`\n  raw mean ${f(mean)} pts, sd ${fp(sd)}, standard error ${fp(se, 2)}  →  raw t = ${fp(mean / se, 2)}`);
+  console.log(`\n  raw mean ${f(mean)} pts, sd ${fp(sd)}, standard error ${fp(se, 2)}  →  t = ${fp(mean / se, 2)} on the raw series`);
   console.log(`  95% interval on the raw mean: ${f(mean - 1.96 * se)} … ${f(mean + 1.96 * se)} pts`);
-  console.log('  (the alpha shifts this by the blind baseline for the traded mix of longs and shorts)');
 
   // lookahead audit
   console.log('\n  LOOKAHEAD AUDIT');
-  const { line, anchors } = sessionOpenLine(bars, m, {});
-  let bad = 0, firstIdx = null;
-  for (let a = 0; a < anchors.length; a++) {
-    const k = anchors[a];
-    if (line[k] === line[k]) bad++;                       // must be NaN at the anchor bar itself
-    if (firstIdx === null && Number.isFinite(line[k + 1])) firstIdx = k + 1;
-  }
-  console.log(`    the level is NaN on its own anchor bar for ${anchors.length - bad} of ${anchors.length} anchors (want all)`);
-  // every finite level value must equal the open of a bar at or before it
+  const m0 = win.anchors[0];
+  const { line, anchors } = sessionOpenLine(bars, m0, {});
+  let live = 0;
+  for (const k of anchors) if (Number.isFinite(line[k])) live++;
+  console.log(`    the level is still NaN on its own anchor bar for ${anchors.length - live} of ${anchors.length} anchors (want all: published one bar late)`);
   const okSet = new Set(anchors.map(k => bars[k].o));
   let viol = 0, checked = 0;
+  for (let i = 0; i < N; i++) { if (!Number.isFinite(line[i])) continue; checked++; if (!okSet.has(line[i])) viol++; }
+  console.log(`    ${checked.toLocaleString()} live bars, ${viol} carry a value that is not some anchor bar's open`);
+  let late = 0;
   for (let i = 0; i < N; i++) {
     if (!Number.isFinite(line[i])) continue;
-    checked++;
-    if (!okSet.has(line[i])) { viol++; continue; }
+    let src = -1;
+    for (let a = anchors.length - 1; a >= 0; a--) if (anchors[a] < i && bars[anchors[a]].o === line[i]) { src = anchors[a]; break; }
+    if (src < 0) late++;
   }
-  console.log(`    ${checked.toLocaleString()} live bars, ${viol} carry a value that is not some anchor bar's open`);
-  // hard test: truncate the series and confirm the level is bit-identical
-  const cut = Math.floor(N * 0.6);
-  const trunc = sessionOpenLine(bars.slice(0, cut), m, {}).line;
+  console.log(`    ${late} live bars carry a value whose source anchor is not strictly in the past`);
+  const cut2 = Math.floor(N * 0.6);
+  const trunc = sessionOpenLine(bars.slice(0, cut2), m0, {}).line;
   let mism = 0;
-  for (let i = 0; i < cut; i++) {
+  for (let i = 0; i < cut2; i++) {
     const a = line[i], b = trunc[i];
     if (Number.isFinite(a) !== Number.isFinite(b) || (Number.isFinite(a) && a !== b)) mism++;
   }
-  console.log(`    rebuilding on only the first ${cut.toLocaleString()} bars reproduces ${cut - mism} of ${cut} values exactly (${mism} differ)`);
-  console.log('    → the level cannot see the future: it is a frozen open, published one bar late.');
+  console.log(`    rebuilding on only the first ${cut2.toLocaleString()} bars reproduces ${(cut2 - mism).toLocaleString()} of ${cut2.toLocaleString()} values exactly (${mism} differ)`);
+  console.log('    → the level is a frozen past open, published one bar late. It cannot see forward.');
+  return { full, placeboMean: pm, placeboSd: psd, t: mean / se };
 }
 
 module.exports = {
   bars, atr1, N, ATR_TF, TFS, TF_NAME, sessionOpenLine, walk, pnl, scoreAt, attach,
   TP_GRID, SL_GRID, HOLD_GRID, buildBaselines, BLIND, BLIND_SEG, bIdx, EV, ANCHORS,
-  NAMED, hhmm, median, quant, f, fp, respectRate, levelTestEvents, RANDOM_RESPECT,
-  bestConfig, eventsFor, READINGS, blindIndices, get SPLIT_I() { return SPLIT_I; },
+  SESSION_SET, NAMED, hhmm, median, quant, f, fp, respectRate, levelTestEvents,
+  RANDOM_RESPECT, bestConfig, eventsFor, pooled, placeboEvents, placeboLine,
+  READINGS, blindIndices, rng, get SPLIT_I() { return SPLIT_I; },
   stage0, stage1, stage2, stage3, stage4, stage5, stage6,
 };
 
@@ -621,30 +720,31 @@ if (require.main === module) {
   const t0 = Date.now();
   process.stdout.write('  building blind baselines over the whole target/stop/hold grid …\r');
   buildBaselines();
-  console.log(`  blind baselines: ${NT}×${NS}×${NH} = ${GRIDN} configs × ${NB.toLocaleString()} samples × 2 directions × 3 windows  (${((Date.now() - t0) / 1000).toFixed(0)}s)`);
+  console.log(`  blind baselines: ${NT}×${NS}×${NH} = ${NT * NS * NH} configs × ${NB.toLocaleString()} samples × 2 directions × 3 windows  (${((Date.now() - t0) / 1000).toFixed(0)}s)`);
 
   if (on(0)) stage0();
   if (on(1)) stage1();
+  if (on(2)) stage2();
 
-  let table = null;
-  if (on(2)) table = stage2();
-
-  // Pick candidates by respect (trade-agnostic) with a usable event count.
-  const cand = [];
-  if (table) {
-    for (const row of table) for (const c of row.cells) if (c.tests >= 150) cand.push({ m: row.m, tf: c.tf, respect: c.respect, tests: c.tests });
-    cand.sort((a, b) => b.respect - a.respect);
+  // Candidate sets. Individual named sessions, plus two pools. Pools exist
+  // because the honest scale (1H ATR) leaves only ~100 events per anchor and
+  // the brief demands at least 100 before believing anything.
+  const picks = [];
+  for (const tf of [5, 15, 60]) {
+    picks.push({ label: 'Globex 01:00 [CURRENT]', anchors: [60], tf, ev: eventsFor(60, tf) });
+    picks.push({ label: 'London 10:00', anchors: [600], tf, ev: eventsFor(600, tf) });
+    picks.push({ label: 'US data 15:30', anchors: [930], tf, ev: eventsFor(930, tf) });
+    picks.push({ label: 'NYSE 16:30', anchors: [990], tf, ev: eventsFor(990, tf) });
+    picks.push({ label: 'session pool (5)', anchors: SESSION_SET, tf, ev: pooled(SESSION_SET, tf) });
+    picks.push({ label: 'all anchors pool', anchors: ANCHORS, tf, ev: pooled(ANCHORS, tf) });
   }
-  const picks = (cand.length ? cand.slice(0, 10) : [{ m: 60, tf: 15 }, { m: 600, tf: 15 }, { m: 990, tf: 15 }]).map(c => [c.m, c.tf]);
-  if (on(2)) console.log('\n  candidates carried forward (top respect, ≥150 events): ' + picks.map(p => `${hhmm(p[0])}/${TF_NAME[p[1]]}`).join('  '));
 
-  if (on(3)) stage3(picks);
+  if (on(3)) stage3(picks.filter(p => p.tf === 15 || p.label.startsWith('session')));
   let all = [];
   if (on(4)) all = stage4(picks, 100);
   let split = [];
-  if (on(5)) split = stage5(all.slice(0, 14), 100);
+  if (on(5)) split = stage5(all, 100, 60);
   if (on(6)) {
-    // the honest winner: best out-of-sample alpha among configs chosen in-sample
     const w = split.filter(x => x.oos.n >= 60).sort((a, b) => b.oos.alpha - a.oos.alpha)[0];
     if (w) stage6(w);
   }
