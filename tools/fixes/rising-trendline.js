@@ -30,6 +30,59 @@
  * adjustment, same levelTestEvents detector — except where a change is stated
  * explicitly and measured on both sides.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHAT THE MEASUREMENTS SAID
+ *
+ * Current construction (LV.trendLineLevels side:'up', 10/10), 90/90, direction
+ * adjusted, per timeframe:
+ *
+ *     1m  -3.12 (1811)   5m  -4.57 (984)   15m  -0.09 (554)
+ *     1H  -3.85 (285)    4H  +2.08 (135)
+ *
+ * The existing sweep picks a timeframe by respect rate, which sends it to 1m
+ * at 79.3% respect and -3.12 a trade. High respect, no money: a ten-minute
+ * wiggle is respected because it is small, not because it matters.
+ *
+ * Rebuilt: 15m candles, 5-bar pivots, ray through two confirmed higher lows,
+ * anchors no more than 200 candles apart, lows may not dip more than 0.1 ATR
+ * below the ray between them, ray dies on a close 0.4 ATR beneath it.
+ *
+ * The direction answer was the surprise, and it is the one thing worth saying
+ * plainly. Splitting the events by which side price arrived from:
+ *
+ *     bounceUp  price above, came down, held         +0.31  (425)   nothing
+ *     rejDown   price below, came up, turned away    +3.40  (180)   weak
+ *     brkUp     price below, came up, closed through -0.87   (83)   nothing
+ *     brkDown   price above, came down, closed under +11.33 (211)   the trade
+ *
+ * The textbook trade — buy the bounce off rising support — is worth nothing.
+ * The money is in the failure: when a rising trendline that price has been
+ * holding above finally gives way, short it. That is a deliberate answer to
+ * the direction question, measured both ways, not an assumption.
+ *
+ * Sizing came from the excursion rather than from habit. After a brkDown the
+ * median favourable travel inside an hour is 108 points and the median adverse
+ * travel 98, so the target belongs near 90-100 and not at 250. The target scan
+ * agrees and shows a broad plateau from 70 to 120 rather than a spike.
+ *
+ * Final: 15m, brkDown, 90 point target, 60 point stop, 240 minute cap.
+ *     205 trades   raw +17.06   ALPHA +14.66   hit rate 51.7% (breakeven 40.3%)
+ *
+ * Four things were done to try to break it, and it did not break:
+ *   - 70 of 70 generator variants on 15m positive, mean +13.82, worst +7.39
+ *   - 26 of 27 event-detector settings positive
+ *   - target tuned on the first half of the sample lands on 90/60 by itself
+ *     and returns +17.63 on the untouched second half
+ *   - a placebo that keeps every pivot, pairing, birth and death but replaces
+ *     the slope with a random draw from the observed slope pool: 12 runs,
+ *     mean -3.63, none above +1. The two anchors are doing the work.
+ *
+ * What does not work, stated because it matters: 1H is uniformly negative
+ * (0 of 35 variants positive), 5m is flat, 4H is positive but never reaches
+ * 100 events. The edge lives on 15m and nowhere else, which is a narrower
+ * claim than "rising trendlines work".
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
  * Usage:
  *   node --max-old-space-size=3500 tools/fixes/rising-trendline.js base
  *   node --max-old-space-size=3500 tools/fixes/rising-trendline.js causal
@@ -387,12 +440,30 @@ function quant(a) {
 }
 
 // ── filters over an event list ───────────────────────────────────────────────
+/*
+ * The four readings of a test, kept separate on purpose.
+ *
+ * The detector reports which side price arrived from, and a rising line is
+ * only support while price is above it. Lumping the two sides together hides
+ * the answer: "break" mixes price falling through its own support with price
+ * rallying back up through a line it had already lost, and those are opposite
+ * trades wearing the same name.
+ *
+ *   bounceUp  price above, came down, held      -> long  (the textbook trade)
+ *   brkDown   price above, came down, closed through -> short (support lost)
+ *   rejDown   price below, came up, turned away  -> short (line as resistance)
+ *   brkUp     price below, came up, closed through -> long  (reclaim)
+ */
 const ONLY = {
   all:      e => e,
   bounce:   e => e.filter(x => x.kind === 'reject'),
   brk:      e => e.filter(x => x.kind === 'break'),
-  // "fade": read a rejection at the rising line as a failure, trade it the
-  // other way. In a falling market this is the reading that might be right.
+  bounceUp: e => e.filter(x => x.kind === 'reject' && x.dir === 1),
+  rejDown:  e => e.filter(x => x.kind === 'reject' && x.dir === -1),
+  brkDown:  e => e.filter(x => x.kind === 'break' && x.dir === -1),
+  brkUp:    e => e.filter(x => x.kind === 'break' && x.dir === 1),
+  // "fade": read a hold of the rising line as a failure and trade it the other
+  // way. In a falling market this is the reading that might be right.
   fade:     e => e.filter(x => x.kind === 'reject').map(x => ({ ...x, dir: -x.dir })),
   brkfade:  e => e.filter(x => x.kind === 'break').map(x => ({ ...x, dir: -x.dir })),
 };
@@ -433,10 +504,9 @@ function stageCausal() {
    * at the same j. If any future bar leaks into the construction the two
    * disagree.
    */
-  const m = 15;
+  const m = BEST.m;
   const { bars: hb, atr: ha } = tf(m);
-  const opts = { left: 6, right: 6, minSpan: 8, maxSpan: 200, pierceAtr: 0.05,
-                 maxProject: 60, breakAtr: 0.25, confirmTouches: 1 };
+  const opts = BEST.opts;
   const full = risingTrendline(hb, ha, opts);
   const rr = rng(4242);
   let checked = 0, bad = 0, worst = 0;
@@ -551,14 +621,15 @@ function stageDetail() {
     ['15m nokill',     15, { left: 5, right: 5, minSpan: 6, maxSpan: 200, pierceAtr: 0.1, maxProject: 200, breakAtr: 0.4, killOnBreak: false }],
     ['5m nokill',       5, { left: 5, right: 5, minSpan: 6, maxSpan: 200, pierceAtr: 0.1, maxProject: 200, breakAtr: 0.4, killOnBreak: false }],
   ];
-  console.log('\n90/90 target. alpha (n) per reading. bounce = long the hold, fade = short it.\n');
+  const RS = (process.env.READINGS || 'all,bounce,brk,bounceUp,rejDown,brkDown,brkUp').split(',');
+  console.log('\n90/90 target. alpha (n) per reading.\n');
   const head = 'config'.padEnd(14) + 'resp%'.padStart(7) +
-    ['all', 'bounce', 'fade', 'brk', 'brkfade'].map(r => r.padStart(15)).join('');
+    RS.map(r => r.padStart(15)).join('');
   console.log(head); console.log('─'.repeat(head.length));
   for (const [name, m, o] of CANDS) {
     const { ev } = run(m, o);
     let row = name.padEnd(14) + fp(respectRate(ev).respect).padStart(7);
-    for (const r of ['all', 'bounce', 'fade', 'brk', 'brkfade']) {
+    for (const r of RS) {
       const l = ONLY[r](ev);
       if (!l.length) { row += '—'.padStart(15); continue; }
       const s = score(l, TP0, SL0, MAX_HOLD);
@@ -746,12 +817,37 @@ function stagePlacebo() {
   console.log(`  placebo mean ${f(mean)}   real minus placebo ${f(real.s.alpha - mean)}`);
 }
 
+/*
+ * The detector has thresholds of its own — how close counts as arriving, how
+ * far away counts as having left, how decisive a close has to be to count as
+ * through. Those were set for horizontal levels. If the result only exists at
+ * one particular setting of them it is a property of the detector, not of the
+ * line.
+ */
+function stageDetector() {
+  const { m, opts, reading, tp, sl, hold } = BEST;
+  const { line } = project(m, (b, a) => risingTrendline(b, a, opts));
+  console.log(`\ndetector sensitivity — ${TF_NAME[m]} ${reading} ${tp}/${sl} hold ${hold}m\n`);
+  console.log('tol  appr  brk  reset      n     alpha');
+  console.log('─'.repeat(40));
+  for (const tolAtr of [0.1, 0.2, 0.35]) {
+    for (const approachAtr of [1.0, 1.5, 2.5]) {
+      for (const breakAtr of [0.15, 0.25, 0.5]) {
+        const ev = levelTestEvents(bars, line, atr1, { tolAtr, approachAtr, breakAtr });
+        const s = score(ONLY[reading](ev), tp, sl, hold, 20000);
+        console.log(`${tolAtr.toFixed(2)}  ${approachAtr.toFixed(1)}  ${breakAtr.toFixed(2)}  1.0  ` +
+          `${String(s.traded).padStart(5)}  ${f(s.alpha).padStart(8)}${s.traded < 100 ? '   (thin)' : ''}`);
+      }
+    }
+  }
+}
+
 // The construction the sweeps land on. Filled in from measured results.
 let BEST = {
   m: 15,
-  opts: { left: 6, right: 6, minSpan: 8, maxSpan: 200, pierceAtr: 0.1,
+  opts: { left: 5, right: 5, minSpan: 6, maxSpan: 200, pierceAtr: 0.1,
           maxProject: 200, breakAtr: 0.4 },
-  reading: 'bounce', tp: 30, sl: 30, hold: 480,
+  reading: 'brkDown', tp: 90, sl: 60, hold: 240,
 };
 if (process.env.CFG) {
   const o = JSON.parse(process.env.CFG);
@@ -812,6 +908,40 @@ function stageFinal() {
     console.log(`     ${r.month}  ${String(r.n).padStart(4)}  ${f(r.alpha)}`);
   }
 
+  /*
+   * Split-half. The target size was chosen by looking at the whole sample, so
+   * the whole-sample number is optimistic by construction. Choosing it on the
+   * first half and reading it off the second is the cheapest honest check
+   * available without another six months of data.
+   */
+  const mid = Math.floor(N / 2);
+  const h1 = list.filter(e => e.i < mid), h2 = list.filter(e => e.i >= mid);
+  console.log('\n   split-half:');
+  for (const [nm, l] of [['first half ', h1], ['second half', h2]]) {
+    if (!l.length) continue;
+    const ss = score(l, tp, sl, hold);
+    console.log(`     ${nm}  ${String(ss.traded).padStart(4)} trades   alpha ${f(ss.alpha)}   raw ${f(ss.raw)}`);
+  }
+  let bt = -Infinity, btp = 0, bsl = 0;
+  for (const t of [60, 70, 80, 90, 100, 110, 120]) for (const s2 of [45, 60, 90, 120]) {
+    const a = score(h1, t, s2, hold, 20000).alpha;
+    if (a > bt) { bt = a; btp = t; bsl = s2; }
+  }
+  const oos = score(h2, btp, bsl, hold);
+  console.log(`     target tuned on first half -> ${btp}/${bsl} (alpha ${f(bt)}),` +
+    ` applied to second half -> alpha ${f(oos.alpha)} on ${oos.traded} trades`);
+
+  // Win/loss shape, so the number is not just a mean hiding one trade.
+  const bl2 = blind(1, tp, sl, hold), bs2 = blind(-1, tp, sl, hold);
+  let wins = 0, n2 = 0;
+  for (const e of list) {
+    const p = race(e.i, e.dir, tp, sl, hold);
+    if (p === null) continue;
+    n2++; if (p > 0) wins++;
+  }
+  console.log(`\n   hit rate ${fp(100 * wins / n2)}%  over ${n2} trades ` +
+    `(breakeven for ${tp}/${sl} needs ${fp(100 * (sl + COST) / (tp + sl))}%)`);
+
   // bootstrap on the direction-adjusted per-trade series
   const bl = blind(1, tp, sl, hold), bs = blind(-1, tp, sl, hold);
   const adj = [];
@@ -833,7 +963,7 @@ function stageFinal() {
 const stage = process.argv[2] || 'final';
 ({ base: stageBase, causal: stageCausal, tf: stageTf, knobs: stageKnobs,
    detail: stageDetail, excursion: stageExcursion, targets: stageTargets,
-   fine: stageFine, robust: stageRobust, placebo: stagePlacebo,
+   fine: stageFine, robust: stageRobust, placebo: stagePlacebo, detector: stageDetector,
    final: stageFinal }[stage] || stageFinal)();
 
 module.exports = { risingTrendline, idTestEvents, excursion, score, race, blind, loadBars };

@@ -7,45 +7,66 @@
  * is a candle where somebody's resting order ate the flow. The price they
  * defended should matter later.
  *
- * What was wrong with the existing construction (tools/levels.js
- * absorptionLevels):
+ * RESULT, so it is not buried: the existing construction earns -2.03 points per
+ * trade direction-adjusted. Rebuilt, the same idea earns +5.15 over 11,176
+ * trades, positive in every month and in both halves of the record. Four things
+ * were wrong, and one thing everybody expected was wrong in the other direction.
  *
- *   1. The line is `the nearest pooled absorption midpoint to the close`. That
- *      value changes whenever price moves past one level towards another, so
- *      the series is a step function trailing price, not a level. The event
- *      detector in tools/level_events.js then resets its state every time the
- *      series jumps, which throws away the approach it had accumulated.
- *   2. The defended price is taken as the candle midpoint. Absorption is
- *      one-sided: somebody bid, or somebody offered. The midpoint is neither
- *      of the two prices that were actually held.
- *   3. Volume is compared against a percentile of a trailing window, but the
- *      range condition uses a percentile of the same window, so on a quiet
- *      stretch every ordinary candle passes and on a violent stretch nothing
- *      does. A ratio to the window's own mean is the stable version.
- *   4. Direction was left to the generic engine, which trades a rejection as a
- *      bounce whichever side it came from. A defended level has a side.
- *   5. Everything was scored at a 90 point target and a 90 point stop.
+ *   1. IT WAS NOT A LEVEL. tools/levels.js absorptionLevels emits `the nearest
+ *      pooled absorption midpoint to the close`. That value changes whenever
+ *      price walks past one level towards another, so the series is a step
+ *      function trailing price. tools/level_events.js resets its state every
+ *      time the series jumps, throwing away the approach it had accumulated.
+ *      Fixed by holding every absorption price as a fixed number with its own
+ *      armed/locked state, watched from birth to expiry.
  *
- * This file rebuilds the level as a set of fixed prices, each watched
- * independently, sweeps the timeframe it is built on, measures the excursion
- * the level actually produces, and scores every reading of the test (bounce,
- * break, and both reversed) direction-adjusted against the blind baselines for
- * the same target and stop.
+ *   2. THE WRONG PRICE. The midpoint was used. Absorption is one-sided —
+ *      somebody bid, or somebody offered — and the midpoint is neither of the
+ *      two prices that were held. The extreme facing the close is: a candle
+ *      that closes in its upper half defended its LOW.
+ *
+ *   3. THE THRESHOLD DID NOT TRAVEL. `volume above the 90th percentile AND
+ *      range below the 40th` sounds scale-free but is not: tick volume and
+ *      candle range correlate at 0.60 on every timeframe here, and relative
+ *      volume has a 90th percentile of about 1.4 whatever the chart. The joint
+ *      condition therefore selects almost nothing — 39 candles on 1m, ZERO on
+ *      15m and above. Every quantity is now ranked against the 250 candles
+ *      before it, so a threshold means the same thing everywhere.
+ *
+ *   4. THE DIRECTION WAS BLENDED AWAY. The generic engine trades a rejection as
+ *      a bounce whichever side price came from. Splitting on the defended side
+ *      separates +5.15 from -0.69: the level only pays when price arrives at it
+ *      from the side it was defending against.
+ *
+ *   5. THE TARGET WAS TOO SMALL, NOT TOO LARGE. This level does not produce a
+ *      quick turn — the median favourable excursion after a test is 493 points
+ *      and the median adverse 462. The alpha surface climbs from +0.4 at a 20
+ *      point target to a plateau at 120/120, and both halves of the record put
+ *      the plateau in the same place. 90/90 was cutting the move off.
+ *
+ * The control that matters is not the blind entry, it is the SAME event
+ * detector run on levels placed at random with a random defended side. That
+ * scores +0.54 ± 1.0, so +4.6 of the +5.15 is attributable to the absorption
+ * candle rather than to the rejection machinery.
  *
  * Causality: an absorption candle on an `m` minute chart is only complete at
  * the end of that candle, so the level it defines is published to the 1m stream
- * at the first 1m bar of the FOLLOWING m-minute candle — exactly what
- * E.projectConfirmed does for a series. Mode `lag` verifies this by shifting
- * publication forwards and backwards and showing the result degrades one way
- * and improves the other.
+ * at the first 1m bar of the FOLLOWING m-minute candle — what
+ * E.projectConfirmed does for a series. Mode `lag` re-runs with publication
+ * shifted; deliberately leaking the unclosed candle (lag -1) moves the result
+ * from +5.15 to +5.63, so nothing here is living on lookahead.
  *
- * Usage:
- *   node --max-old-space-size=3500 tools/fixes/absorption.js current
- *   node --max-old-space-size=3500 tools/fixes/absorption.js sweep
- *   node --max-old-space-size=3500 tools/fixes/absorption.js excursion
- *   node --max-old-space-size=3500 tools/fixes/absorption.js tune
- *   node --max-old-space-size=3500 tools/fixes/absorption.js final
- *   node --max-old-space-size=3500 tools/fixes/absorption.js lag
+ * Usage — every mode takes an optional JSON argument:
+ *   node --max-old-space-size=3500 tools/fixes/absorption.js report
+ *   ...                                                     diag
+ *   ...                                                     current
+ *   ...                                                     sweep
+ *   ...                                                     excursion
+ *   ...                                                     tune '{"half":1}'
+ *   ...                                                     variants
+ *   ...                                                     robust
+ *   ...                                                     final
+ *   ...                                                     lag
  */
 
 const fs = require('fs');
@@ -198,51 +219,65 @@ function score(events, TP, SL, MAXH, blindN = 40000) {
  *
  * Returns fixed level values with the 1m bar on which each becomes visible.
  */
+/*
+ * Every quantity is turned into its rank among the `look` candles BEFORE it —
+ * a percentile drawn from its own recent distribution, using only past data.
+ * A fixed multiplier cannot work across timeframes here: relative volume has a
+ * 90th percentile of about 1.4 whatever the timeframe, so a 1.8x threshold
+ * selects the top 1% on every chart and, once crossed with a range condition,
+ * selects nothing at all.
+ */
+const SCORES = {
+  vol:    b => (Number.isFinite(b.v) ? b.v : 0),
+  range:  b => b.h - b.l,
+  prog:   b => Math.abs(b.c - b.o),
+  vpr:    b => (b.h - b.l > 0 ? (Number.isFinite(b.v) ? b.v : 0) / (b.h - b.l) : 0),
+  effort: b => (Number.isFinite(b.v) ? b.v : 0) / Math.max(Math.abs(b.c - b.o), 0.01),
+  body:   b => (b.h - b.l > 0 ? Math.abs(b.c - b.o) / (b.h - b.l) : 1),
+};
+const PCT_CACHE = new Map();
+function pctRanks(minutes, name, look) {
+  const key = `${minutes}|${name}|${look}`;
+  if (PCT_CACHE.has(key)) return PCT_CACHE.get(key);
+  const { bars: hb } = TF.get(minutes);
+  const n = hb.length, fn = SCORES[name];
+  const s = new Float64Array(n);
+  for (let j = 0; j < n; j++) s[j] = fn(hb[j]);
+  const p = new Float64Array(n).fill(NaN);
+  for (let j = look; j < n; j++) {
+    let c = 0;
+    for (let k = j - look; k < j; k++) if (s[k] < s[j]) c++;
+    p[j] = c / look;
+  }
+  PCT_CACHE.set(key, p);
+  return p;
+}
+
 function absorption(minutes, cfg = {}) {
-  const look = cfg.look ?? 60;
-  const volMult = cfg.volMult ?? 1.8;     // 0 disables the volume condition
-  const rngMult = cfg.rngMult ?? 0.8;     // Infinity disables the range condition
-  const effMult = cfg.effMult ?? 0;       // relVol / relRange, 0 disables
-  const vprMult = cfg.vprMult ?? 0;       // volume per point of range, vs its own trailing mean
-  const progMult = cfg.progMult ?? Infinity; // |close-open| / mean range: effort without result
+  const { bars: hb, firstAt } = TF.get(minutes);
+  const n = hb.length;
+  const out = [];
+  const look = Math.min(cfg.look ?? 250, Math.max(20, Math.floor((n - 2) / 3)));
+  if (n < look + 3) return out;
+
+  const sel = cfg.sel ?? [['vol', '>=', 0.90], ['range', '<=', 0.35]];
   const priceMode = cfg.priceMode ?? 'extreme';
   const ageMin = cfg.ageMin ?? Math.max(1440, minutes * 40);
   const publishLag = cfg.publishLag ?? 0; // extra higher-timeframe candles of delay (mode `lag`)
 
-  const { bars: hb, firstAt } = TF.get(minutes);
-  const n = hb.length;
-  const out = [];
-  if (n < look + 3) return out;
-
-  // Prefix sums for the trailing means.
-  const cv = new Float64Array(n + 1), cr = new Float64Array(n + 1), cp = new Float64Array(n + 1);
-  for (let j = 0; j < n; j++) {
-    const rg = hb[j].h - hb[j].l;
-    cv[j + 1] = cv[j] + (Number.isFinite(hb[j].v) ? hb[j].v : 0);
-    cr[j + 1] = cr[j] + rg;
-    cp[j + 1] = cp[j] + (rg > 0 ? (Number.isFinite(hb[j].v) ? hb[j].v : 0) / rg : 0);
-  }
+  const ranks = sel.map(([nm]) => pctRanks(minutes, nm, look));
 
   for (let j = look; j < n - 1; j++) {
     const b = hb[j];
     const range = b.h - b.l;
     if (!(range > 0)) continue;
-    const mv = (cv[j] - cv[j - look]) / look;
-    const mr = (cr[j] - cr[j - look]) / look;
-    const mp = (cp[j] - cp[j - look]) / look;
-    if (!(mr > 0)) continue;
-    const v = Number.isFinite(b.v) ? b.v : 0;
-    const relVol = mv > 0 ? v / mv : 0;
-    const relRng = range / mr;
-    const relVpr = mp > 0 ? (v / range) / mp : 0;
-    const relProg = Math.abs(b.c - b.o) / mr;
-
-    if (volMult > 0 && !(relVol >= volMult)) continue;
-    if (Number.isFinite(rngMult) && !(relRng <= rngMult)) continue;
-    if (effMult > 0 && !(relVol / relRng >= effMult)) continue;
-    if (vprMult > 0 && !(relVpr >= vprMult)) continue;
-    if (Number.isFinite(progMult) && !(relProg <= progMult)) continue;
-    if (cfg.bodyMax != null && !(Math.abs(b.c - b.o) / range <= cfg.bodyMax)) continue;
+    let ok = true;
+    for (let q = 0; q < sel.length; q++) {
+      const p = ranks[q][j];
+      if (!Number.isFinite(p)) { ok = false; break; }
+      if (sel[q][1] === '>=' ? !(p >= sel[q][2]) : !(p <= sel[q][2])) { ok = false; break; }
+    }
+    if (!ok) continue;
 
     // Which price was defended, and which way does that point?
     // dir0 = +1 means a bid was defended: this is support, a bounce is a long.
@@ -277,7 +312,7 @@ function absorption(minutes, cfg = {}) {
     if (pub < 0 || pub >= n) continue;
     const visibleAt = firstAt[pub];
     if (visibleAt == null || visibleAt < 0) continue;
-    out.push({ price: px, dir0, visibleAt, expire: visibleAt + ageMin, relVol, relRng, relVpr, relProg, htf: j });
+    out.push({ price: px, dir0, visibleAt, expire: visibleAt + ageMin, htf: j });
   }
   out.sort((a, b) => a.visibleAt - b.visibleAt);
   return out;
@@ -362,6 +397,15 @@ const READINGS = {
   // breaks that go the way the level was NOT defending (absorption failed)
   breakFail:  e => (e.kind === 'break' && e.dir === -e.dir0 ? e.dir : 0),
   breakWith:  e => (e.kind === 'break' && e.dir === e.dir0 ? e.dir : 0),
+  /*
+   * The defence. Price arrives at the level from the side the level was
+   * defending against — at a defended low, from above — and the bet is on the
+   * defence holding, whatever that candle did. This is the union of `polarity`
+   * and `breakFail` reversed, and it needs no reject/break classification at
+   * all: only the side price came from and the side the candle defended.
+   */
+  defence:    e => (e.from === e.dir0 ? e.dir0 : 0),
+  defenceRev: e => (e.from === e.dir0 ? -e.dir0 : 0),
 };
 function apply(events, reading) {
   const f = READINGS[reading];
@@ -443,8 +487,9 @@ function modeDiag() {
 }
 
 /* 1. the construction that exists today, measured exactly as sweep_timeframes does */
-function modeCurrent() {
-  console.log(`bars ${N.toLocaleString()}   blind long ${f(blind(1, 90, 90, 1440))}  blind short ${f(blind(-1, 90, 90, 1440))}   (target 90 / stop 90 / hold 1440)`);
+function modeCurrent(opt = {}) {
+  const TP = opt.tp ?? 90, SL = opt.sl ?? 90, MAXH = opt.hold ?? 1440;
+  console.log(`bars ${N.toLocaleString()}   blind long ${f(blind(1, TP, SL, MAXH))}  blind short ${f(blind(-1, TP, SL, MAXH))}   (target ${TP} / stop ${SL} / hold ${MAXH})`);
   console.log('\nCURRENT construction: LV.absorptionLevels — nearest pooled midpoint to the close\n');
   console.log('tf'.padEnd(6) + 'tests'.padStart(8) + 'respect%'.padStart(10) + 'short%'.padStart(9) + 'raw'.padStart(9) + 'alpha'.padStart(9));
   for (const m of TIMEFRAMES) {
@@ -454,29 +499,54 @@ function modeCurrent() {
     const proj = m === 1 ? line : E.projectConfirmed(line, index);
     const ev = levelTestEvents(bars, proj, atr1);
     const r = respectRate(ev);
-    const s = score(ev, 90, 90, 1440);
+    const s = score(ev, TP, SL, MAXH);
     console.log(TF_NAME[m].padEnd(6) + String(r.tests).padStart(8) + f0(r.respect).padStart(10) +
       f0(100 * s.shorts / Math.max(1, s.n)).padStart(9) + f(s.raw).padStart(9) + f(s.alpha).padStart(9));
   }
 }
 
-const SWEEP_CFGS = [
-  ['vol1.8 rng0.8 extreme', { volMult: 1.8, rngMult: 0.8, priceMode: 'extreme' }],
-  ['vol1.8 rng0.8 mid    ', { volMult: 1.8, rngMult: 0.8, priceMode: 'mid' }],
-  ['vol1.8 rng0.8 close  ', { volMult: 1.8, rngMult: 0.8, priceMode: 'close' }],
-  ['vol1.8 rng0.8 wick   ', { volMult: 1.8, rngMult: 0.8, priceMode: 'wick' }],
-  ['vol1.8 rng0.8 arrival', { volMult: 1.8, rngMult: 0.8, priceMode: 'arrival' }],
-  ['vol2.5 rng0.7 extreme', { volMult: 2.5, rngMult: 0.7, priceMode: 'extreme' }],
-  ['eff  3.0      extreme', { volMult: 0, rngMult: Infinity, effMult: 3.0, priceMode: 'extreme' }],
-  ['range only 0.5 (no v)', { volMult: 0, rngMult: 0.5, priceMode: 'extreme' }],
-  ['range only 0.35(no v)', { volMult: 0, rngMult: 0.35, priceMode: 'extreme' }],
-];
+/*
+ * The definitions worth separating.
+ *
+ *   volSmallRange  the literal reading: top-decile volume, bottom-third range
+ *   vpr            volume per point of travel — the scale-free absorption ratio
+ *   effortNoResult heavy volume that produced no NET progress, whatever the
+ *                  range; a wide bar with a tiny body is a fight, and the
+ *                  extreme that held is a genuine defended price
+ *   rangeOnly      no volume at all, just a quiet bar (tick volume is a proxy,
+ *                  so this is the control for whether volume adds anything)
+ *   progOnly       no volume, just no net progress
+ */
+const SEL = {
+  volSmallRange:  [['vol', '>=', 0.90], ['range', '<=', 0.35]],
+  volSmallRange2: [['vol', '>=', 0.80], ['range', '<=', 0.50]],
+  vpr:            [['vpr', '>=', 0.95]],
+  vpr90:          [['vpr', '>=', 0.90]],
+  effortNoResult: [['vol', '>=', 0.85], ['body', '<=', 0.20]],
+  effortNoResult2:[['vol', '>=', 0.90], ['prog', '<=', 0.30]],
+  rangeOnly:      [['range', '<=', 0.10]],
+  progOnly:       [['prog', '<=', 0.10]],
+};
+const SWEEP_CFGS = [];
+for (const [k, sel] of Object.entries(SEL)) {
+  for (const pm of ['extreme', 'mid', 'wick', 'arrival']) {
+    SWEEP_CFGS.push([`${k}/${pm}`, { sel, priceMode: pm }]);
+  }
+}
 
-function modeSweep() {
-  const readings = ['engine', 'bounce', 'bounceRev', 'breakGo', 'breakRev', 'polarity', 'contra'];
-  console.log(`blind long ${f(blind(1, 90, 90, 1440))}  blind short ${f(blind(-1, 90, 90, 1440))}   target 90 / stop 90 / hold 1440`);
+function findCfg(name) {
+  const hit = SWEEP_CFGS.find(c => c[0] === name) || SWEEP_CFGS.find(c => c[0].trim().startsWith(String(name).trim()));
+  if (!hit) throw new Error('no config named ' + name);
+  return hit[1];
+}
+
+function modeSweep(opt = {}) {
+  const readings = opt.readings ?? ['engine', 'bounce', 'bounceRev', 'breakGo', 'breakRev', 'polarity', 'contra'];
+  const TP = opt.tp ?? 90, SL = opt.sl ?? 90, MAXH = opt.hold ?? 1440;
+  const cfgs = opt.only ? SWEEP_CFGS.filter(c => opt.only.some(o => c[0].startsWith(o))) : SWEEP_CFGS.filter(c => c[0].endsWith('/extreme'));
+  console.log(`blind long ${f(blind(1, TP, SL, MAXH))}  blind short ${f(blind(-1, TP, SL, MAXH))}   target ${TP} / stop ${SL} / hold ${MAXH}`);
   console.log('alpha = direction-adjusted points per trade. n<100 shown in brackets.\n');
-  for (const [name, cfg] of SWEEP_CFGS) {
+  for (const [name, cfg] of cfgs) {
     console.log(`\n${name}`);
     console.log('  tf'.padEnd(7) + 'lv'.padStart(7) + 'tests'.padStart(7) + 'resp%'.padStart(7) + readings.map(r => r.padStart(12)).join(''));
     for (const m of TIMEFRAMES) {
@@ -487,7 +557,7 @@ function modeSweep() {
       const cells = readings.map(rd => {
         const sub = apply(ev, rd);
         if (!sub.length) return '—'.padStart(12);
-        const s = score(sub, 90, 90, 1440, 40000);
+        const s = score(sub, TP, SL, MAXH, 40000);
         const txt = `${f(s.alpha)}/${s.n}`;
         return (sub.length >= 100 ? txt : `[${txt}]`).padStart(12);
       });
@@ -498,11 +568,11 @@ function modeSweep() {
 
 /* what travel does a test of this level actually produce? */
 function modeExcursion(cfgName, tfList) {
-  const cfg = SWEEP_CFGS.find(c => c[0].trim().startsWith(cfgName))[1];
+  const cfg = findCfg(cfgName);
   console.log(`excursion after a test — ${cfgName}\n`);
   for (const m of tfList) {
     const ev = multiEvents(absorption(m, cfg));
-    for (const rd of ['bounce', 'bounceRev', 'breakGo', 'breakRev']) {
+    for (const rd of (ARG.readings ?? ['bounce', 'polarity', 'breakGo'])) {
       const sub = apply(ev, rd);
       if (sub.length < 60) continue;
       for (const H of [120, 360, 1440]) {
@@ -513,13 +583,22 @@ function modeExcursion(cfgName, tfList) {
   }
 }
 
-/* size the target and the stop to the travel that is really there */
-function modeTune(cfgName, m, reading) {
-  const cfg = SWEEP_CFGS.find(c => c[0].trim().startsWith(cfgName))[1];
-  const ev = apply(multiEvents(absorption(m, cfg)), reading);
-  console.log(`${cfgName} on ${TF_NAME[m]}, reading ${reading}, ${ev.length} trades\n`);
-  const TH = [6, 10, 14, 18, 24, 30, 40, 55, 75, 90];
-  for (const MAXH of [120, 360, 1440]) {
+/*
+ * Size the target and the stop to the travel that is really there.
+ *
+ * `half: 1` fits on the first half of the record and `half: 2` reports the
+ * second, so the cell can be chosen on one and read off the other. Picking the
+ * maximum of a grid on the same data it was measured on is not a measurement.
+ */
+function modeTune(cfgName, m, reading, opt = {}) {
+  const cfg = findCfg(cfgName);
+  let ev = apply(multiEvents(absorption(m, cfg)), reading);
+  const midT = bars[Math.floor(N / 2)].t;
+  if (opt.half === 1) ev = ev.filter(e => bars[e.i].t < midT);
+  if (opt.half === 2) ev = ev.filter(e => bars[e.i].t >= midT);
+  console.log(`${cfgName} on ${TF_NAME[m]}, reading ${reading}, ${ev.length} trades${opt.half ? ` (half ${opt.half})` : ''}\n`);
+  const TH = opt.th ?? [6, 10, 14, 20, 28, 40, 55, 75, 90];
+  for (const MAXH of (opt.holds ?? [30, 120, 360, 1440])) {
     const gL = blindGrid(1, MAXH, TH, 20000, 31337);
     const gS = blindGrid(-1, MAXH, TH, 20000, 73331);
     const net = TH.map(() => TH.map(() => [0, 0, 0, 0])); // lnet, ln, snet, sn
@@ -550,8 +629,8 @@ function modeTune(cfgName, m, reading) {
 
 /* the chosen construction, with the split-sample check and the control */
 function modeFinal(opt = {}) {
-  const cfgName = opt.cfg ?? 'vol1.8 rng0.8 extreme';
-  const cfg = SWEEP_CFGS.find(c => c[0].trim().startsWith(cfgName.trim()))[1];
+  const cfgName = opt.cfg ?? 'volSmallRange/extreme';
+  const cfg = findCfg(cfgName);
   const m = opt.tf ?? 15, reading = opt.reading ?? 'bounce';
   const TP = opt.tp ?? 18, SL = opt.sl ?? 24, MAXH = opt.hold ?? 360;
 
@@ -593,21 +672,168 @@ function modeFinal(opt = {}) {
     console.log(`    ${k}  n ${String(ss.n).padStart(4)}  alpha ${f(ss.alpha)}`);
   }
 
-  // control: the same number of levels at random prices, same lifetimes
-  const r2 = rng(90210);
-  const ctrl = lv.map(L => {
-    const i = L.visibleAt;
-    const a = atr1[i] || 1;
-    return { ...L, price: bars[i].c + (r2() * 2 - 1) * a * 6 };
-  }).sort((a, b) => a.visibleAt - b.visibleAt);
-  const cev = apply(multiEvents(ctrl), reading);
-  const cs = score(cev, TP, SL, MAXH, 40000);
-  console.log(`  RANDOM levels, same count/lifetime: n ${cs.n}  respect ${f0(respectRate(multiEvents(ctrl)).respect)}%  alpha ${f(cs.alpha)}`);
+  /*
+   * Control. The same number of levels, born at the same moments, alive for
+   * the same length of time, carrying the same implied direction — but at a
+   * price drawn at random near the close instead of at the defended price.
+   * If this scores the same, the absorption candle contributed nothing and all
+   * that is being measured is the reading policy plus the direction adjustment.
+   */
+  const SEEDS = [778899, 121212, 313131, 606060, 909090];
+  const runCtl = (label, make) => {
+    const as = [], ns = [];
+    for (const seed of SEEDS) {
+      const r = rng(seed);
+      const c = lv.map(L => make(L, r)).sort((a, b) => a.visibleAt - b.visibleAt);
+      const s2 = score(apply(multiEvents(c), reading), TP, SL, MAXH, 40000);
+      as.push(s2.alpha); ns.push(s2.n);
+    }
+    const mu = as.reduce((a, b) => a + b, 0) / as.length;
+    const sd = Math.sqrt(as.reduce((a, b) => a + (b - mu) ** 2, 0) / (as.length - 1));
+    console.log(`  ${label.padEnd(34)} n ~${String(Math.round(ns.reduce((a, b) => a + b, 0) / ns.length)).padStart(5)}  alpha ${f(mu)} ± ${f0(sd)}   (${SEEDS.length} draws)`);
+    return mu;
+  };
+  const randPx = (L, r) => { const i = L.visibleAt, a = atr1[i] || 1; return { ...L, price: bars[i].c + (r() * 2 - 1) * a * 6 }; };
+  runCtl('CONTROL random price, real side', randPx);
+  runCtl('CONTROL real price, scrambled side', (L, r) => ({ ...L, dir0: r() < 0.5 ? 1 : -1 }));
+  const floor = runCtl('CONTROL random price AND side', (L, r) => ({ ...randPx(L, r), dir0: r() < 0.5 ? 1 : -1 }));
+  console.log(`  attributable to the absorption candle: ${f(s.alpha - floor)} points per trade`);
+
+  /*
+   * Honest error bar. These trades overlap heavily — a 1440 bar hold with
+   * thousands of entries means dozens are open at once — so the ordinary
+   * standard error over n trades is far too small. Resample whole calendar
+   * days with replacement instead, which keeps trades that share the same
+   * market move together.
+   */
+  const byDay = new Map();
+  for (const e of ev) {
+    const k = Math.floor(bars[e.i].t / 86400000);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(e);
+  }
+  const days = [...byDay.values()];
+  const BL = blind(1, TP, SL, MAXH), BS = blind(-1, TP, SL, MAXH);
+  const pnl = new Map();
+  for (const e of ev) {
+    const p = race(e.i, e.dir, TP, SL, MAXH);
+    if (p !== null) pnl.set(e, p - (e.dir === 1 ? BL : BS));
+  }
+  const r3 = rng(555001);
+  const boot = [];
+  for (let b = 0; b < 2000; b++) {
+    let s2 = 0, c2 = 0;
+    for (let k = 0; k < days.length; k++) {
+      for (const e of days[Math.floor(r3() * days.length)]) {
+        const p = pnl.get(e);
+        if (p !== undefined) { s2 += p; c2++; }
+      }
+    }
+    if (c2) boot.push(s2 / c2);
+  }
+  boot.sort((a, b) => a - b);
+  console.log(`  day-block bootstrap over ${days.length} trading days: alpha 5th ${f(boot[Math.floor(0.05 * boot.length)])}  50th ${f(boot[Math.floor(0.5 * boot.length)])}  95th ${f(boot[Math.floor(0.95 * boot.length)])}`);
+  const share = boot.filter(v => v > 0).length / boot.length;
+  console.log(`  share of bootstrap samples above zero: ${(100 * share).toFixed(1)}%`);
+}
+
+/*
+ * Variants, each next to its own control.
+ *
+ * The control that matters is not the blind entry, it is the SAME event
+ * detector run on levels placed at random with a random defended side. That
+ * measures what the rejection-and-bounce machinery earns on its own. Anything
+ * a real absorption level is worth has to show up as the gap between the two
+ * columns, and that gap is the only number worth optimising.
+ */
+function modeVariants(opt = {}) {
+  const TP = opt.tp ?? 120, SL = opt.sl ?? 120, MAXH = opt.hold ?? 1440;
+  const reading = opt.reading ?? 'polarity';
+  const list = opt.variants ?? [
+    ['vol>=.90 prog<=.30  extreme', 1, { sel: [['vol', '>=', 0.90], ['prog', '<=', 0.30]], priceMode: 'extreme' }],
+    ['vol>=.95 prog<=.20  extreme', 1, { sel: [['vol', '>=', 0.95], ['prog', '<=', 0.20]], priceMode: 'extreme' }],
+    ['vol>=.98 prog<=.15  extreme', 1, { sel: [['vol', '>=', 0.98], ['prog', '<=', 0.15]], priceMode: 'extreme' }],
+    ['vol>=.85 body<=.20  extreme', 1, { sel: [['vol', '>=', 0.85], ['body', '<=', 0.20]], priceMode: 'extreme' }],
+    ['prog<=.30 only      extreme', 1, { sel: [['prog', '<=', 0.30]], priceMode: 'extreme' }],
+    ['vol>=.90 only       extreme', 1, { sel: [['vol', '>=', 0.90]], priceMode: 'extreme' }],
+    ['vpr>=.95            extreme', 1, { sel: [['vpr', '>=', 0.95]], priceMode: 'extreme' }],
+    ['5m vol>=.90 prog<=.30      ', 5, { sel: [['vol', '>=', 0.90], ['prog', '<=', 0.30]], priceMode: 'extreme' }],
+    ['15m vol>=.90 prog<=.30     ', 15, { sel: [['vol', '>=', 0.90], ['prog', '<=', 0.30]], priceMode: 'extreme' }],
+    ['1H vol>=.90 prog<=.30      ', 60, { sel: [['vol', '>=', 0.90], ['prog', '<=', 0.30]], priceMode: 'extreme' }],
+  ];
+  console.log(`variants at TP ${TP} / SL ${SL} / hold ${MAXH}, reading ${reading}`);
+  console.log(`blind long ${f(blind(1, TP, SL, MAXH))}  blind short ${f(blind(-1, TP, SL, MAXH))}\n`);
+  console.log('variant'.padEnd(30) + 'lv'.padStart(7) + 'n'.padStart(7) + 'resp%'.padStart(7) + 'ctlResp'.padStart(8) + 'alpha'.padStart(9) + 'control'.padStart(13) + 'gap'.padStart(9));
+  for (const [name, m, cfg] of list) {
+    const lv = absorption(m, { ...cfg, ...(opt.evOpts ? {} : {}) });
+    if (lv.length < 5) { console.log(name.padEnd(30) + String(lv.length).padStart(7)); continue; }
+    const all = multiEvents(lv, opt.evOpts || {});
+    const ev = apply(all, reading);
+    if (ev.length < 60) { console.log(name.padEnd(30) + String(lv.length).padStart(7) + String(ev.length).padStart(7)); continue; }
+    const s = score(ev, TP, SL, MAXH, 40000);
+    // The control is itself noisy, so average several draws before believing the gap.
+    const cAlphas = [], cResp = [];
+    for (const seed of (opt.seeds ?? [778899, 121212, 313131, 606060, 909090])) {
+      const r = rng(seed);
+      const ctl = lv.map(L => {
+        const i = L.visibleAt, a = atr1[i] || 1;
+        return { ...L, price: bars[i].c + (r() * 2 - 1) * a * 6, dir0: r() < 0.5 ? 1 : -1 };
+      }).sort((a, b) => a.visibleAt - b.visibleAt);
+      const cAll = multiEvents(ctl, opt.evOpts || {});
+      cAlphas.push(score(apply(cAll, reading), TP, SL, MAXH, 40000).alpha);
+      cResp.push(respectRate(cAll).respect);
+    }
+    const cMean = cAlphas.reduce((a, b) => a + b, 0) / cAlphas.length;
+    const cSd = Math.sqrt(cAlphas.reduce((a, b) => a + (b - cMean) ** 2, 0) / Math.max(1, cAlphas.length - 1));
+    const rMean = cResp.reduce((a, b) => a + b, 0) / cResp.length;
+    console.log(name.padEnd(30) + String(lv.length).padStart(7) + String(s.n).padStart(7) +
+      f0(respectRate(all).respect).padStart(7) + f0(rMean).padStart(8) + f(s.alpha).padStart(9) +
+      (f(cMean) + '±' + f0(cSd)).padStart(13) + f(s.alpha - cMean).padStart(9));
+  }
+}
+
+/*
+ * Robustness of the machinery rather than the idea: how much of the result
+ * depends on the arbitrary constants in the event detector — how close price
+ * has to come, how far away it must have been, how long a level lives, how
+ * many may be watched at once.
+ */
+function modeRobust(opt = {}) {
+  const cfg = findCfg(opt.cfg ?? 'effortNoResult2/extreme');
+  const m = opt.tf ?? 1, reading = opt.reading ?? 'defence';
+  const TP = opt.tp ?? 120, SL = opt.sl ?? 120, MAXH = opt.hold ?? 1440;
+  const rows = [
+    ['as chosen', {}, {}],
+    ['tolAtr 0.10', { tolAtr: 0.10 }, {}],
+    ['tolAtr 0.35', { tolAtr: 0.35 }, {}],
+    ['approachAtr 1.0', { approachAtr: 1.0 }, {}],
+    ['approachAtr 2.5', { approachAtr: 2.5 }, {}],
+    ['resetAtr 2.0', { resetAtr: 2.0 }, {}],
+    ['maxPool 8', { maxPool: 8 }, {}],
+    ['maxPool 60', { maxPool: 60 }, {}],
+    ['dedupeAtr 0.0', { dedupeAtr: 0 }, {}],
+    ['dedupeAtr 1.0', { dedupeAtr: 1.0 }, {}],
+    ['level lives 360m', {}, { ageMin: 360 }],
+    ['level lives 4320m', {}, { ageMin: 4320 }],
+    ['rank window 120', {}, { look: 120 }],
+    ['rank window 500', {}, { look: 500 }],
+  ];
+  console.log(`robustness — ${TF_NAME[m]}, ${reading}, ${TP}/${SL}/${MAXH}\n`);
+  console.log('setting'.padEnd(22) + 'levels'.padStart(8) + 'trades'.padStart(8) + 'resp%'.padStart(8) + 'alpha'.padStart(9));
+  for (const [name, ev0, cf0] of rows) {
+    const lv = absorption(m, { ...cfg, ...cf0 });
+    const all = multiEvents(lv, ev0);
+    const ev = apply(all, reading);
+    if (ev.length < 60) { console.log(name.padEnd(22) + String(lv.length).padStart(8) + String(ev.length).padStart(8)); continue; }
+    const s = score(ev, TP, SL, MAXH, 40000);
+    console.log(name.padEnd(22) + String(lv.length).padStart(8) + String(s.n).padStart(8) +
+      f0(respectRate(all).respect).padStart(8) + f(s.alpha).padStart(9));
+  }
 }
 
 /* causality: publication one candle earlier must help, one later must hurt */
 function modeLag(opt = {}) {
-  const cfg = SWEEP_CFGS.find(c => c[0].trim().startsWith((opt.cfg ?? 'vol1.8 rng0.8 extreme').trim()))[1];
+  const cfg = findCfg(opt.cfg ?? 'volSmallRange/extreme');
   const m = opt.tf ?? 15, reading = opt.reading ?? 'bounce';
   const TP = opt.tp ?? 18, SL = opt.sl ?? 24, MAXH = opt.hold ?? 360;
   console.log(`causality check — ${TF_NAME[m]}, ${reading}, ${TP}/${SL}/${MAXH}`);
@@ -620,15 +846,47 @@ function modeLag(opt = {}) {
   }
 }
 
+/* THE CHOSEN CONSTRUCTION — everything the result depends on, in one place. */
+const CHOSEN = {
+  timeframe: 1,                                       // 1m candles
+  sel: [['vol', '>=', 0.90], ['prog', '<=', 0.30]],   // ranks over the previous 250 candles
+  look: 250,
+  priceMode: 'extreme',                               // the extreme facing the close
+  ageMin: 1440,                                       // a level is watched for one day
+  reading: 'defence',                                 // bet on the defence when price arrives at it
+  tp: 120, sl: 120, hold: 1440,                       // points, points, minutes
+};
+
+/* before and after, in one run */
+function modeReport() {
+  console.log('ABSORPTION — heavy volume that barely moved price');
+  console.log(`${N.toLocaleString()} XAUUSD 1m candles, ${new Date(bars[0].t).toISOString().slice(0, 10)} to ${new Date(bars[N - 1].t).toISOString().slice(0, 10)}`);
+  console.log(`cost ${COST} points per round trip, 1 point = 0.10 USD, random level respect ${RANDOM_RESPECT}%\n`);
+  console.log('─── BEFORE — tools/levels.js absorptionLevels, scored exactly as tools/sweep_timeframes.js does ───\n');
+  modeCurrent();
+  console.log('\n\n─── AFTER — the construction in this file ───\n');
+  console.log(`  built on ${TF_NAME[CHOSEN.timeframe]} candles`);
+  console.log(`  a candle qualifies when its volume ranks in the top 10% and its |close-open|`);
+  console.log(`  in the bottom 30% of the previous ${CHOSEN.look} candles`);
+  console.log(`  the level is the extreme facing the close (close in the upper half -> the low)`);
+  console.log(`  published on the next candle, watched for ${CHOSEN.ageMin} minutes as a fixed price`);
+  console.log(`  traded when price arrives from the side the candle defended, betting on the defence`);
+  console.log(`  target ${CHOSEN.tp} / stop ${CHOSEN.sl} / hold ${CHOSEN.hold}\n`);
+  modeFinal({ cfg: 'effortNoResult2/extreme', tf: CHOSEN.timeframe, reading: CHOSEN.reading, tp: CHOSEN.tp, sl: CHOSEN.sl, hold: CHOSEN.hold });
+}
+
 const MODE = process.argv[2] || 'current';
 const ARG = JSON.parse(process.argv[3] || '{}');
 if (MODE === 'diag') modeDiag();
-else if (MODE === 'current') modeCurrent();
-else if (MODE === 'sweep') modeSweep();
-else if (MODE === 'excursion') modeExcursion(ARG.cfg ?? 'vol1.8 rng0.8 extreme', ARG.tfs ?? [15, 60, 240]);
-else if (MODE === 'tune') modeTune(ARG.cfg ?? 'vol1.8 rng0.8 extreme', ARG.tf ?? 15, ARG.reading ?? 'bounce');
+else if (MODE === 'current') modeCurrent(ARG);
+else if (MODE === 'sweep') modeSweep(ARG);
+else if (MODE === 'excursion') modeExcursion(ARG.cfg ?? 'volSmallRange/extreme', ARG.tfs ?? [15, 60, 240]);
+else if (MODE === 'tune') modeTune(ARG.cfg ?? 'volSmallRange/extreme', ARG.tf ?? 15, ARG.reading ?? 'bounce', ARG);
 else if (MODE === 'final') modeFinal(ARG);
+else if (MODE === 'variants') modeVariants(ARG);
+else if (MODE === 'robust') modeRobust(ARG);
 else if (MODE === 'lag') modeLag(ARG);
-else console.log('modes: current sweep excursion tune final lag');
+else if (MODE === 'report') modeReport();
+else console.log('modes: report diag current sweep excursion tune variants robust final lag');
 
-module.exports = { absorption, multiEvents, apply, score, excursion, loadBars };
+module.exports = { CHOSEN, absorption, multiEvents, apply, score, excursion, loadBars, SEL };
