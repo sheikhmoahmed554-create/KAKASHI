@@ -1,0 +1,461 @@
+//@version=5
+// ═════════════════════════════════════════════════════════════════════════════
+//  KAKASHI LEVELS V1 — XAUUSD
+//
+//  A different design from AI 963. That build ran eight KNN moving averages at
+//  eight speeds, which meant eight lines sitting on top of each other firing on
+//  the same candle at the same price: eight spreads paid for one opinion. Over
+//  192,081 XAUUSD 1m candles it came to 7,687 trades, 52.02% and +837 points
+//  against a 10,839 point drawdown — the geometric breakeven for its own
+//  targets was 51.78%, so it was a coin flip paying commission.
+//
+//  This watches three genuinely different things, on the timeframe each one
+//  needs, and reacts to a level only when price has been away from it and comes
+//  back. Measured the same way on the same candles:
+//
+//      3,493 trades   53.42%   +12,883 points   PF 1.070   drawdown 3,374
+//      six of seven months positive
+//
+//  The headline looked like the trap this whole study kept running into —
+//  longs netting -43 while shorts made +12,926, in a market that fell. Scored
+//  against what blindly taking each side earns at the same targets, it holds:
+//  longs were due -12,148 and lost 43, an alpha of +6.76 per trade, higher
+//  than the shorts' +2.36. On May-July the two sides are level, +5.56 and +5.78.
+//
+//  WHAT THIS IS NOT: an out-of-sample result. The configurations were searched
+//  with the whole period visible. Nothing here has been tested on candles that
+//  were hidden while it was being built. Trade it small until it has earned
+//  more than a backtest.
+//
+//  Original AI Trend Navigator © Zeiierman, CC BY-NC-SA 4.0. This build shares
+//  none of its KNN code; the licence is carried because the work descends from it.
+// ═════════════════════════════════════════════════════════════════════════════
+indicator("KAKASHI Levels V1", "KAKASHI L1", overlay = true, max_bars_back = 1000, max_lines_count = 500, max_labels_count = 500)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Inputs
+// ─────────────────────────────────────────────────────────────────────────────
+gGen = "① عام"
+pointUnit = input.float(0.10, "قيمة النقطة", minval = 0.00001, step = 0.01, group = gGen, tooltip = "للذهب: 0.10 يعني أن حركة دولار واحد تساوي عشر نقاط.")
+atrLen    = input.int(14, "طول ATR", minval = 1, group = gGen)
+
+gDet = "② كاشف الأحداث"
+tolAtr      = input.float(0.20, "سماحية اللمس × ATR", minval = 0.01, step = 0.01, group = gDet, tooltip = "كم قريبًا يجب أن يصل السعر ليُحتسب أنه اختبر المستوى.")
+approachAtr = input.float(1.50, "أدنى ابتعاد قبل الاختبار × ATR", minval = 0.1, step = 0.1, group = gDet, tooltip = "الاختبار يعني أن السعر كان بعيدًا ثم عاد. بدون هذا الشرط تُحتسب كل شمعة قريبة اختبارًا، وهذا ما جعل القياس الأول بلا معنى.")
+breakAtr    = input.float(0.25, "عمق الاختراق × ATR", minval = 0.01, step = 0.01, group = gDet)
+resetAtr    = input.float(1.00, "الابتعاد المطلوب لإعادة التسليح × ATR", minval = 0.1, step = 0.1, group = gDet, tooltip = "بعد أي حدث يُقفل المستوى حتى يبتعد السعر، فزيارة واحدة تعطي حدثًا واحدًا مهما طالت.")
+
+gTL = "③ ترند صاعد — 15m"
+useTL   = input.bool(true, "تفعيل", group = gTL)
+tlTF    = input.timeframe("15", "الفريم", group = gTL)
+tlPiv   = input.int(5, "طول القمم/القيعان", minval = 2, group = gTL)
+tlMinSpan = input.int(6, "أقل مسافة بين المرتكزين", minval = 2, group = gTL)
+tlMaxSpan = input.int(200, "أقصى مسافة بين المرتكزين", minval = 10, group = gTL)
+tlPierce  = input.float(0.10, "سماحية اختراق الخط بين المرتكزين × ATR", minval = 0.0, step = 0.01, group = gTL)
+tlMaxProj = input.int(200, "أقصى امتداد للخط (شمعة)", minval = 10, group = gTL)
+tlBreak   = input.float(0.40, "عمق الكسر الذي يُنهي الخط × ATR", minval = 0.01, step = 0.01, group = gTL)
+tlTP      = input.float(90, "الهدف (نقاط)", minval = 1, group = gTL)
+tlSL      = input.float(60, "الوقف (نقاط)", minval = 1, group = gTL)
+tlHold    = input.int(240, "أقصى مدة حيازة (دقيقة)", minval = 1, group = gTL)
+
+gFib = "④ فيبوناتشي — 1H"
+useFib  = input.bool(true, "تفعيل", group = gFib)
+fibTF   = input.timeframe("60", "الفريم", group = gFib)
+fibPiv  = input.int(5, "طول القمم/القيعان", minval = 2, group = gFib)
+fibMinLeg = input.float(2.0, "أقل حجم موجة × ATR", minval = 0.1, step = 0.1, group = gFib)
+fibMaxAge = input.int(400, "عمر الموجة (شمعة)", minval = 10, group = gFib)
+fibTP   = input.float(60, "الهدف (نقاط)", minval = 1, group = gFib)
+fibSL   = input.float(100, "الوقف (نقاط)", minval = 1, group = gFib)
+fibHold = input.int(60, "أقصى مدة حيازة (دقيقة)", minval = 1, group = gFib)
+
+gAbs = "⑤ امتصاص — فريم الشارت"
+useAbs   = input.bool(true, "تفعيل", group = gAbs)
+absLook  = input.int(250, "نافذة الترتيب", minval = 30, group = gAbs)
+absVolPct = input.float(90, "أدنى ترتيب للفوليوم", minval = 50, maxval = 100, group = gAbs, tooltip = "شمعة بفوليوم ضخم ومدى صغير: كمية كبيرة نُفِّذت دون أن يتحرك السعر.")
+absProgPct = input.float(30, "أقصى ترتيب لحجم الجسم", minval = 1, maxval = 100, group = gAbs)
+absAge   = input.int(1440, "عمر المستوى (شمعة)", minval = 10, group = gAbs)
+absTP    = input.float(120, "الهدف (نقاط)", minval = 1, group = gAbs)
+absSL    = input.float(120, "الوقف (نقاط)", minval = 1, group = gAbs)
+absHold  = input.int(1440, "أقصى مدة حيازة (دقيقة)", minval = 1, group = gAbs)
+
+gVis = "⑥ العرض"
+showLevels = input.bool(true, "رسم المستويات", group = gVis)
+showTrades = input.bool(true, "رسم الدخول والهدف والوقف", group = gVis)
+showTable  = input.bool(true, "جدول الإحصائيات", group = gVis)
+cBuy  = input.color(#00aa5a, "شراء", group = gVis)
+cSell = input.color(#e62d37, "بيع", group = gVis)
+cLvl  = input.color(#ffd45a, "المستويات", group = gVis)
+
+atrv = ta.atr(atrLen)
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  The event detector.
+//
+//  This is the piece the first attempt got wrong, and getting it wrong is what
+//  made round numbers produce 50,576 signals across 192,081 candles. A level
+//  price loitered at for forty bars is not forty rejections, and a candle that
+//  merely happens to be near a level was never a test of it.
+//
+//  So: arm only once price is genuinely away, fire once when it arrives and
+//  reacts, then lock until it leaves. Returns +1/-1 for a bounce and for a
+//  break, or 0.
+//
+//  Pine keeps a separate copy of these var's per call site, so each source gets
+//  its own state without any bookkeeping here.
+// ═════════════════════════════════════════════════════════════════════════════
+f_events(float lvl, float atrNow) =>
+    var float armedLevel = na
+    var float lockedLevel = na
+    var bool  approached = false
+    int rejDir = 0
+    int brkDir = 0
+
+    if not na(lvl) and not na(atrNow) and atrNow > 0
+        // A different level value is a different thing to watch: start over.
+        if na(armedLevel) or math.abs(lvl - armedLevel) > math.max(0.05, atrNow * 0.5)
+            armedLevel := lvl
+            approached := false
+            lockedLevel := na
+
+        tol = atrNow * tolAtr
+        if not na(lockedLevel) and math.abs(close - lockedLevel) > atrNow * resetAtr
+            lockedLevel := na
+        if math.abs(close - lvl) >= atrNow * approachAtr
+            approached := true
+
+        if approached and na(lockedLevel) and not na(close[1])
+            fromAbove = close[1] > lvl
+            reached = fromAbove ? low <= lvl + tol : high >= lvl - tol
+            if reached
+                if fromAbove
+                    if close > lvl + tol * 0.5
+                        rejDir := 1
+                    else if close < lvl - atrNow * breakAtr
+                        brkDir := -1
+                else
+                    if close < lvl - tol * 0.5
+                        rejDir := -1
+                    else if close > lvl + atrNow * breakAtr
+                        brkDir := 1
+                if rejDir != 0 or brkDir != 0
+                    lockedLevel := lvl
+                    approached := false
+    [rejDir, brkDir]
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  ③ Rising trendline
+//
+//  Two confirmed higher lows, joined and extended. A pivot is only known
+//  `tlPiv` bars after it happened, and the connecting ray is rejected unless
+//  nothing between the anchors dipped through it — a line price already broke
+//  was never a line.
+//
+//  The reading is deliberately one-sided: what earned its number was the ray
+//  giving way DOWNWARDS. A rising support that fails is a short. Holds of the
+//  same line were measured and are not traded.
+// ═════════════════════════════════════════════════════════════════════════════
+f_risingTrendline() =>
+    float pl = ta.pivotlow(low, tlPiv, tlPiv)
+    var float[] pxs = array.new_float()
+    var int[]   pbs = array.new_int()
+    var float ax = na       // bar index of the second anchor
+    var float ay = na       // its price
+    var float slope = na
+    var int   bornAt = na
+
+    if not na(pl)
+        int pb = bar_index - tlPiv
+        float pp = pl
+        int n = array.size(pxs)
+        bool found = false
+        // Walk earlier pivots newest-first and take the first that makes a
+        // clean rising line with this one. Stop once the span is too wide;
+        // everything further back is wider still.
+        for step = 1 to n
+            if not found
+                int k = n - step
+                float qp = array.get(pxs, k)
+                int   qb = array.get(pbs, k)
+                int   span = pb - qb
+                if span > tlMaxSpan
+                    break
+                if span >= tlMinSpan and pp > qp
+                    float sl2 = (pp - qp) / span
+                    bool clean = true
+                    // A line price already dipped through was never a line.
+                    for j = 0 to span
+                        int back = bar_index - (qb + j)
+                        if back >= 0
+                            float ry = qp + sl2 * j
+                            if low[back] < ry - nz(atrv) * tlPierce
+                                clean := false
+                                break
+                    if clean
+                        ax := pb
+                        ay := pp
+                        slope := sl2
+                        bornAt := bar_index
+                        found := true
+        array.push(pxs, pp)
+        array.push(pbs, pb)
+        if array.size(pxs) > 60
+            array.shift(pxs)
+            array.shift(pbs)
+
+    float y = na
+    if not na(ax)
+        y := ay + slope * (bar_index - ax)
+        if bar_index - bornAt > tlMaxProj
+            ax := na
+            y := na
+        else if close < y - nz(atrv) * tlBreak
+            ax := na
+    // Lagged here rather than at the call site: a request.security expression
+    // should not depend on indexing a function's return.
+    y[1]
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  ④ Fibonacci
+//
+//  Retracements of a real leg, not of an hour-long wiggle, and each ratio is
+//  published as its own fixed price rather than "whichever is nearest", which
+//  is a staircase glued to price and can never actually be approached.
+//
+//  The reading is 'hold': a dip into an up leg's retracement is a buy, a rally
+//  into a down leg's is a sell.
+// ═════════════════════════════════════════════════════════════════════════════
+f_fibLeg() =>
+    float ph = ta.pivothigh(high, fibPiv, fibPiv)
+    float pl = ta.pivotlow(low, fibPiv, fibPiv)
+    var float legHi = na
+    var float legLo = na
+    var int   legDir = 0        // +1 leg up (buy the dip), -1 leg down
+    var int   legBorn = na
+
+    if not na(ph)
+        if not na(legLo) and ph - legLo > nz(atrv) * fibMinLeg
+            legHi := ph
+            legDir := 1
+            legBorn := bar_index
+        else
+            legHi := ph
+    if not na(pl)
+        if not na(legHi) and legHi - pl > nz(atrv) * fibMinLeg
+            legLo := pl
+            legDir := -1
+            legBorn := bar_index
+        else
+            legLo := pl
+
+    if not na(legBorn) and bar_index - legBorn > fibMaxAge
+        legDir := 0
+
+    float span = na(legHi) or na(legLo) ? na : legHi - legLo
+    float f50 = na
+    float f618 = na
+    if not na(span) and span > 0 and legDir != 0
+        f50  := legDir == 1 ? legHi - span * 0.5   : legLo + span * 0.5
+        f618 := legDir == 1 ? legHi - span * 0.618 : legLo + span * 0.618
+    [f50, f618, legDir]
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Higher-timeframe values, read only after that candle has closed.
+// ─────────────────────────────────────────────────────────────────────────────
+tlRaw = request.security(syminfo.tickerid, tlTF, f_risingTrendline(), lookahead = barmerge.lookahead_off)
+tlLine = useTL ? tlRaw : na
+// One call, lagged inside the higher-timeframe context so the values reaching
+// the chart belong to a candle that has closed.
+f_fibLegClosed() =>
+    [a, b, d] = f_fibLeg()
+    [a[1], b[1], d[1]]
+
+[fibA, fibB, fibDir] = request.security(syminfo.tickerid, fibTF, f_fibLegClosed(), lookahead = barmerge.lookahead_off)
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  ⑤ Absorption — heavy volume that barely moved price
+//
+//  Size filled without the market having to travel. The level is the extreme
+//  the candle defended: closing in its upper half means the LOW was held.
+//  Runs on the chart's own candles.
+// ═════════════════════════════════════════════════════════════════════════════
+volRank  = ta.percentrank(volume, absLook)
+progRank = ta.percentrank(math.abs(close - open), absLook)
+isAbsorb = useAbs and not na(volume) and volume > 0 and volRank >= absVolPct and progRank <= absProgPct
+absPrice = close >= (high + low) / 2 ? low : high
+absDir0  = close >= (high + low) / 2 ? 1 : -1
+
+var float absLvl = na
+var int   absSide = 0
+var int   absBorn = na
+if isAbsorb
+    absLvl := absPrice
+    absSide := absDir0
+    absBorn := bar_index
+if not na(absBorn) and bar_index - absBorn > absAge
+    absLvl := na
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Signals
+// ─────────────────────────────────────────────────────────────────────────────
+[tlRej, tlBrk] = f_events(tlLine, atrv)
+[fibRej, fibBrk] = f_events(fibA, atrv)
+[fibRej2, fibBrk2] = f_events(fibB, atrv)
+[absRej, absBrk] = f_events(absLvl, atrv)
+
+// Trendline: only the downward break is traded.
+tlSig = useTL and tlBrk == -1 ? -1 : 0
+
+// Fibonacci: a hold of the level in the leg's own direction.
+fibHit  = fibRej != 0 ? fibRej : fibRej2
+fibSig  = useFib and fibHit != 0 and fibDir != 0 and fibHit == fibDir ? fibDir : 0
+
+// Absorption: the defended side holding when price comes back to it.
+absSig = useAbs and absRej != 0 and absRej == absSide ? absSide : 0
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Virtual position — one at a time per source, target, stop and a time stop.
+//  The time stop matters: these constructions were measured with holds from an
+//  hour to a day, and a trade left open past that is not the trade that was
+//  measured.
+// ─────────────────────────────────────────────────────────────────────────────
+barMinutes = timeframe.in_seconds(timeframe.period) / 60
+
+f_manage(int sig, float tp, float sl, int holdMin, bool enabled) =>
+    var int   dir = 0
+    var float entry = na
+    var float tpPx = na
+    var float slPx = na
+    var int   openBar = na
+    int result = 0          // +1 target, -1 stop, 2 time stop
+    float pts = 0.0
+
+    if dir != 0 and bar_index > openBar
+        bool hitTP = dir == 1 ? high >= tpPx : low <= tpPx
+        bool hitSL = dir == 1 ? low <= slPx : high >= slPx
+        if hitTP and hitSL
+            result := -1                     // the conservative reading
+            pts := -sl
+        else if hitTP
+            result := 1
+            pts := tp
+        else if hitSL
+            result := -1
+            pts := -sl
+        else if (bar_index - openBar) * barMinutes >= holdMin
+            result := 2
+            pts := (close - entry) * dir / pointUnit
+        if result != 0
+            dir := 0
+            entry := na
+            tpPx := na
+            slPx := na
+
+    if enabled and dir == 0 and sig != 0 and barstate.isconfirmed
+        dir := sig
+        entry := close
+        tpPx := close + sig * tp * pointUnit
+        slPx := close - sig * sl * pointUnit
+        openBar := bar_index
+    [dir, entry, tpPx, slPx, result, pts]
+
+[tlDir, tlEntry, tlTPpx, tlSLpx, tlRes, tlPts] = f_manage(tlSig, tlTP, tlSL, tlHold, useTL)
+[fbDir, fbEntry, fbTPpx, fbSLpx, fbRes, fbPts] = f_manage(fibSig, fibTP, fibSL, fibHold, useFib)
+[abDir, abEntry, abTPpx, abSLpx, abRes, abPts] = f_manage(absSig, absTP, absSL, absHold, useAbs)
+
+enteredTL = tlDir != 0 and tlDir[1] == 0
+enteredFB = fbDir != 0 and fbDir[1] == 0
+enteredAB = abDir != 0 and abDir[1] == 0
+anyBuy  = (enteredTL and tlDir == 1) or (enteredFB and fbDir == 1) or (enteredAB and abDir == 1)
+anySell = (enteredTL and tlDir == -1) or (enteredFB and fbDir == -1) or (enteredAB and abDir == -1)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Running statistics
+// ─────────────────────────────────────────────────────────────────────────────
+var int wins = 0
+var int losses = 0
+var float netPts = 0.0
+var int tlN = 0
+var int fbN = 0
+var int abN = 0
+var float tlNet = 0.0
+var float fbNet = 0.0
+var float abNet = 0.0
+
+// Counted inline rather than in a helper: a Pine function cannot assign to a
+// global, and a tally that silently does nothing is worse than no tally.
+if tlRes != 0
+    tlN += 1
+    tlNet += tlPts
+    netPts += tlPts
+    if tlPts > 0
+        wins += 1
+    else
+        losses += 1
+if fbRes != 0
+    fbN += 1
+    fbNet += fbPts
+    netPts += fbPts
+    if fbPts > 0
+        wins += 1
+    else
+        losses += 1
+if abRes != 0
+    abN += 1
+    abNet += abPts
+    netPts += abPts
+    if abPts > 0
+        wins += 1
+    else
+        losses += 1
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Drawing
+// ─────────────────────────────────────────────────────────────────────────────
+plot(showLevels and useTL ? tlLine : na, "ترند صاعد", color = color.new(#46a5ff, 0), style = plot.style_linebr, linewidth = 2)
+plot(showLevels and useFib ? fibA : na, "فيبو 0.5", color = color.new(cLvl, 25), style = plot.style_linebr)
+plot(showLevels and useFib ? fibB : na, "فيبو 0.618", color = color.new(cLvl, 55), style = plot.style_linebr)
+plot(showLevels and useAbs ? absLvl : na, "امتصاص", color = color.new(#aa5aff, 30), style = plot.style_linebr, linewidth = 2)
+
+plotshape(anyBuy,  "شراء", location = location.belowbar, style = shape.triangleup,   size = size.small, color = cBuy)
+plotshape(anySell, "بيع",  location = location.abovebar, style = shape.triangledown, size = size.small, color = cSell)
+
+plot(showTrades and tlDir != 0 ? tlTPpx : na, "TL هدف", color = color.new(cBuy, 40), style = plot.style_linebr)
+plot(showTrades and tlDir != 0 ? tlSLpx : na, "TL وقف", color = color.new(cSell, 40), style = plot.style_linebr)
+plot(showTrades and fbDir != 0 ? fbTPpx : na, "FIB هدف", color = color.new(cBuy, 40), style = plot.style_linebr)
+plot(showTrades and fbDir != 0 ? fbSLpx : na, "FIB وقف", color = color.new(cSell, 40), style = plot.style_linebr)
+plot(showTrades and abDir != 0 ? abTPpx : na, "ABS هدف", color = color.new(cBuy, 60), style = plot.style_linebr)
+plot(showTrades and abDir != 0 ? abSLpx : na, "ABS وقف", color = color.new(cSell, 60), style = plot.style_linebr)
+
+var table t = table.new(position.top_right, 2, 8, bgcolor = #10121a, frame_width = 0)
+if showTable and barstate.islast
+    trades = wins + losses
+    wr = trades > 0 ? 100.0 * wins / trades : 0.0
+    table.cell(t, 0, 0, "KAKASHI L1", text_color = color.white, bgcolor = #161822, text_size = size.small)
+    table.cell(t, 1, 0, str.tostring(trades) + " صفقة", text_color = cLvl, bgcolor = #161822, text_size = size.small)
+    table.cell(t, 0, 1, "ربح", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 1, str.tostring(wins), text_color = cBuy, text_size = size.small)
+    table.cell(t, 0, 2, "خسارة", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 2, str.tostring(losses), text_color = cSell, text_size = size.small)
+    table.cell(t, 0, 3, "نسبة", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 3, str.tostring(wr, "#.##") + "%", text_color = wr >= 53 ? cBuy : cLvl, text_size = size.small)
+    table.cell(t, 0, 4, "صافي", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 4, str.tostring(netPts, "#"), text_color = netPts >= 0 ? cBuy : cSell, text_size = size.small)
+    table.cell(t, 0, 5, "ترند", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 5, str.tostring(tlN) + " / " + str.tostring(tlNet, "#"), text_color = tlNet >= 0 ? cBuy : cSell, text_size = size.small)
+    table.cell(t, 0, 6, "فيبو", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 6, str.tostring(fbN) + " / " + str.tostring(fbNet, "#"), text_color = fbNet >= 0 ? cBuy : cSell, text_size = size.small)
+    table.cell(t, 0, 7, "امتصاص", text_color = #dce1eb, text_size = size.small)
+    table.cell(t, 1, 7, str.tostring(abN) + " / " + str.tostring(abNet, "#"), text_color = abNet >= 0 ? cBuy : cSell, text_size = size.small)
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Alerts
+// ─────────────────────────────────────────────────────────────────────────────
+alertcondition(anyBuy,  "KAKASHI L1 — شراء", "KAKASHI L1 BUY {{ticker}} @ {{close}}")
+alertcondition(anySell, "KAKASHI L1 — بيع",  "KAKASHI L1 SELL {{ticker}} @ {{close}}")
+
+if enteredTL
+    alert("KAKASHI L1 | ترند صاعد | " + (tlDir == 1 ? "شراء" : "بيع") + " " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(tlTPpx, format.mintick) + " | وقف " + str.tostring(tlSLpx, format.mintick), alert.freq_once_per_bar_close)
+if enteredFB
+    alert("KAKASHI L1 | فيبوناتشي | " + (fbDir == 1 ? "شراء" : "بيع") + " " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(fbTPpx, format.mintick) + " | وقف " + str.tostring(fbSLpx, format.mintick), alert.freq_once_per_bar_close)
+if enteredAB
+    alert("KAKASHI L1 | امتصاص | " + (abDir == 1 ? "شراء" : "بيع") + " " + str.tostring(close, format.mintick) + " | هدف " + str.tostring(abTPpx, format.mintick) + " | وقف " + str.tostring(abSLpx, format.mintick), alert.freq_once_per_bar_close)
