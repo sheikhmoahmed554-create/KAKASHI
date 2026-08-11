@@ -1,0 +1,7 @@
+{
+ "بلا شيء": {},
+ "قاعدة 4: الموضع 65-85": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true },
+ "الجيل الثاني 4+5": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkEngR5": true },
+ "الجيل الثاني كامل": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkEngR5": true, "kkEngR6": true, "kkEngR7": true, "kkEngR8": true },
+ "قاعدة 4 + مسار": { "kkUseEngine": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false, "kkEngR4": true, "kkUsePath": true }
+}

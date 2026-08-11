@@ -1,0 +1,8 @@
+{
+ "بلا إضافات": {},
+ "مسار (المرجع)": { "kkUsePath": true },
+ "مسار + إذن RSI": { "kkUsePath": true, "kkUseRsiSide": true },
+ "مسار + ستوب فارق 20": { "kkUsePath": true, "kkUseStopGap": true, "kkMinGapPts": 20, "kkMaxGapPts": 20 },
+ "مسار + RSI + ستوب 20": { "kkUsePath": true, "kkUseRsiSide": true, "kkUseStopGap": true, "kkMinGapPts": 20, "kkMaxGapPts": 20 },
+ "مسار + سحب 60 عمق 1": { "kkUsePath": true, "kkUseLongSweep": true, "kkSweepLen": 60, "kkSweepMinATR": 1.0 }
+}

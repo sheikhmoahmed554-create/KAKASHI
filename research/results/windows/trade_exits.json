@@ -1,0 +1,830 @@
+{
+ "خروج_بالوقت_15": {
+  "2021": {
+   "trades": 6049,
+   "per_day": 19.51,
+   "win_rate": 52.77,
+   "per_trade": -1.589,
+   "points_per_day": -31.0,
+   "median_bars": 7,
+   "days_positive": 27.8,
+   "max_drawdown_pts": 9734.0,
+   "max_losing_streak": 12
+  },
+  "2023": {
+   "trades": 5279,
+   "per_day": 17.37,
+   "win_rate": 52.34,
+   "per_trade": -1.773,
+   "points_per_day": -30.8,
+   "median_bars": 7,
+   "days_positive": 23.6,
+   "max_drawdown_pts": 9385.0,
+   "max_losing_streak": 11
+  },
+  "2025": {
+   "trades": 5610,
+   "per_day": 17.98,
+   "win_rate": 55.33,
+   "per_trade": -0.771,
+   "points_per_day": -13.9,
+   "median_bars": 7,
+   "days_positive": 48.2,
+   "max_drawdown_pts": 6308.0,
+   "max_losing_streak": 14
+  },
+  "2026": {
+   "trades": 3249,
+   "per_day": 19.22,
+   "win_rate": 54.14,
+   "per_trade": -5.131,
+   "points_per_day": -98.6,
+   "median_bars": 7,
+   "days_positive": 35.2,
+   "max_drawdown_pts": 17114.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_بالوقت_30": {
+  "2021": {
+   "trades": 5861,
+   "per_day": 18.91,
+   "win_rate": 56.56,
+   "per_trade": -1.53,
+   "points_per_day": -28.9,
+   "median_bars": 7,
+   "days_positive": 30.4,
+   "max_drawdown_pts": 9152.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 5104,
+   "per_day": 16.79,
+   "win_rate": 56.39,
+   "per_trade": -1.676,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 29.1,
+   "max_drawdown_pts": 8574.0,
+   "max_losing_streak": 11
+  },
+  "2025": {
+   "trades": 5440,
+   "per_day": 17.44,
+   "win_rate": 57.54,
+   "per_trade": -0.546,
+   "points_per_day": -9.5,
+   "median_bars": 7,
+   "days_positive": 50.2,
+   "max_drawdown_pts": 5568.0,
+   "max_losing_streak": 14
+  },
+  "2026": {
+   "trades": 3153,
+   "per_day": 18.66,
+   "win_rate": 55.28,
+   "per_trade": -6.425,
+   "points_per_day": -119.9,
+   "median_bars": 7,
+   "days_positive": 38.3,
+   "max_drawdown_pts": 20364.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_بالوقت_60": {
+  "2021": {
+   "trades": 5763,
+   "per_day": 18.59,
+   "win_rate": 57.85,
+   "per_trade": -1.554,
+   "points_per_day": -28.9,
+   "median_bars": 7,
+   "days_positive": 29.4,
+   "max_drawdown_pts": 9157.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 5009,
+   "per_day": 16.48,
+   "win_rate": 57.82,
+   "per_trade": -1.584,
+   "points_per_day": -26.1,
+   "median_bars": 7,
+   "days_positive": 28.7,
+   "max_drawdown_pts": 7974.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5376,
+   "per_day": 17.23,
+   "win_rate": 58.52,
+   "per_trade": -0.334,
+   "points_per_day": -5.8,
+   "median_bars": 7,
+   "days_positive": 48.3,
+   "max_drawdown_pts": 4603.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3108,
+   "per_day": 18.39,
+   "win_rate": 55.73,
+   "per_trade": -7.148,
+   "points_per_day": -131.5,
+   "median_bars": 7,
+   "days_positive": 36.4,
+   "max_drawdown_pts": 22321.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_بالوقت_120": {
+  "2021": {
+   "trades": 5735,
+   "per_day": 18.5,
+   "win_rate": 58.12,
+   "per_trade": -1.528,
+   "points_per_day": -28.3,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 8976.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4986,
+   "per_day": 16.4,
+   "win_rate": 58.12,
+   "per_trade": -1.568,
+   "points_per_day": -25.7,
+   "median_bars": 7,
+   "days_positive": 28.4,
+   "max_drawdown_pts": 7858.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5353,
+   "per_day": 17.16,
+   "win_rate": 58.73,
+   "per_trade": -0.366,
+   "points_per_day": -6.3,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4579.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3100,
+   "per_day": 18.34,
+   "win_rate": 55.81,
+   "per_trade": -7.158,
+   "points_per_day": -131.3,
+   "median_bars": 7,
+   "days_positive": 35.8,
+   "max_drawdown_pts": 22294.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_بالوقت_240": {
+  "2021": {
+   "trades": 5729,
+   "per_day": 18.48,
+   "win_rate": 58.14,
+   "per_trade": -1.519,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 8915.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4972,
+   "per_day": 16.36,
+   "win_rate": 58.17,
+   "per_trade": -1.565,
+   "points_per_day": -25.6,
+   "median_bars": 7,
+   "days_positive": 29.4,
+   "max_drawdown_pts": 7822.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5351,
+   "per_day": 17.15,
+   "win_rate": 58.77,
+   "per_trade": -0.38,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4593.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.81,
+   "per_trade": -7.12,
+   "points_per_day": -130.4,
+   "median_bars": 7,
+   "days_positive": 35.8,
+   "max_drawdown_pts": 22148.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_بالوقت_بلا": {
+  "2021": {
+   "trades": 5721,
+   "per_day": 18.45,
+   "win_rate": 58.12,
+   "per_trade": -1.52,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 8911.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4967,
+   "per_day": 16.34,
+   "win_rate": 58.22,
+   "per_trade": -1.557,
+   "points_per_day": -25.4,
+   "median_bars": 7,
+   "days_positive": 29.4,
+   "max_drawdown_pts": 7777.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5351,
+   "per_day": 17.15,
+   "win_rate": 58.77,
+   "per_trade": -0.38,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4593.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.81,
+   "per_trade": -7.12,
+   "points_per_day": -130.4,
+   "median_bars": 7,
+   "days_positive": 35.8,
+   "max_drawdown_pts": 22148.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_10شمعة_<0.25ATR": {
+  "2021": {
+   "trades": 5745,
+   "per_day": 18.53,
+   "win_rate": 57.39,
+   "per_trade": -1.554,
+   "points_per_day": -28.8,
+   "median_bars": 7,
+   "days_positive": 30.8,
+   "max_drawdown_pts": 9131.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4986,
+   "per_day": 16.4,
+   "win_rate": 57.5,
+   "per_trade": -1.576,
+   "points_per_day": -25.9,
+   "median_bars": 7,
+   "days_positive": 28.7,
+   "max_drawdown_pts": 7932.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5359,
+   "per_day": 17.18,
+   "win_rate": 58.16,
+   "per_trade": -0.543,
+   "points_per_day": -9.3,
+   "median_bars": 7,
+   "days_positive": 47.2,
+   "max_drawdown_pts": 5058.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3106,
+   "per_day": 18.38,
+   "win_rate": 55.47,
+   "per_trade": -7.03,
+   "points_per_day": -129.2,
+   "median_bars": 7,
+   "days_positive": 36.4,
+   "max_drawdown_pts": 21911.0,
+   "max_losing_streak": 8
+  }
+ },
+ "خروج_عدم_تقدّم_10شمعة_<0.5ATR": {
+  "2021": {
+   "trades": 5785,
+   "per_day": 18.66,
+   "win_rate": 56.21,
+   "per_trade": -1.566,
+   "points_per_day": -29.2,
+   "median_bars": 7,
+   "days_positive": 31.8,
+   "max_drawdown_pts": 9259.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 5021,
+   "per_day": 16.52,
+   "win_rate": 56.22,
+   "per_trade": -1.636,
+   "points_per_day": -27.0,
+   "median_bars": 7,
+   "days_positive": 27.7,
+   "max_drawdown_pts": 8282.0,
+   "max_losing_streak": 10
+  },
+  "2025": {
+   "trades": 5387,
+   "per_day": 17.27,
+   "win_rate": 57.53,
+   "per_trade": -0.554,
+   "points_per_day": -9.6,
+   "median_bars": 7,
+   "days_positive": 46.8,
+   "max_drawdown_pts": 4996.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3125,
+   "per_day": 18.49,
+   "win_rate": 55.04,
+   "per_trade": -6.82,
+   "points_per_day": -126.1,
+   "median_bars": 7,
+   "days_positive": 35.2,
+   "max_drawdown_pts": 21428.0,
+   "max_losing_streak": 7
+  }
+ },
+ "خروج_عدم_تقدّم_10شمعة_<0.75ATR": {
+  "2021": {
+   "trades": 5848,
+   "per_day": 18.86,
+   "win_rate": 54.98,
+   "per_trade": -1.576,
+   "points_per_day": -29.7,
+   "median_bars": 7,
+   "days_positive": 30.8,
+   "max_drawdown_pts": 9400.0,
+   "max_losing_streak": 9
+  },
+  "2023": {
+   "trades": 5093,
+   "per_day": 16.75,
+   "win_rate": 54.96,
+   "per_trade": -1.639,
+   "points_per_day": -27.5,
+   "median_bars": 7,
+   "days_positive": 27.0,
+   "max_drawdown_pts": 8382.0,
+   "max_losing_streak": 10
+  },
+  "2025": {
+   "trades": 5420,
+   "per_day": 17.37,
+   "win_rate": 56.55,
+   "per_trade": -0.6,
+   "points_per_day": -10.4,
+   "median_bars": 7,
+   "days_positive": 46.8,
+   "max_drawdown_pts": 5222.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3147,
+   "per_day": 18.62,
+   "win_rate": 54.5,
+   "per_trade": -6.411,
+   "points_per_day": -119.4,
+   "median_bars": 7,
+   "days_positive": 35.2,
+   "max_drawdown_pts": 20291.0,
+   "max_losing_streak": 9
+  }
+ },
+ "خروج_عدم_تقدّم_20شمعة_<0.25ATR": {
+  "2021": {
+   "trades": 5726,
+   "per_day": 18.47,
+   "win_rate": 58.03,
+   "per_trade": -1.525,
+   "points_per_day": -28.2,
+   "median_bars": 7,
+   "days_positive": 31.1,
+   "max_drawdown_pts": 8933.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4972,
+   "per_day": 16.36,
+   "win_rate": 58.15,
+   "per_trade": -1.545,
+   "points_per_day": -25.3,
+   "median_bars": 7,
+   "days_positive": 29.1,
+   "max_drawdown_pts": 7722.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5354,
+   "per_day": 17.16,
+   "win_rate": 58.72,
+   "per_trade": -0.386,
+   "points_per_day": -6.6,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4622.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3099,
+   "per_day": 18.34,
+   "win_rate": 55.82,
+   "per_trade": -7.084,
+   "points_per_day": -129.9,
+   "median_bars": 7,
+   "days_positive": 35.8,
+   "max_drawdown_pts": 22057.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_20شمعة_<0.5ATR": {
+  "2021": {
+   "trades": 5738,
+   "per_day": 18.51,
+   "win_rate": 57.79,
+   "per_trade": -1.527,
+   "points_per_day": -28.3,
+   "median_bars": 7,
+   "days_positive": 30.8,
+   "max_drawdown_pts": 8980.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4988,
+   "per_day": 16.41,
+   "win_rate": 57.84,
+   "per_trade": -1.565,
+   "points_per_day": -25.7,
+   "median_bars": 7,
+   "days_positive": 29.1,
+   "max_drawdown_pts": 7848.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5358,
+   "per_day": 17.17,
+   "win_rate": 58.59,
+   "per_trade": -0.379,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 49.5,
+   "max_drawdown_pts": 4624.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3100,
+   "per_day": 18.34,
+   "win_rate": 55.61,
+   "per_trade": -7.336,
+   "points_per_day": -134.6,
+   "median_bars": 7,
+   "days_positive": 34.6,
+   "max_drawdown_pts": 22848.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_20شمعة_<0.75ATR": {
+  "2021": {
+   "trades": 5756,
+   "per_day": 18.57,
+   "win_rate": 57.51,
+   "per_trade": -1.532,
+   "points_per_day": -28.4,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 9019.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 5015,
+   "per_day": 16.5,
+   "win_rate": 57.47,
+   "per_trade": -1.568,
+   "points_per_day": -25.9,
+   "median_bars": 7,
+   "days_positive": 29.1,
+   "max_drawdown_pts": 7885.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5368,
+   "per_day": 17.21,
+   "win_rate": 58.4,
+   "per_trade": -0.377,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 49.8,
+   "max_drawdown_pts": 4655.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3107,
+   "per_day": 18.38,
+   "win_rate": 55.42,
+   "per_trade": -7.197,
+   "points_per_day": -132.3,
+   "median_bars": 7,
+   "days_positive": 35.2,
+   "max_drawdown_pts": 22438.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_40شمعة_<0.25ATR": {
+  "2021": {
+   "trades": 5721,
+   "per_day": 18.45,
+   "win_rate": 58.12,
+   "per_trade": -1.52,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 8911.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4969,
+   "per_day": 16.35,
+   "win_rate": 58.18,
+   "per_trade": -1.558,
+   "points_per_day": -25.5,
+   "median_bars": 7,
+   "days_positive": 29.1,
+   "max_drawdown_pts": 7786.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5352,
+   "per_day": 17.15,
+   "win_rate": 58.78,
+   "per_trade": -0.377,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4577.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.81,
+   "per_trade": -7.12,
+   "points_per_day": -130.4,
+   "median_bars": 7,
+   "days_positive": 35.8,
+   "max_drawdown_pts": 22148.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_40شمعة_<0.5ATR": {
+  "2021": {
+   "trades": 5723,
+   "per_day": 18.46,
+   "win_rate": 58.12,
+   "per_trade": -1.521,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 8915.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4976,
+   "per_day": 16.37,
+   "win_rate": 58.12,
+   "per_trade": -1.567,
+   "points_per_day": -25.6,
+   "median_bars": 7,
+   "days_positive": 28.7,
+   "max_drawdown_pts": 7837.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5352,
+   "per_day": 17.15,
+   "win_rate": 58.78,
+   "per_trade": -0.377,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4577.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.75,
+   "per_trade": -7.252,
+   "points_per_day": -132.8,
+   "median_bars": 7,
+   "days_positive": 34.6,
+   "max_drawdown_pts": 22557.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_40شمعة_<0.75ATR": {
+  "2021": {
+   "trades": 5726,
+   "per_day": 18.47,
+   "win_rate": 58.0,
+   "per_trade": -1.529,
+   "points_per_day": -28.2,
+   "median_bars": 7,
+   "days_positive": 31.1,
+   "max_drawdown_pts": 8968.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4995,
+   "per_day": 16.43,
+   "win_rate": 58.04,
+   "per_trade": -1.582,
+   "points_per_day": -26.0,
+   "median_bars": 7,
+   "days_positive": 28.4,
+   "max_drawdown_pts": 7944.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5354,
+   "per_day": 17.16,
+   "win_rate": 58.76,
+   "per_trade": -0.365,
+   "points_per_day": -6.3,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4587.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.65,
+   "per_trade": -7.293,
+   "points_per_day": -133.6,
+   "median_bars": 7,
+   "days_positive": 34.6,
+   "max_drawdown_pts": 22685.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_60شمعة_<0.25ATR": {
+  "2021": {
+   "trades": 5721,
+   "per_day": 18.45,
+   "win_rate": 58.12,
+   "per_trade": -1.52,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 31.4,
+   "max_drawdown_pts": 8911.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4967,
+   "per_day": 16.34,
+   "win_rate": 58.22,
+   "per_trade": -1.557,
+   "points_per_day": -25.4,
+   "median_bars": 7,
+   "days_positive": 29.4,
+   "max_drawdown_pts": 7777.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5351,
+   "per_day": 17.15,
+   "win_rate": 58.77,
+   "per_trade": -0.38,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4593.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.81,
+   "per_trade": -7.12,
+   "points_per_day": -130.4,
+   "median_bars": 7,
+   "days_positive": 35.8,
+   "max_drawdown_pts": 22148.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_60شمعة_<0.5ATR": {
+  "2021": {
+   "trades": 5721,
+   "per_day": 18.45,
+   "win_rate": 58.1,
+   "per_trade": -1.524,
+   "points_per_day": -28.1,
+   "median_bars": 7,
+   "days_positive": 31.1,
+   "max_drawdown_pts": 8932.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4972,
+   "per_day": 16.36,
+   "win_rate": 58.19,
+   "per_trade": -1.559,
+   "points_per_day": -25.5,
+   "median_bars": 7,
+   "days_positive": 29.4,
+   "max_drawdown_pts": 7792.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5351,
+   "per_day": 17.15,
+   "win_rate": 58.77,
+   "per_trade": -0.38,
+   "points_per_day": -6.5,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4593.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.78,
+   "per_trade": -7.17,
+   "points_per_day": -131.4,
+   "median_bars": 7,
+   "days_positive": 35.2,
+   "max_drawdown_pts": 22304.0,
+   "max_losing_streak": 10
+  }
+ },
+ "خروج_عدم_تقدّم_60شمعة_<0.75ATR": {
+  "2021": {
+   "trades": 5723,
+   "per_day": 18.46,
+   "win_rate": 58.06,
+   "per_trade": -1.527,
+   "points_per_day": -28.2,
+   "median_bars": 7,
+   "days_positive": 30.8,
+   "max_drawdown_pts": 8951.0,
+   "max_losing_streak": 8
+  },
+  "2023": {
+   "trades": 4987,
+   "per_day": 16.4,
+   "win_rate": 58.13,
+   "per_trade": -1.558,
+   "points_per_day": -25.6,
+   "median_bars": 7,
+   "days_positive": 29.1,
+   "max_drawdown_pts": 7812.0,
+   "max_losing_streak": 8
+  },
+  "2025": {
+   "trades": 5351,
+   "per_day": 17.15,
+   "win_rate": 58.76,
+   "per_trade": -0.389,
+   "points_per_day": -6.7,
+   "median_bars": 7,
+   "days_positive": 48.8,
+   "max_drawdown_pts": 4641.0,
+   "max_losing_streak": 10
+  },
+  "2026": {
+   "trades": 3096,
+   "per_day": 18.32,
+   "win_rate": 55.78,
+   "per_trade": -7.17,
+   "points_per_day": -131.4,
+   "median_bars": 7,
+   "days_positive": 35.2,
+   "max_drawdown_pts": 22304.0,
+   "max_losing_streak": 10
+  }
+ }
+}

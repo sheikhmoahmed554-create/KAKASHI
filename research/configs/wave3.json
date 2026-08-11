@@ -1,0 +1,12 @@
+{
+ "بلا إضافات": {},
+ "مسار (المرجع)": { "kkUsePath": true },
+ "نظام التذبذب": { "kkUseRegime": true },
+ "نسبة الحجم": { "kkUseVol": true },
+ "الموضع في النطاق": { "kkUsePosRange": true },
+ "نطاق السرعة 12-27": { "kkUseAtrBand": true },
+ "مسار + نظام التذبذب": { "kkUsePath": true, "kkUseRegime": true },
+ "مسار + الموضع": { "kkUsePath": true, "kkUsePosRange": true },
+ "مسار + نظام + موضع": { "kkUsePath": true, "kkUseRegime": true, "kkUsePosRange": true },
+ "مسار + نظام + موضع + ستوب20": { "kkUsePath": true, "kkUseRegime": true, "kkUsePosRange": true, "kkUseStopGap": true, "kkMinGapPts": 20, "kkMaxGapPts": 20 }
+}

@@ -1,0 +1,146 @@
+{
+ "بلا إضافات": {
+  "trades": 4091,
+  "wins": 2411,
+  "losses": 1680,
+  "months": {
+   "2025-07": {
+    "trades": 443,
+    "wins": 255,
+    "losses": 188,
+    "net": -915
+   },
+   "2025-08": {
+    "trades": 382,
+    "wins": 227,
+    "losses": 155,
+    "net": -575
+   },
+   "2025-09": {
+    "trades": 580,
+    "wins": 331,
+    "losses": 249,
+    "net": -1410
+   },
+   "2025-10": {
+    "trades": 988,
+    "wins": 586,
+    "losses": 402,
+    "net": -395
+   },
+   "2025-11": {
+    "trades": 854,
+    "wins": 520,
+    "losses": 334,
+    "net": 834
+   },
+   "2025-12": {
+    "trades": 844,
+    "wins": 492,
+    "losses": 352,
+    "net": -1238
+   }
+  },
+  "win_rate": 58.93,
+  "net_points": -3699,
+  "per_day": 31,
+  "months_won": 1,
+  "months_total": 6
+ },
+ "مسار (المرجع)": {
+  "trades": 3973,
+  "wins": 2383,
+  "losses": 1590,
+  "months": {
+   "2025-07": {
+    "trades": 449,
+    "wins": 269,
+    "losses": 180,
+    "net": -392
+   },
+   "2025-08": {
+    "trades": 379,
+    "wins": 232,
+    "losses": 147,
+    "net": 77
+   },
+   "2025-09": {
+    "trades": 581,
+    "wins": 348,
+    "losses": 233,
+    "net": -35
+   },
+   "2025-10": {
+    "trades": 939,
+    "wins": 547,
+    "losses": 392,
+    "net": -1801
+   },
+   "2025-11": {
+    "trades": 797,
+    "wins": 486,
+    "losses": 311,
+    "net": 283
+   },
+   "2025-12": {
+    "trades": 828,
+    "wins": 501,
+    "losses": 327,
+    "net": -228
+   }
+  },
+  "win_rate": 59.98,
+  "net_points": -2096,
+  "per_day": 30.1,
+  "months_won": 2,
+  "months_total": 6
+ },
+ "مسار + إذن RSI": {
+  "trades": 3980,
+  "wins": 2391,
+  "losses": 1589,
+  "months": {
+   "2025-07": {
+    "trades": 445,
+    "wins": 264,
+    "losses": 181,
+    "net": -635
+   },
+   "2025-08": {
+    "trades": 380,
+    "wins": 233,
+    "losses": 147,
+    "net": 32
+   },
+   "2025-09": {
+    "trades": 585,
+    "wins": 350,
+    "losses": 235,
+    "net": -116
+   },
+   "2025-10": {
+    "trades": 943,
+    "wins": 550,
+    "losses": 393,
+    "net": -1776
+   },
+   "2025-11": {
+    "trades": 796,
+    "wins": 486,
+    "losses": 310,
+    "net": 318
+   },
+   "2025-12": {
+    "trades": 831,
+    "wins": 508,
+    "losses": 323,
+    "net": 162
+   }
+  },
+  "win_rate": 60.08,
+  "net_points": -2015,
+  "per_day": 30.2,
+  "months_won": 3,
+  "months_total": 6
+ }
+}

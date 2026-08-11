@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "instrument": "XAUUSD",
+    "timeframe": "M1",
+    "point_unit": 0.1,
+    "data": "2026-01-02 .. 2026-07-17, 192081 bars, MT5 export",
+    "exit_plan_tested": {"tp_points": 30, "sl_points": 50, "breakeven_win_rate": 62.5},
+    "collision_rule": "stop wins when both target and stop are touched in the same bar",
+    "simulation": "sequential - one position at a time, no new entry before the current one resolves",
+    "split": {
+      "train": "2026-01-02 .. 2026-04-30, 84 trading days",
+      "test": "2026-04-30 .. 2026-07-17, 57 trading days"
+    },
+    "baseline_win_rate": {
+      "train": {"BUY": 60.01, "SELL": 62.18},
+      "test": {"BUY": 59.65, "SELL": 64.25}
+    },
+    "note": "Gold rose 2812 points in train and fell 5913 points in test, so every rule must be scored as excess over the same-period same-side baseline, never over the theoretical breakeven."
+  },
+
+  "rules": [
+    {
+      "id": "B1",
+      "side": "BUY",
+      "label": "تشبع بيعي شديد + اندفاع حجم",
+      "condition": "bb_z < -2.094 and vol_ratio > 1.356 and pos20 < 2.611",
+      "train": {"trades": 311, "win_rate": 67.5, "per_day": 3.7, "net_points": 1250, "expectancy": 4.02},
+      "test":  {"trades": 223, "win_rate": 66.8, "per_day": 3.9, "net_points": 770, "expectancy": 3.45},
+      "verdict": "robust"
+    },
+    {
+      "id": "B2",
+      "side": "BUY",
+      "label": "RSI3 منهار + اندفاع حجم",
+      "condition": "rsi3 < 7.031 and vol_ratio > 1.356 and pos20 < 2.611",
+      "train": {"trades": 212, "win_rate": 65.1, "per_day": 2.5, "net_points": 440, "expectancy": 2.08},
+      "test":  {"trades": 142, "win_rate": 68.3, "per_day": 2.5, "net_points": 660, "expectancy": 4.65},
+      "verdict": "robust"
+    },
+    {
+      "id": "B3",
+      "side": "BUY",
+      "label": "قاع 240 شمعة + اندفاع حجم",
+      "condition": "pos240 < 4.161 and vol_ratio > 1.356 and pos20 < 2.611",
+      "train": {"trades": 172, "win_rate": 65.7, "per_day": 2.0, "net_points": 440, "expectancy": 2.56},
+      "test":  {"trades": 153, "win_rate": 66.0, "per_day": 2.7, "net_points": 430, "expectancy": 2.81},
+      "verdict": "robust"
+    },
+    {
+      "id": "S1",
+      "side": "SELL",
+      "label": "هدوء + منتصف اليوم",
+      "condition": "atr14 < 15.67 and vol_ratio < 0.8634 and 10 <= hour < 12",
+      "train": {"trades": 89, "win_rate": 68.5, "per_day": 1.1, "net_points": 430, "expectancy": 4.83},
+      "test":  {"trades": 89, "win_rate": 73.0, "per_day": 1.6, "net_points": 750, "expectancy": 8.43},
+      "verdict": "promising but the sample is small - needs more data before it is trusted"
+    },
+    {
+      "id": "S3",
+      "side": "SELL",
+      "label": "هدوء + تشبع شرائي",
+      "condition": "atr14 < 17.98 and rsi3 > 84.28 and 10 <= hour < 12",
+      "train": {"trades": 83, "win_rate": 60.2, "per_day": 1.0, "net_points": -150, "expectancy": -1.81},
+      "test":  {"trades": 73, "win_rate": 64.4, "per_day": 1.3, "net_points": 110, "expectancy": 1.51},
+      "verdict": "weak - loses in train, marginal in test"
+    },
+    {
+      "id": "S2",
+      "side": "SELL",
+      "label": "هدوء + قمة النطاق",
+      "condition": "atr14 < 15.67 and vol_ratio < 0.6974 and pos20 > 82.83",
+      "train": {"trades": 169, "win_rate": 68.0, "per_day": 2.0, "net_points": 750, "expectancy": 4.44},
+      "test":  {"trades": 191, "win_rate": 59.7, "per_day": 3.4, "net_points": -430, "expectancy": -2.25},
+      "verdict": "REJECTED - overfit. Looked strong in train and collapsed out of sample. Keep it recorded so it is not rediscovered."
+    }
+  ],
+
+  "portfolios": {
+    "all_rules": {
+      "train": {"trades": 654, "per_day": 7.8, "win_rate": 67.1, "net_points": 2420, "expectancy": 3.70},
+      "test":  {"trades": 570, "per_day": 10.0, "win_rate": 64.7, "net_points": 1020, "expectancy": 1.79}
+    },
+    "buy_only": {
+      "train": {"trades": 377, "per_day": 4.5, "win_rate": 66.8, "net_points": 1310, "expectancy": 3.47},
+      "test":  {"trades": 274, "per_day": 4.8, "win_rate": 65.7, "net_points": 700, "expectancy": 2.55},
+      "note": "most robust - train and test agree closely"
+    },
+    "sell_only": {
+      "train": {"trades": 280, "per_day": 3.3, "win_rate": 67.1, "net_points": 1040, "expectancy": 3.71},
+      "test":  {"trades": 301, "per_day": 5.3, "win_rate": 63.8, "net_points": 310, "expectancy": 1.03}
+    }
+  },
+
+  "reference_syr30": {
+    "trades": 6467,
+    "win_rate": 63.1,
+    "breakeven": 62.5,
+    "edge": 0.6,
+    "edge_standard_error": 0.6,
+    "expectancy": 0.34,
+    "per_day": 40,
+    "note": "the edge is one standard error from zero - not statistically distinguishable from no edge"
+  },
+
+  "target": {
+    "win_rate": 80,
+    "trades_per_day": 30,
+    "tp_range": [30, 60],
+    "sl_rule": "sl <= tp + 20",
+    "gap_remaining": {"win_rate_points": 13, "trades_per_day": 20}
+  }
+}

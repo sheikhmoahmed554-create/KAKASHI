@@ -1,0 +1,275 @@
+{
+ "baseline_win_rate": 60.74,
+ "trades": 6462,
+ "axes": {
+  "السرعة": {
+   "بطيء": {
+    "trades": 624,
+    "wins": 377,
+    "losses": 247,
+    "win_rate": 60.42,
+    "per_trade": 0.022
+   },
+   "سريع": {
+    "trades": 2060,
+    "wins": 1253,
+    "losses": 807,
+    "win_rate": 60.83,
+    "per_trade": 1.047
+   },
+   "عنيف": {
+    "trades": 1251,
+    "wins": 756,
+    "losses": 495,
+    "win_rate": 60.43,
+    "per_trade": 2.829
+   },
+   "متوسط": {
+    "trades": 2527,
+    "wins": 1539,
+    "losses": 988,
+    "win_rate": 60.9,
+    "per_trade": 0.934
+   }
+  },
+  "النظام": {
+   "انكماش": {
+    "trades": 1658,
+    "wins": 1026,
+    "losses": 632,
+    "win_rate": 61.88,
+    "per_trade": 2.046
+   },
+   "توسع": {
+    "trades": 1940,
+    "wins": 1182,
+    "losses": 758,
+    "win_rate": 60.93,
+    "per_trade": 1.784
+   },
+   "عادي": {
+    "trades": 2864,
+    "wins": 1717,
+    "losses": 1147,
+    "win_rate": 59.95,
+    "per_trade": 0.424
+   }
+  },
+  "الاتجاه": {
+   "صاعد": {
+    "trades": 2198,
+    "wins": 1320,
+    "losses": 878,
+    "win_rate": 60.05,
+    "per_trade": 0.566
+   },
+   "عرضي": {
+    "trades": 2060,
+    "wins": 1262,
+    "losses": 798,
+    "win_rate": 61.26,
+    "per_trade": 2.379
+   },
+   "هابط": {
+    "trades": 2200,
+    "wins": 1341,
+    "losses": 859,
+    "win_rate": 60.95,
+    "per_trade": 0.884
+   }
+  },
+  "الزخم": {
+   "تشبع بيعي": {
+    "trades": 1367,
+    "wins": 874,
+    "losses": 493,
+    "win_rate": 63.94,
+    "per_trade": 3.356
+   },
+   "تشبع شرائي": {
+    "trades": 1719,
+    "wins": 1021,
+    "losses": 698,
+    "win_rate": 59.39,
+    "per_trade": 0.175
+   },
+   "وسط": {
+    "trades": 3374,
+    "wins": 2030,
+    "losses": 1344,
+    "win_rate": 60.17,
+    "per_trade": 0.972
+   }
+  }
+ },
+ "permissions": {
+  "بطيء|هابط|BUY": {
+   "trades": 95,
+   "wins": 58,
+   "losses": 37,
+   "win_rate": 61.05,
+   "verdict": "محايد"
+  },
+  "بطيء|هابط|SELL": {
+   "trades": 106,
+   "wins": 66,
+   "losses": 40,
+   "win_rate": 62.26,
+   "verdict": "مسموح"
+  },
+  "بطيء|عرضي|BUY": {
+   "trades": 90,
+   "wins": 57,
+   "losses": 33,
+   "win_rate": 63.33,
+   "verdict": "مسموح"
+  },
+  "بطيء|عرضي|SELL": {
+   "trades": 108,
+   "wins": 74,
+   "losses": 34,
+   "win_rate": 68.52,
+   "verdict": "مسموح"
+  },
+  "بطيء|صاعد|BUY": {
+   "trades": 115,
+   "wins": 58,
+   "losses": 57,
+   "win_rate": 50.43,
+   "verdict": "ممنوع"
+  },
+  "بطيء|صاعد|SELL": {
+   "trades": 110,
+   "wins": 64,
+   "losses": 46,
+   "win_rate": 58.18,
+   "verdict": "ممنوع"
+  },
+  "متوسط|هابط|BUY": {
+   "trades": 349,
+   "wins": 208,
+   "losses": 141,
+   "win_rate": 59.6,
+   "verdict": "ممنوع"
+  },
+  "متوسط|هابط|SELL": {
+   "trades": 468,
+   "wins": 297,
+   "losses": 171,
+   "win_rate": 63.46,
+   "verdict": "مسموح"
+  },
+  "متوسط|عرضي|BUY": {
+   "trades": 410,
+   "wins": 239,
+   "losses": 171,
+   "win_rate": 58.29,
+   "verdict": "ممنوع"
+  },
+  "متوسط|عرضي|SELL": {
+   "trades": 443,
+   "wins": 283,
+   "losses": 160,
+   "win_rate": 63.88,
+   "verdict": "مسموح"
+  },
+  "متوسط|صاعد|BUY": {
+   "trades": 427,
+   "wins": 238,
+   "losses": 189,
+   "win_rate": 55.74,
+   "verdict": "ممنوع"
+  },
+  "متوسط|صاعد|SELL": {
+   "trades": 428,
+   "wins": 272,
+   "losses": 156,
+   "win_rate": 63.55,
+   "verdict": "مسموح"
+  },
+  "سريع|هابط|BUY": {
+   "trades": 275,
+   "wins": 169,
+   "losses": 106,
+   "win_rate": 61.45,
+   "verdict": "محايد"
+  },
+  "سريع|هابط|SELL": {
+   "trades": 406,
+   "wins": 245,
+   "losses": 161,
+   "win_rate": 60.34,
+   "verdict": "محايد"
+  },
+  "سريع|عرضي|BUY": {
+   "trades": 301,
+   "wins": 175,
+   "losses": 126,
+   "win_rate": 58.14,
+   "verdict": "ممنوع"
+  },
+  "سريع|عرضي|SELL": {
+   "trades": 357,
+   "wins": 228,
+   "losses": 129,
+   "win_rate": 63.87,
+   "verdict": "مسموح"
+  },
+  "سريع|صاعد|BUY": {
+   "trades": 365,
+   "wins": 206,
+   "losses": 159,
+   "win_rate": 56.44,
+   "verdict": "ممنوع"
+  },
+  "سريع|صاعد|SELL": {
+   "trades": 355,
+   "wins": 230,
+   "losses": 125,
+   "win_rate": 64.79,
+   "verdict": "مسموح"
+  },
+  "عنيف|هابط|BUY": {
+   "trades": 214,
+   "wins": 134,
+   "losses": 80,
+   "win_rate": 62.62,
+   "verdict": "مسموح"
+  },
+  "عنيف|هابط|SELL": {
+   "trades": 287,
+   "wins": 164,
+   "losses": 123,
+   "win_rate": 57.14,
+   "verdict": "ممنوع"
+  },
+  "عنيف|عرضي|BUY": {
+   "trades": 147,
+   "wins": 88,
+   "losses": 59,
+   "win_rate": 59.86,
+   "verdict": "محايد"
+  },
+  "عنيف|عرضي|SELL": {
+   "trades": 204,
+   "wins": 118,
+   "losses": 86,
+   "win_rate": 57.84,
+   "verdict": "ممنوع"
+  },
+  "عنيف|صاعد|BUY": {
+   "trades": 189,
+   "wins": 115,
+   "losses": 74,
+   "win_rate": 60.85,
+   "verdict": "محايد"
+  },
+  "عنيف|صاعد|SELL": {
+   "trades": 209,
+   "wins": 137,
+   "losses": 72,
+   "win_rate": 65.55,
+   "verdict": "مسموح"
+  }
+ }
+}

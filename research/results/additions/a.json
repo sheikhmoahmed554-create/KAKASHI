@@ -1,0 +1,76 @@
+{
+ "بلا إضافات": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "per_day": 43.9
+  },
+  "2023-09": {
+   "trades": 91,
+   "win_rate": 53.85,
+   "per_trade": -5.78,
+   "per_day": 4.3
+  }
+ },
+ "بوابة التذبذب ATR≥30": {
+  "2025-04": {
+   "trades": 144,
+   "win_rate": 62.5,
+   "per_trade": 1.785,
+   "per_day": 7.6
+  },
+  "2026-06": {
+   "trades": 305,
+   "win_rate": 61.97,
+   "per_trade": 2.37,
+   "per_day": 13.9
+  },
+  "2023-09": {
+   "trades": 0,
+   "thin": true
+  }
+ },
+ "بوابة التذبذب ATR≥20": {
+  "2025-04": {
+   "trades": 434,
+   "win_rate": 66.36,
+   "per_trade": 5.574,
+   "per_day": 20.7
+  },
+  "2026-06": {
+   "trades": 706,
+   "win_rate": 61.05,
+   "per_trade": 0.983,
+   "per_day": 32.1
+  },
+  "2023-09": {
+   "trades": 0,
+   "thin": true
+  }
+ },
+ "بوابة التذبذب ATR≥40": {
+  "2025-04": {
+   "trades": 41,
+   "win_rate": 68.29,
+   "per_trade": 7.732,
+   "per_day": 3.7
+  },
+  "2026-06": {
+   "trades": 125,
+   "win_rate": 58.4,
+   "per_trade": -0.304,
+   "per_day": 6.6
+  },
+  "2023-09": {
+   "trades": 0,
+   "thin": true
+  }
+ }
+}

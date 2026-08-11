@@ -1,0 +1,162 @@
+{
+ "بلا خروج تكيّفي": {
+  "2025-04": {
+   "trades": 686,
+   "win_rate": 59.33,
+   "per_trade": 3.229,
+   "net_points": 2215,
+   "per_day": 32.7
+  },
+  "2026-06": {
+   "trades": 879,
+   "win_rate": 55.63,
+   "per_trade": -1.024,
+   "net_points": -900,
+   "per_day": 40
+  }
+ },
+ "هدف ثابت 30 ستوب 50": {
+  "2025-04": {
+   "trades": 693,
+   "win_rate": 59.45,
+   "per_trade": 3.369,
+   "net_points": 2335,
+   "per_day": 33
+  },
+  "2026-06": {
+   "trades": 878,
+   "win_rate": 56.38,
+   "per_trade": -0.165,
+   "net_points": -145,
+   "per_day": 39.9
+  }
+ },
+ "هدف ثابت 40 ستوب 55": {
+  "2025-04": {
+   "trades": 691,
+   "win_rate": 59.91,
+   "per_trade": 3.9,
+   "net_points": 2695,
+   "per_day": 32.9
+  },
+  "2026-06": {
+   "trades": 879,
+   "win_rate": 56.2,
+   "per_trade": -0.37,
+   "net_points": -325,
+   "per_day": 40
+  }
+ },
+ "سقف الهدف المعاكس 20": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "net_points": 1329,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "سقف الهدف المتأخر 20": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "net_points": 1329,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ },
+ "نافذة الستوب الهيكلي 20": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.586,
+   "net_points": 1299,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 964,
+   "win_rate": 61.1,
+   "per_trade": 0.72,
+   "net_points": 694,
+   "per_day": 43.8
+  }
+ },
+ "نافذة سيولة الهدف 120": {
+  "2025-04": {
+   "trades": 824,
+   "win_rate": 62.01,
+   "per_trade": 1.699,
+   "net_points": 1400,
+   "per_day": 39.2
+  },
+  "2026-06": {
+   "trades": 970,
+   "win_rate": 61.55,
+   "per_trade": 1.066,
+   "net_points": 1034,
+   "per_day": 44.1
+  }
+ },
+ "أفضلية تصويت 2": {
+  "2025-04": {
+   "trades": 821,
+   "win_rate": 61.51,
+   "per_trade": 1.429,
+   "net_points": 1173,
+   "per_day": 39.1
+  },
+  "2026-06": {
+   "trades": 967,
+   "win_rate": 61.22,
+   "per_trade": 0.802,
+   "net_points": 776,
+   "per_day": 44
+  }
+ },
+ "أفضلية تصويت 3": {
+  "2025-04": {
+   "trades": 821,
+   "win_rate": 61.51,
+   "per_trade": 1.429,
+   "net_points": 1173,
+   "per_day": 39.1
+  },
+  "2026-06": {
+   "trades": 967,
+   "win_rate": 61.22,
+   "per_trade": 0.802,
+   "net_points": 776,
+   "per_day": 44
+  }
+ },
+ "إقفال BB/KC": {
+  "2025-04": {
+   "trades": 819,
+   "win_rate": 61.78,
+   "per_trade": 1.623,
+   "net_points": 1329,
+   "per_day": 39
+  },
+  "2026-06": {
+   "trades": 966,
+   "win_rate": 61.08,
+   "per_trade": 0.696,
+   "net_points": 672,
+   "per_day": 43.9
+  }
+ }
+}

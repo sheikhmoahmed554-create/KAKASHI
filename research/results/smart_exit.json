@@ -1,0 +1,86 @@
+[
+ {
+  "label": "ثابت TP60/SL65",
+  "trades": 1061,
+  "win_rate": 54.95,
+  "per_trade": 3.685,
+  "per_day": 7.58,
+  "months_won": 7,
+  "months": 7,
+  "weeks_won": 22,
+  "weeks": 28,
+  "month_median": 3.257
+ },
+ {
+  "label": "ثابت TP55/SL60",
+  "trades": 1088,
+  "win_rate": 55.33,
+  "per_trade": 3.631,
+  "per_day": 7.77,
+  "months_won": 7,
+  "months": 7,
+  "weeks_won": 21,
+  "weeks": 28,
+  "month_median": 4.213
+ },
+ {
+  "label": "ثابت TP30/SL50",
+  "trades": 1197,
+  "win_rate": 63.66,
+  "per_trade": 0.927,
+  "per_day": 8.55,
+  "months_won": 5,
+  "months": 7,
+  "weeks_won": 14,
+  "weeks": 28,
+  "month_median": 1.737
+ },
+ {
+  "label": "حسب التذبذب: تذبذب أعلى ← هدف أوسع",
+  "trades": 1089,
+  "win_rate": 55.46,
+  "per_trade": 3.655,
+  "per_day": 7.78,
+  "months_won": 7,
+  "months": 7,
+  "weeks_won": 20,
+  "weeks": 28,
+  "month_median": 4.217
+ },
+ {
+  "label": "عكسي: تذبذب أعلى ← هدف أضيق",
+  "trades": 1086,
+  "win_rate": 54.88,
+  "per_trade": 3.145,
+  "per_day": 7.76,
+  "months_won": 7,
+  "months": 7,
+  "weeks_won": 20,
+  "weeks": 28,
+  "month_median": 3.517
+ },
+ {
+  "label": "حسب الحجم",
+  "trades": 1061,
+  "win_rate": 54.95,
+  "per_trade": 3.685,
+  "per_day": 7.58,
+  "months_won": 7,
+  "months": 7,
+  "weeks_won": 22,
+  "weeks": 28,
+  "month_median": 3.257
+ },
+ {
+  "label": "حسب الجلسة",
+  "trades": 1088,
+  "win_rate": 55.15,
+  "per_trade": 3.557,
+  "per_day": 7.77,
+  "months_won": 7,
+  "months": 7,
+  "weeks_won": 21,
+  "weeks": 28,
+  "month_median": 2.186
+ }
+]

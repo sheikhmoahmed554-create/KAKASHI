@@ -1,0 +1,82 @@
+{
+ "أربع شموع متتالية": {
+  "2025-04": {
+   "trades": 382,
+   "win_rate": 64.14,
+   "per_trade": 1.421,
+   "per_day": 18.2
+  },
+  "2026-06": {
+   "trades": 407,
+   "win_rate": 64.86,
+   "per_trade": 2.523,
+   "per_day": 18.5
+  },
+  "2023-09": {
+   "trades": 64,
+   "win_rate": 60.94,
+   "per_trade": 0.203,
+   "per_day": 3.2
+  }
+ },
+ "مسار الشمعة": {
+  "2025-04": {
+   "trades": 808,
+   "win_rate": 63.12,
+   "per_trade": 2.203,
+   "per_day": 38.5
+  },
+  "2026-06": {
+   "trades": 945,
+   "win_rate": 62.54,
+   "per_trade": 1.533,
+   "per_day": 43
+  },
+  "2023-09": {
+   "trades": 95,
+   "win_rate": 61.05,
+   "per_trade": 0.389,
+   "per_day": 4.8
+  }
+ },
+ "بركة سيولة متساوية": {
+  "2025-04": {
+   "trades": 475,
+   "win_rate": 65.89,
+   "per_trade": 2.891,
+   "per_day": 22.6
+  },
+  "2026-06": {
+   "trades": 514,
+   "win_rate": 61.67,
+   "per_trade": -0.29,
+   "per_day": 23.4
+  },
+  "2023-09": {
+   "trades": 95,
+   "win_rate": 61.05,
+   "per_trade": -1.105,
+   "per_day": 4.5
+  }
+ },
+ "سحب نافذة 20": {
+  "2025-04": {
+   "trades": 401,
+   "win_rate": 65.34,
+   "per_trade": 2.571,
+   "per_day": 19.1
+  },
+  "2026-06": {
+   "trades": 471,
+   "win_rate": 65.18,
+   "per_trade": 2.699,
+   "per_day": 21.4
+  },
+  "2023-09": {
+   "trades": 82,
+   "win_rate": 60.98,
+   "per_trade": -0.366,
+   "per_day": 4.1
+  }
+ }
+}

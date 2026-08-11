@@ -1,0 +1,7 @@
+{
+ "بلا شيء": {},
+ "خروج: هيكل فقط": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false },
+ "خروج: هيكل نافذة 10": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseExh": false, "kkEexUseFail": false, "kkEexBreakLen": 10, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false },
+ "خروج: إنهاك فقط": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEexUseFail": false, "kkEexUseBreak": false, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false },
+ "خروج: كل الأسباب": { "kkUseEngine": true, "kkUseEngineExit": true, "kkEngRule1": false, "kkEngRule2": false, "kkEngRule3": false }
+}

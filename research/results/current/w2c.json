@@ -1,0 +1,164 @@
+{
+ "بلا إضافات": {
+  "trades": 6490,
+  "wins": 3960,
+  "losses": 2530,
+  "months": {
+   "2026-01": {
+    "trades": 945,
+    "wins": 565,
+    "losses": 380,
+    "net": 575
+   },
+   "2026-02": {
+    "trades": 1020,
+    "wins": 639,
+    "losses": 381,
+    "net": 3420
+   },
+   "2026-03": {
+    "trades": 1122,
+    "wins": 681,
+    "losses": 441,
+    "net": 1775
+   },
+   "2026-04": {
+    "trades": 960,
+    "wins": 578,
+    "losses": 382,
+    "net": 483
+   },
+   "2026-05": {
+    "trades": 931,
+    "wins": 556,
+    "losses": 375,
+    "net": -281
+   },
+   "2026-06": {
+    "trades": 966,
+    "wins": 590,
+    "losses": 376,
+    "net": 672
+   },
+   "2026-07": {
+    "trades": 546,
+    "wins": 351,
+    "losses": 195,
+    "net": 1915
+   }
+  },
+  "win_rate": 61.02,
+  "net_points": 8559,
+  "per_day": 46.4,
+  "months_won": 6,
+  "months_total": 7
+ },
+ "مسار (المرجع)": {
+  "trades": 6195,
+  "wins": 3863,
+  "losses": 2332,
+  "months": {
+   "2026-01": {
+    "trades": 912,
+    "wins": 575,
+    "losses": 337,
+    "net": 2144
+   },
+   "2026-02": {
+    "trades": 952,
+    "wins": 612,
+    "losses": 340,
+    "net": 3397
+   },
+   "2026-03": {
+    "trades": 1040,
+    "wins": 627,
+    "losses": 413,
+    "net": 119
+   },
+   "2026-04": {
+    "trades": 933,
+    "wins": 590,
+    "losses": 343,
+    "net": 2007
+   },
+   "2026-05": {
+    "trades": 894,
+    "wins": 539,
+    "losses": 355,
+    "net": -493
+   },
+   "2026-06": {
+    "trades": 944,
+    "wins": 591,
+    "losses": 353,
+    "net": 1499
+   },
+   "2026-07": {
+    "trades": 520,
+    "wins": 329,
+    "losses": 191,
+    "net": 936
+   }
+  },
+  "win_rate": 62.36,
+  "net_points": 9609,
+  "per_day": 44.3,
+  "months_won": 6,
+  "months_total": 7
+ },
+ "مسار + إذن RSI": {
+  "trades": 6186,
+  "wins": 3856,
+  "losses": 2330,
+  "months": {
+   "2026-01": {
+    "trades": 914,
+    "wins": 580,
+    "losses": 334,
+    "net": 2469
+   },
+   "2026-02": {
+    "trades": 950,
+    "wins": 609,
+    "losses": 341,
+    "net": 3230
+   },
+   "2026-03": {
+    "trades": 1040,
+    "wins": 627,
+    "losses": 413,
+    "net": 99
+   },
+   "2026-04": {
+    "trades": 932,
+    "wins": 591,
+    "losses": 341,
+    "net": 2128
+   },
+   "2026-05": {
+    "trades": 893,
+    "wins": 539,
+    "losses": 354,
+    "net": -504
+   },
+   "2026-06": {
+    "trades": 941,
+    "wins": 587,
+    "losses": 354,
+    "net": 1274
+   },
+   "2026-07": {
+    "trades": 516,
+    "wins": 323,
+    "losses": 193,
+    "net": 616
+   }
+  },
+  "win_rate": 62.33,
+  "net_points": 9312,
+  "per_day": 44.2,
+  "months_won": 6,
+  "months_total": 7
+ }
+}

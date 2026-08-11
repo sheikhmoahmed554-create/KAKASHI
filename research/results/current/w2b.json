@@ -1,0 +1,146 @@
+{
+ "مسار + ستوب فارق 20": {
+  "trades": 3869,
+  "wins": 2351,
+  "losses": 1518,
+  "months": {
+   "2025-07": {
+    "trades": 438,
+    "wins": 267,
+    "losses": 171,
+    "net": -296
+   },
+   "2025-08": {
+    "trades": 356,
+    "wins": 219,
+    "losses": 137,
+    "net": -134
+   },
+   "2025-09": {
+    "trades": 555,
+    "wins": 333,
+    "losses": 222,
+    "net": -595
+   },
+   "2025-10": {
+    "trades": 925,
+    "wins": 544,
+    "losses": 381,
+    "net": -2023
+   },
+   "2025-11": {
+    "trades": 782,
+    "wins": 489,
+    "losses": 293,
+    "net": 671
+   },
+   "2025-12": {
+    "trades": 813,
+    "wins": 499,
+    "losses": 314,
+    "net": -306
+   }
+  },
+  "win_rate": 60.77,
+  "net_points": -2683,
+  "per_day": 29.3,
+  "months_won": 1,
+  "months_total": 6
+ },
+ "مسار + RSI + ستوب 20": {
+  "trades": 3878,
+  "wins": 2362,
+  "losses": 1516,
+  "months": {
+   "2025-07": {
+    "trades": 437,
+    "wins": 266,
+    "losses": 171,
+    "net": -359
+   },
+   "2025-08": {
+    "trades": 357,
+    "wins": 220,
+    "losses": 137,
+    "net": -182
+   },
+   "2025-09": {
+    "trades": 556,
+    "wins": 333,
+    "losses": 223,
+    "net": -679
+   },
+   "2025-10": {
+    "trades": 930,
+    "wins": 547,
+    "losses": 383,
+    "net": -2058
+   },
+   "2025-11": {
+    "trades": 783,
+    "wins": 492,
+    "losses": 291,
+    "net": 906
+   },
+   "2025-12": {
+    "trades": 815,
+    "wins": 504,
+    "losses": 311,
+    "net": -3
+   }
+  },
+  "win_rate": 60.91,
+  "net_points": -2375,
+  "per_day": 29.4,
+  "months_won": 1,
+  "months_total": 6
+ },
+ "مسار + سحب 60 عمق 1": {
+  "trades": 1419,
+  "wins": 883,
+  "losses": 536,
+  "months": {
+   "2025-07": {
+    "trades": 212,
+    "wins": 147,
+    "losses": 65,
+    "net": 1158
+   },
+   "2025-08": {
+    "trades": 179,
+    "wins": 113,
+    "losses": 66,
+    "net": 88
+   },
+   "2025-09": {
+    "trades": 238,
+    "wins": 151,
+    "losses": 87,
+    "net": 236
+   },
+   "2025-10": {
+    "trades": 269,
+    "wins": 150,
+    "losses": 119,
+    "net": -1379
+   },
+   "2025-11": {
+    "trades": 258,
+    "wins": 154,
+    "losses": 104,
+    "net": -605
+   },
+   "2025-12": {
+    "trades": 263,
+    "wins": 168,
+    "losses": 95,
+    "net": 371
+   }
+  },
+  "win_rate": 62.23,
+  "net_points": -131,
+  "per_day": 10.8,
+  "months_won": 4,
+  "months_total": 6
+ }
+}
